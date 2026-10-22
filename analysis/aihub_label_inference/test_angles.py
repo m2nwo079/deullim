@@ -5,8 +5,12 @@ from angles import (
     ankle_height_diff,
     count_above,
     elbow_flexion,
+    forearm_dir,
+    hip_flexion,
+    knee_ankle_gap,
     knee_flexion,
     max_or_none,
+    min_or_none,
     neck_angle,
     neck_signed,
     trunk_angle,
@@ -57,6 +61,34 @@ class AngleTest(unittest.TestCase):
     def test_max_or_none(self):
         self.assertEqual(max_or_none(10.0, 20.0), 20.0)
         self.assertIsNone(max_or_none(None, 20.0))
+
+    def test_min_or_none(self):
+        self.assertEqual(min_or_none(10.0, 20.0), 10.0)
+        self.assertIsNone(min_or_none(10.0, None))
+
+    def test_forearm_dir(self):
+        elbow = (50, 100)
+        self.assertAlmostEqual(forearm_dir(elbow, (50, 150)), 0.0)
+        self.assertAlmostEqual(forearm_dir(elbow, (100, 100)), 90.0)
+        self.assertAlmostEqual(forearm_dir(elbow, (0, 100)), 90.0)
+        self.assertAlmostEqual(forearm_dir(elbow, (100, 50)), 135.0)
+        self.assertAlmostEqual(forearm_dir(elbow, (50, 50)), 180.0)
+        self.assertIsNone(forearm_dir(elbow, elbow))
+
+    def test_hip_flexion(self):
+        neck, pelvis, hip = (0, 100), (0, 200), (10, 200)
+        # Thigh parallel to neck->pelvis is standing.
+        self.assertAlmostEqual(hip_flexion(neck, pelvis, hip, (10, 300)), 0.0)
+        self.assertAlmostEqual(hip_flexion(neck, pelvis, hip, (110, 200)), 90.0)
+        self.assertAlmostEqual(hip_flexion(neck, pelvis, hip, (110, 300)), 45.0)
+        self.assertIsNone(hip_flexion(neck, pelvis, hip, hip))
+
+    def test_knee_ankle_gap(self):
+        ls, rs = (0, 0), (40, 0)
+        self.assertAlmostEqual(knee_ankle_gap((0, 100), (0, 140), ls, rs), 1.0)
+        # Ankle above the knee is negative.
+        self.assertAlmostEqual(knee_ankle_gap((0, 100), (0, 80), ls, rs), -0.5)
+        self.assertIsNone(knee_ankle_gap((0, 100), (0, 140), ls, ls))
 
     def test_neck_signed_flexion_and_extension(self):
         pelvis, neck = (0, 200), (0, 100)

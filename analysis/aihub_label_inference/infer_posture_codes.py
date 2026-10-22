@@ -1,4 +1,4 @@
-"""Aggregate joint angles per AI Hub posture code (dataSetSn 71439, Validation VL.zip).
+"""Aggregate joint angles per AI Hub posture code (dataSetSn 71439, Validation VL.zip or Training TL.zip).
 
 Reads the zip in place and prints only aggregates (counts, ratios, quantiles).
 Never prints individual records, coordinates, or file names.
@@ -18,8 +18,14 @@ import angles as ang
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
-ZIP_GLOB = os.path.join(REPO, "data/aihub/253.*/01-1.*/Validation/02.*/VL.zip")
-RESULT_PATH = os.path.join(HERE, "results", "posture_code_angles_v3.md")
+ZIP_GLOBS = {
+    "validation": os.path.join(REPO, "data/aihub/253.*/01-1.*/Validation/02.*/VL.zip"),
+    "training": os.path.join(REPO, "data/aihub/253.*/01-1.*/Training/02.*/TL.zip"),
+}
+RESULT_PATHS = {
+    "validation": os.path.join(HERE, "results", "posture_code_angles_v4.md"),
+    "training": os.path.join(HERE, "results", "posture_code_angles_v4_training.md"),
+}
 DIAGNOSTICS_PATH = os.path.join(HERE, "results", "keypoint_diagnostics_v1.md")
 # Groups with fewer valid values than this show "-" so no single record leaks.
 MIN_N = 10
@@ -53,7 +59,16 @@ METRIC_KEYPOINTS = {
     "knee_l": [19, 20, 21],
     "knee_r": [23, 24, 25],
     "ankle_height_diff": [21, 25, 5, 11],
+    "forearm_l": [6, 7],
+    "forearm_r": [12, 13],
+    "hip_l": [4, 18, 19, 20],
+    "hip_r": [4, 18, 23, 24],
+    "knee_ankle_gap_l": [20, 21, 5, 11],
+    "knee_ankle_gap_r": [24, 25, 5, 11],
 }
+# Section 9 metrics stay out of ITEM_METRICS so the section 7 item filters do not change.
+FOREARM_METRICS = {"lowerarm": ["forearm_l", "forearm_r", "forearm_max"]}
+LEGS_AUX_METRICS = {"legs": ["hip_l", "hip_r", "hip_max", "knee_ankle_gap_l", "knee_ankle_gap_r", "knee_ankle_gap_min"]}
 # A posture item is aggregated only when every keypoint of its angles is valid.
 ITEM_FILTER_KEYPOINTS = {
     item: sorted({i for m in metrics if m in METRIC_KEYPOINTS for i in METRIC_KEYPOINTS[m]})
@@ -137,10 +152,10 @@ def quantile_row(values, cuts=(0.05, 0.25, 0.5, 0.75, 0.95)):
     return [len(vals)] + [vals[min(len(vals) - 1, int(c * (len(vals) - 1) + 0.5))] for c in cuts]
 
 
-def find_zip():
-    hits = glob.glob(ZIP_GLOB)
+def find_zip(split):
+    hits = glob.glob(ZIP_GLOBS[split])
     if len(hits) != 1:
-        sys.exit(f"Expected exactly one VL.zip, found {len(hits)}")
+        sys.exit(f"Expected exactly one {split} zip, found {len(hits)}")
     return hits[0]
 
 
@@ -259,19 +274,57 @@ def compute_angles(p, valid):
         "knee_l": ang.knee_flexion(p[19], p[20], p[21]),
         "knee_r": ang.knee_flexion(p[23], p[24], p[25]),
         "ankle_height_diff": ang.ankle_height_diff(p[21], p[25], p[5], p[11]),
+        "forearm_l": ang.forearm_dir(p[6], p[7]),
+        "forearm_r": ang.forearm_dir(p[12], p[13]),
+        "hip_l": ang.hip_flexion(p[4], p[18], p[19], p[20]),
+        "hip_r": ang.hip_flexion(p[4], p[18], p[23], p[24]),
+        "knee_ankle_gap_l": ang.knee_ankle_gap(p[20], p[21], p[5], p[11]),
+        "knee_ankle_gap_r": ang.knee_ankle_gap(p[24], p[25], p[5], p[11]),
     }
     for metric, idx in METRIC_KEYPOINTS.items():
         if not all(valid[i] for i in idx):
             m[metric] = None
-    for name in ("upperarm", "elbow", "knee"):
+    for name in ("upperarm", "elbow", "knee", "forearm", "hip"):
         m[name + "_max"] = ang.max_or_none(m[name + "_l"], m[name + "_r"])
+    m["knee_ankle_gap_min"] = ang.min_or_none(m["knee_ankle_gap_l"], m["knee_ankle_gap_r"])
     return m
 
 
-def load_records(zip_path, stats):
+def prepare(records):
+    for r in records:
+        r["item_ok"] = {item: all(r["valid"][i] for i in idx) for item, idx in ITEM_FILTER_KEYPOINTS.items()}
+        r["m"] = compute_angles([(x, y) for x, y, _ in r["kp"]], r["valid"])
+        pv = [(x, y) if ok else None for (x, y, _), ok in zip(r["kp"], r["valid"])]
+        r["m"]["neck_signed"] = ang.neck_signed(pv[18], pv[4], pv[0], pv[3], FACING_MIN_RATIO)
+        r["facing_undetermined"] = r["m"]["neck_signed"] is None and all(r["valid"][i] for i in (0, 3, 4, 18))
+        r["wrists_above"] = ang.count_above([(pv[5], pv[7]), (pv[11], pv[13])])
+        r["elbows_above"] = ang.count_above([(pv[5], pv[6]), (pv[11], pv[12])])
+
+
+def flag_check(records):
+    """Flag 0 means an unlabeled keypoint; count how well it matches coordinate invalidity."""
+    emit("## 0 flag 0 vs coordinate validity (all keypoints of all records)")
+    emit()
+    pairs = [("valid" if ok else "invalid", "flag 0" if kp[2] == 0 else "flag non-0")
+             for r in records for kp, ok in zip(r["kp"], r["valid"])]
+    crosstab(pairs, "validity", "flag")
+    mismatches = sum(1 for v, f in pairs if (v == "valid") == (f == "flag 0"))
+    emit(f"Mismatches (valid with flag 0, or invalid with flag non-0): {count_cell(mismatches)}")
+    emit()
+
+
+def item_filter_table(records):
+    table(["item", "required valid keypoints", "before", "after"],
+          [(item, ",".join(map(str, idx)), len(records), sum(r["item_ok"][item] for r in records))
+           for item, idx in ITEM_FILTER_KEYPOINTS.items()])
+
+
+def load_records(zip_path, stats, limit=None):
     records = []
     image_values = {"light": Counter(), "angle": Counter()}
     for data in iter_json(zip_path, stats):
+        if limit is not None and len(records) >= limit:
+            break
         if not isinstance(data, dict):
             continue
         images = {img.get("id"): img for img in data.get("images") or []}
@@ -291,6 +344,7 @@ def load_records(zip_path, stats):
                 "w": w, "h": h,
                 "valid": [0 < x <= w and 0 < y <= h for x, y, _ in kp],
                 "light": str(img.get("light")), "camera": str(img.get("angle")),
+                "factory": str(a.get("factory")),
                 "factory_process": f"{a.get('factory')},{a.get('process')}",
                 "bbox": bbox, "kp": kp,
                 "posture": a.get("posture") or {},
@@ -419,15 +473,15 @@ def elbow_within(shoulder, elbow, wrist):
     return math.dist(shoulder[:2], elbow[:2]) <= reach and math.dist(elbow[:2], wrist[:2]) <= reach
 
 
-def code_tables(records, group_key=None, group_label=None):
-    for item in POSTURE_ITEMS:
+def code_tables(records, group_key=None, group_label=None, metrics=ITEM_METRICS):
+    for item, item_metrics in metrics.items():
         groups = defaultdict(list)
         for r in (r for r in records if r["item_ok"][item]):
             g = group_key(r, item) if group_key else None
             groups[(g, str(r["posture"].get(item, "<missing>")))].append(r)
         rows = []
         for (g, code), rs in sorted(groups.items(), key=lambda kv: (str(kv[0][0]), kv[0][1])):
-            for metric in ITEM_METRICS[item]:
+            for metric in item_metrics:
                 prefix = [g] if group_key else []
                 rows.append(prefix + [code, len(rs), metric] + summary(r["m"][metric] for r in rs))
         emit(f"### {item}")
@@ -435,12 +489,13 @@ def code_tables(records, group_key=None, group_label=None):
         table(headers, rows)
 
 
-def run_analysis(zip_path, margin, bbox_mode, diagnose_only):
+def run_analysis(zip_path, margin, bbox_mode, diagnose_only, limit):
     stats = Counter()
-    records, image_values = load_records(zip_path, stats)
-    emit("# AI Hub posture code vs joint angle aggregates (v3)")
+    records, image_values = load_records(zip_path, stats, limit)
+    emit("# AI Hub posture code vs joint angle aggregates (v4)")
     emit()
     table(["metric", "count"], sorted(stats.items()) + [("records", len(records))])
+    flag_check(records)
 
     emit("## 4-2 bbox format")
     checks = {mode: bbox_check(records, mode) for mode in ("xywh", "xyxy")}
@@ -474,21 +529,10 @@ def run_analysis(zip_path, margin, bbox_mode, diagnose_only):
 
     emit(f"## 5 filter (bbox margin={'off' if margin is None else f'{margin}px'}, then per-item keypoint validity)")
     table(["stage", "records"], [("before bbox margin filter", n), ("after bbox margin filter", len(filtered))])
-    for r in filtered:
-        r["item_ok"] = {item: all(r["valid"][i] for i in idx) for item, idx in ITEM_FILTER_KEYPOINTS.items()}
-    table(["item", "required valid keypoints", "before", "after"],
-          [(item, ",".join(map(str, idx)), len(filtered), sum(r["item_ok"][item] for r in filtered))
-           for item, idx in ITEM_FILTER_KEYPOINTS.items()])
+    prepare(filtered)
+    item_filter_table(filtered)
     if diagnose_only:
         return
-
-    for r in filtered:
-        r["m"] = compute_angles([(x, y) for x, y, _ in r["kp"]], r["valid"])
-        pv = [(x, y) if ok else None for (x, y, _), ok in zip(r["kp"], r["valid"])]
-        r["m"]["neck_signed"] = ang.neck_signed(pv[18], pv[4], pv[0], pv[3], FACING_MIN_RATIO)
-        r["facing_undetermined"] = r["m"]["neck_signed"] is None and all(r["valid"][i] for i in (0, 3, 4, 18))
-        r["wrists_above"] = ang.count_above([(pv[5], pv[7]), (pv[11], pv[13])])
-        r["elbows_above"] = ang.count_above([(pv[5], pv[6]), (pv[11], pv[12])])
 
     emit("## 7-1 angles by posture code")
     code_tables(filtered)
@@ -517,10 +561,62 @@ def run_analysis(zip_path, margin, bbox_mode, diagnose_only):
         table([f"images[].{k}", "count"], sorted(c.items()))
 
     section_8(filtered)
+    section_9(filtered)
+
+
+def section_9(records):
+    emit("## 9-1 forearm direction by lowerarm code (0 = hanging down, 180 = pointing up)")
+    code_tables(records, metrics=FOREARM_METRICS)
+    histograms(records, [("forearm_max", "lowerarm", 10)])
+    emit("## 9-2 leg auxiliary metrics by legs code (records passing the legs filter)")
+    code_tables(records, metrics=LEGS_AUX_METRICS)
+
+
+def run_training(zip_path, limit):
+    stats = Counter()
+    records, _ = load_records(zip_path, stats, limit)
+    emit("# AI Hub posture code vs joint angle aggregates, Training split by factory (v4)")
+    emit()
+    table(["metric", "count"], sorted(stats.items()) + [("records", len(records))])
+    flag_check(records)
+    prepare(records)
+    emit("## Records per factory")
+    table(["factory", "records"], [(f, count_cell(c)) for f, c in sorted(Counter(r["factory"] for r in records).items())])
+    emit("## Per-item filter (all factories)")
+    item_filter_table(records)
+    for factory in sorted({r["factory"] for r in records}):
+        rs = [r for r in records if r["factory"] == factory]
+        emit(f"# factory {factory} (n={count_cell(len(rs))})")
+        emit()
+        emit("## 7-1 angles by posture code")
+        code_tables(rs)
+        emit("## 8-2 wrists and elbows above the shoulder")
+        above_tables(rs, ["lowerarm"])
+        emit("## 8-3 angle histograms by posture code")
+        histograms(rs, [("trunk_angle", "trunk", 5), ("neck_angle", "neck", 5), ("upperarm_max", "upperarm", 10)])
+        section_9(rs)
 
 
 def code_of(r, item):
     return str(r["posture"].get(item, "<missing>"))
+
+
+def above_tables(records, items):
+    for item in items:
+        rs = [r for r in records if r["item_ok"][item]]
+        for key in ("wrists_above", "elbows_above"):
+            emit(f"### {item} code x {key} (records passing the {item} filter)")
+            emit()
+            crosstab([(code_of(r, item), r[key]) for r in rs], f"{item} code", key)
+
+
+def histograms(records, specs):
+    for metric, item, width in specs:
+        emit(f"### {metric} by {item} code ({width} degree bins)")
+        emit()
+        pairs = [(math.floor(r["m"][metric] / width) * width, code_of(r, item))
+                 for r in records if r["item_ok"][item] and r["m"][metric] is not None]
+        crosstab(pairs, "bin", f"{item} code", lambda b, w=width: f"[{b}, {b + w})")
 
 
 def section_8(records):
@@ -537,21 +633,11 @@ def section_8(records):
     table(["code", "n", "n_valid", "mean", "p25", "p50", "p75", "negative ratio", "facing undetermined"], rows)
 
     emit("## 8-2 wrists and elbows above the shoulder")
-    for item in ("upperarm", "lowerarm"):
-        rs = [r for r in records if r["item_ok"][item]]
-        for key in ("wrists_above", "elbows_above"):
-            emit(f"### {item} code x {key} (records passing the {item} filter)")
-            emit()
-            crosstab([(code_of(r, item), r[key]) for r in rs], f"{item} code", key)
+    above_tables(records, ["upperarm", "lowerarm"])
 
     emit("## 8-3 angle histograms by posture code")
-    for metric, item, width in (("trunk_angle", "trunk", 5), ("neck_angle", "neck", 5),
-                                ("neck_signed", "neck", 5), ("upperarm_max", "upperarm", 10)):
-        emit(f"### {metric} by {item} code ({width} degree bins)")
-        emit()
-        pairs = [(math.floor(r["m"][metric] / width) * width, code_of(r, item))
-                 for r in records if r["item_ok"][item] and r["m"][metric] is not None]
-        crosstab(pairs, "bin", f"{item} code", lambda b, w=width: f"[{b}, {b + w})")
+    histograms(records, [("trunk_angle", "trunk", 5), ("neck_angle", "neck", 5),
+                         ("neck_signed", "neck", 5), ("upperarm_max", "upperarm", 10)])
 
     emit("## 8-4 keypoint flag by validity (all records)")
     emit()
@@ -576,13 +662,21 @@ def main():
     parser.add_argument("--margin", type=float, default=None, help="optional bbox full-body filter margin in px (off by default)")
     parser.add_argument("--bbox", choices=["auto", "xywh", "xyxy"], default="auto")
     parser.add_argument("--diagnose-only", action="store_true", help="stop after sections 4 and 5, skip section 7")
+    parser.add_argument("--split", choices=["validation", "training"], default="validation")
+    parser.add_argument("--limit", type=int, default=None, help="read only this many records (smoke test)")
     args = parser.parse_args()
-    zip_path = find_zip()
+    zip_path = find_zip(args.split)
     if args.schema:
         run_schema(zip_path)
         return
-    run_analysis(zip_path, args.margin, args.bbox, args.diagnose_only)
-    path = DIAGNOSTICS_PATH if args.diagnose_only else RESULT_PATH
+    if args.split == "training":
+        run_training(zip_path, args.limit)
+        path = RESULT_PATHS["training"]
+    else:
+        run_analysis(zip_path, args.margin, args.bbox, args.diagnose_only, args.limit)
+        path = DIAGNOSTICS_PATH if args.diagnose_only else RESULT_PATHS["validation"]
+    if args.limit is not None:
+        path = path.replace(".md", f"_limit{args.limit}.md")
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(out_lines) + "\n")

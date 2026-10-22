@@ -6,6 +6,7 @@ Every function returns None when a needed vector has zero length.
 import math
 
 UP = (0.0, -1.0)
+DOWN = (0.0, 1.0)
 
 
 def vec(a, b):
@@ -57,8 +58,28 @@ def ankle_height_diff(left_ankle, right_ankle, left_shoulder, right_shoulder):
     return abs(left_ankle[1] - right_ankle[1]) / shoulder_width
 
 
+def forearm_dir(elbow, wrist):
+    """0 when the forearm hangs straight down, 180 when it points straight up."""
+    return angle_between(DOWN, vec(elbow, wrist))
+
+
+def hip_flexion(neck, pelvis, hip, knee):
+    return angle_between(vec(neck, pelvis), vec(hip, knee))
+
+
+def knee_ankle_gap(knee, ankle, left_shoulder, right_shoulder):
+    shoulder_width = math.dist(left_shoulder, right_shoulder)
+    if shoulder_width == 0:
+        return None
+    return (ankle[1] - knee[1]) / shoulder_width
+
+
 def max_or_none(a, b):
     return None if a is None or b is None else max(a, b)
+
+
+def min_or_none(a, b):
+    return None if a is None or b is None else min(a, b)
 
 
 def cross(v1, v2):
