@@ -1,6 +1,6 @@
 # 들림 공통 컴포넌트 (초안 v1)
 
-토큰은 docs/design-tokens.md를 따른다. 이 문서는 컴포넌트의 종류, 크기, 상태, 사용 규칙을 정한다.
+원칙은 docs/design-principles.md, 토큰은 docs/design-tokens.md를 따른다. 이 문서는 컴포넌트의 종류, 크기, 상태, 사용 규칙을 정한다.
 
 ## 원칙
 - 화면 코드에서는 이 문서의 공통 컴포넌트를 쓴다. 긴 Tailwind 클래스 나열은 공통 컴포넌트 안에만 둔다.
@@ -36,13 +36,13 @@
 | 기본 | IconButton | 아이콘만 있을 때도 접근성 이름(aria-label)을 반드시 둔다 |
 | 기본 | TextField, Select, Checkbox, Toggle, SegmentedControl, Tabs | 라벨은 항상 보이게 둔다. placeholder를 라벨 대신 쓰지 않는다 |
 | 피드백 | Toast | motion-base로 나타나고 4초 후 사라진다 (시작값). 중요한 결과는 Toast만으로 알리지 않는다 |
-| 피드백 | InlineAlert | 정보와 오류 표시. 위험도 색을 쓰지 않는다 |
+| 피드백 | InlineAlert | 정보, 기한, 오류 표시. 위험도 색을 쓰지 않고 중립 배경과 아이콘으로 표시한다 |
 | 피드백 | EmpathyCard | "들려요" 응답 전용. empathy-bg, empathy-fg, 대표 모션 |
 | 피드백 | EmptyState, Skeleton, ProgressIndicator | 빈 화면 안내는 공감 톤의 문구를 쓴다 |
-| 데이터 | RiskBadge | 위험도 라벨 글자(낮음, 주의, 높음, 매우 높음)를 항상 함께 표시한다 |
+| 데이터 | RiskBadge | 표지형: 왼쪽 3px 색 막대 + 라벨 글자. 배경 없음, 모서리 없음. 콘솔에서 낮음·주의는 중립 회색 |
 | 데이터 | RiskBar | 색 막대와 함께 수치 또는 라벨을 표시한다 |
-| 데이터 | HeatmapCell | 칸마다 위험 단계 숫자나 짧은 라벨을 표시한다. 색으로만 구분하지 않는다 |
-| 데이터 | DataTable, StatCard | 숫자는 고정폭 숫자로, 오른쪽 정렬 |
+| 데이터 | HeatmapCell | 칸마다 위험 단계 숫자나 짧은 라벨을 표시한다. 색으로만 구분하지 않는다. 콘솔에서는 높음 이상만 색 |
+| 데이터 | DataTable, StatStrip | 숫자는 고정폭, 오른쪽 정렬. 요약 수치는 카드 여러 장 대신 하나의 테두리 안에서 세로선으로 나눈다 (StatStrip) |
 | 덮는 요소 | Modal | 관리자 콘솔용. 표면 3층 |
 | 덮는 요소 | BottomSheet | 작업자 화면용. 표면 3층 |
 | 덮는 요소 | Popover | 표면 2층 |
@@ -53,6 +53,9 @@
 | 들림 전용 | BodyMap | 통증 부위 선택. 부위마다 텍스트 라벨을 둔다 |
 | 들림 전용 | OptimizerResultTable | 선택된 개선안, 비용, 예상 위험 감소량을 표로 표시 |
 | 들림 전용 | QrEntryScreen | QR 접속 직후 첫 화면. 익명이라는 점을 먼저 안내한다 |
+
+## 카드 사용
+- 카드는 공감 카드(EmpathyCard), 모달, 하단 시트에만 쓴다. 목록과 요약은 표와 구분선으로 정리한다.
 
 ## 위험한 동작
 - 삭제처럼 되돌릴 수 없는 동작은 secondary 버튼으로 두고, 누르면 Modal로 결과를 설명한 뒤 한 번 더 확인받는다.
