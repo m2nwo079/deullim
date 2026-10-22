@@ -42,6 +42,7 @@
 | 데이터 | RiskBadge | 표지형: 왼쪽 3px 색 막대 + 라벨 글자. 배경 없음, 모서리 없음. 콘솔에서 낮음·주의는 중립 회색 |
 | 데이터 | RiskBar | 색 막대와 함께 수치 또는 라벨을 표시한다 |
 | 데이터 | HeatmapCell | 칸마다 위험 단계 숫자나 짧은 라벨을 표시한다. 색으로만 구분하지 않는다. 콘솔에서는 높음 이상만 색 |
+| 데이터 | Sparkline | 작은 추이 선 그래프. 기본은 중립 회색, 콘솔에서는 높음 이상만 위험도 색. 여러 행은 같은 눈금(0~100%)으로 그린다 |
 | 데이터 | DataTable, StatStrip | 숫자는 고정폭, 오른쪽 정렬. 요약 수치는 카드 여러 장 대신 하나의 테두리 안에서 세로선으로 나눈다 (StatStrip) |
 | 덮는 요소 | Modal | 관리자 콘솔용. 표면 3층 |
 | 덮는 요소 | BottomSheet | 작업자 화면용. 표면 3층 |
@@ -52,6 +53,10 @@
 | 들림 전용 | CaptureTimer | 촬영 남은 시간 표시. 촬영 중 화면 위 애니메이션은 최소화 |
 | 들림 전용 | BodyMap | 통증 부위 선택. 부위마다 텍스트 라벨을 둔다. MVP는 ChoiceChipGrid로 구현한다 |
 | 기본 | ChoiceChipGrid | 여러 개를 고르는 칩 격자. 작업자 화면에서 칩 높이 48px, 선택 상태는 테두리와 글자색으로 표시 |
+| 기본 | Icon | 선(outline) 아이콘. 선 굵기 통일, 크기 16px 또는 20px, 색은 currentColor. 장식용은 aria-hidden, 아이콘만 있는 버튼은 aria-label. 이모지를 쓰지 않는다 |
+| 기본 | IconTile | 회색 32px 타일 안의 아이콘. 공정 유형 표시와 EmptyState(옅은 타일)에 쓴다 |
+| 기본 | FilterTabs | 개수가 붙은 토글 버튼. 선택된 탭도 중립색이며 브랜드 색과 위험도 색을 쓰지 않는다 |
+| 기본 | SearchField | 검색 입력. 라벨을 항상 보이게 두고, 안내 문구(placeholder)는 text-secondary |
 | 들림 전용 | OptimizerResultTable | 선택된 개선안, 비용, 예상 위험 감소량을 표로 표시 |
 | 들림 전용 | QrEntryScreen | QR 접속 직후 첫 화면. 익명이라는 점을 먼저 안내한다 |
 
