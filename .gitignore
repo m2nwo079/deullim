@@ -53,3 +53,6 @@ analysis/**/results/
 # Next.js generated files
 web/next-env.d.ts
 *.tsbuildinfo
+
+# MediaPipe WASM and model, prepared by web/scripts/fetch-mediapipe.mjs
+web/public/mediapipe/

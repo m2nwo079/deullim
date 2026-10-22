@@ -5,7 +5,9 @@
     "node": "24.x"
   },
   "scripts": {
+    "predev": "node scripts/fetch-mediapipe.mjs",
     "dev": "NEXT_TELEMETRY_DISABLED=1 next dev -H localhost",
+    "prebuild": "node scripts/fetch-mediapipe.mjs",
     "build": "NEXT_TELEMETRY_DISABLED=1 next build",
     "start": "NEXT_TELEMETRY_DISABLED=1 next start",
     "lint": "eslint .",
@@ -15,6 +17,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.1.1",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.3",
     "next": "16.4.2",
