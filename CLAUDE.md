@@ -72,6 +72,7 @@ deullim/
 ├── web/              Next.js 앱. npm 명령은 이 폴더에서 실행한다
 │   ├── app/          라우트 (worker, console, partners 화면과 api)
 │   ├── src/core/     순수 TypeScript: 각도, 점수 산정, 필터, DP 최적화
+│   ├── src/components/ 공통 컴포넌트 (docs/components.md)
 │   ├── src/features/ 화면별 컴포넌트와 로직
 │   ├── src/lib/      Supabase 클라이언트 등
 │   └── public/
