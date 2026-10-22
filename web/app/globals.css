@@ -186,6 +186,12 @@ body {
   animation: empathy-enter var(--motion-emphasis) cubic-bezier(0, 0, 0, 1) both;
 }
 
+/* Printing (QR sheets): no page margin, so Chrome has no room for its header and footer
+   (date, title, URL, page number). The printed content sets its own inner padding. */
+@page {
+  margin: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .empathy-enter {
     animation-name: empathy-enter-reduced;

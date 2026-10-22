@@ -1,7 +1,7 @@
 -- Checks to run in the SQL editor after the migrations, seed.sql and link-accounts.sql.
 -- Run blocks 1 to 3 on their own. Run blocks 4 to 7 together, from begin to rollback,
 -- because they share one transaction that adds test groups and acts as the manager.
--- The rollback removes the test groups.
+-- The rollback removes the test groups. Block 8 is a separate transaction for entry token rules.
 
 -- 1. RLS is enabled on every table in public.
 --    Expected: 0 rows.
@@ -86,4 +86,49 @@ select has_table_privilege('authenticated', 'public.pain_reports', 'select') as 
 select parent_group, workstation_count, merged, visible, reason
 from public.pain_group_visibility
 order by visible, parent_group;
+rollback;
+
+-- 8. Entry token rules (migration 20261022000004). Run this block on its own, from begin to rollback.
+--    It adds test tokens to 용접 3번 작업대 and removes them with the rollback.
+--    Expected: every *_rejected column is true and extend_90_days_allowed is true.
+begin;
+create function pg_temp.fails(stmt text) returns boolean
+language plpgsql
+as $$
+begin
+  execute stmt;
+  -- Undo a statement that succeeded and report it as not failing.
+  raise sqlstate 'DL001';
+exception
+  when sqlstate 'DL001' then return false;
+  when others then return true;
+end;
+$$;
+
+-- Real tokens of this workstation are set aside first; the rollback restores them.
+update public.entry_tokens t set active = false
+from public.workstations w
+where t.workstation_id = w.id and w.code = 'WLD-03' and t.active;
+insert into public.entry_tokens (workstation_id, token_hash)
+select w.id, 'verify-old' from public.workstations w where w.code = 'WLD-03';
+update public.entry_tokens set active = false where token_hash = 'verify-old';
+insert into public.entry_tokens (workstation_id, token_hash)
+select w.id, 'verify-current' from public.workstations w where w.code = 'WLD-03';
+
+select
+  pg_temp.fails($q$
+    insert into public.entry_tokens (workstation_id, token_hash)
+    select w.id, 'verify-second-active' from public.workstations w where w.code = 'WLD-03'
+  $q$) as second_active_rejected,
+  pg_temp.fails($q$
+    update public.entry_tokens set active = true where token_hash = 'verify-old'
+  $q$) as reactivation_rejected,
+  pg_temp.fails($q$
+    update public.entry_tokens set expires_at = now() + interval '91 days'
+    where token_hash = 'verify-current'
+  $q$) as extend_over_90_days_rejected,
+  not pg_temp.fails($q$
+    update public.entry_tokens set expires_at = now() + interval '90 days'
+    where token_hash = 'verify-current'
+  $q$) as extend_90_days_allowed;
 rollback;

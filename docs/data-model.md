@@ -47,7 +47,7 @@ erDiagram
 | site_members | site_id, profile_id | 관리자의 소속 사업장 |
 | partners | id, company_name | 설비 업체 |
 | partner_members | partner_id, profile_id | |
-| entry_tokens | id, workstation_id, token_hash, active, expires_at | QR 토큰. 원문은 저장하지 않음 |
+| entry_tokens | id, workstation_id, token_hash, active, expires_at | QR 토큰. 원문은 저장하지 않음. 공정당 활성 토큰은 하나(부분 고유 인덱스). 발급·재발급은 issue_entry_token 함수가 기존 토큰 비활성화와 새 토큰 추가를 한 트랜잭션에서 처리한다. 비활성 토큰은 바꿀 수 없고, 만료일은 지금부터 90일 뒤까지만 정할 수 있다 |
 | report_rate_limits | token_id, window_start, count | 토큰별 신고 수 제한. 개인 정보 없음 |
 | capture_sessions | id, task_id, frame_count, inference_fps, created_at | 원본 좌표 미저장 |
 | assessments | id, session_id, method (reba, rula), part_summary (jsonb), valid_frame_ratio, high_risk_ratio, score_p90, level, algorithm_version, created_at | 서버 재계산 결과 (docs/assessment-rules.md 세션 결과) |
@@ -102,7 +102,7 @@ erDiagram
 | improvement_options, option_effects, improvement_plans, plan_items | 소속 사업장만 읽기·쓰기 | 없음 | 없음 |
 | improvement_requests | 소속 사업장만 읽기·쓰기 | 공개된 요청(status = open)만 읽기 | 없음 |
 | quotes | 소속 사업장 요청의 견적 읽기 | 자기 회사 견적만 읽기·쓰기 | 없음 |
-| entry_tokens, report_rate_limits | 소속 사업장 토큰 발급·비활성화 | 없음 | Route Handler만 조회 |
+| entry_tokens, report_rate_limits | 소속 사업장 토큰 발급·비활성화·기간 연장 | 없음 | Route Handler만 조회 |
 | adhoc_surveys | 소속 사업장만 읽기·쓰기 | 없음 | 없음 |
 
 - 신규 Supabase 프로젝트는 Data API에 쓰려면 테이블별 Postgres 권한을 명시적으로 부여해야 한다. 마이그레이션에 권한 부여를 함께 둔다.
