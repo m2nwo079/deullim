@@ -4,13 +4,20 @@ import { Icon, type IconName } from "./icons";
 // Shared markup for SegmentedControl and ChoiceChipGrid: native radio or checkbox inputs,
 // so keyboard use and checked state work without client JavaScript.
 
+/** A plain string is both the value and the label; use an object when they differ (e.g. an id). */
+export type ChoiceOption = string | { value: string; label: string };
+
+function normalize(option: ChoiceOption): { value: string; label: string } {
+  return typeof option === "string" ? { value: option, label: option } : option;
+}
+
 type ChoiceFieldProps = {
   type: "radio" | "checkbox";
   name: string;
   legend: string;
   description?: string;
   descriptionIcon?: IconName;
-  options: readonly string[];
+  options: readonly ChoiceOption[];
   defaultChecked: readonly string[];
   disabled: boolean;
   loading: boolean;
@@ -56,17 +63,17 @@ export function ChoiceField({
         </p>
       ) : null}
       <div className={layout}>
-        {options.map((option) => (
-          <label key={option} className="relative">
+        {options.map(normalize).map(({ value, label }) => (
+          <label key={value} className="relative">
             <input
               type={type}
               name={name}
-              value={option}
-              defaultChecked={defaultChecked.includes(option)}
+              value={value}
+              defaultChecked={defaultChecked.includes(value)}
               className="peer sr-only"
             />
             <span className={`${OPTION} ${disabled && !loading ? DISABLED : ENABLED}`}>
-              {option}
+              {label}
             </span>
           </label>
         ))}

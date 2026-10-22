@@ -1,4 +1,4 @@
-import { ChoiceField } from "./choice-field";
+import { ChoiceField, type ChoiceOption } from "./choice-field";
 import type { IconName } from "./icons";
 
 type SegmentedControlProps = {
@@ -6,7 +6,8 @@ type SegmentedControlProps = {
   legend: string;
   description?: string;
   descriptionIcon?: IconName;
-  options: readonly string[];
+  options: readonly ChoiceOption[];
+  /** Value of the option checked at first. */
   defaultValue?: string;
   disabled?: boolean;
   loading?: boolean;
