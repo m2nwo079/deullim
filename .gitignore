@@ -46,3 +46,6 @@ pnpm-debug.log*
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Analysis outputs derived from licensed datasets (never commit)
+analysis/**/results/
