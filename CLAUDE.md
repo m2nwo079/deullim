@@ -78,10 +78,10 @@
     (좌우는 작업자 본인 기준이며 AI Hub 라벨과 같다. 스파이크에서 확인함)
 - 백엔드 / DB / 인증: Supabase (Postgres, Auth, Row Level Security, Realtime)
   - 서버 코드 위치: Next.js Route Handler. Supabase Edge Function은 쓰지 않는다.
-  - Route Handler에서 service role 키를 쓸 때는 요청한 사용자의 역할과 소속을 코드에서 직접 확인한다.
+  - Route Handler에서 secret key(SUPABASE_SECRET_KEY, RLS 우회)를 쓸 때는 요청한 사용자의 역할과 소속을 코드에서 직접 확인한다.
   - 무료 플랜은 7일간 활동이 없으면 프로젝트가 일시 정지된다. 발표 전에 접속해 상태를 확인한다.
   - 신규 프로젝트는 Data API를 쓰려면 테이블별 Postgres 권한을 명시적으로 부여해야 한다.
-  - service role 키는 서버 환경 변수에만 둔다. 클라이언트 코드와 커밋에 포함하지 않는다.
+  - secret key는 서버 환경 변수에만 둔다. 클라이언트 코드와 커밋에 포함하지 않는다.
 - 최적화: 다중 선택 배낭 문제를 TypeScript 동적계획법으로 직접 구현한다. 외부 솔버는 쓰지 않는다.
 - 배포: Vercel Hobby (비상업적 용도로만 사용)
 - 무료 티어 안에서만 운영한다.
@@ -103,6 +103,7 @@ deullim/
 ```
 - Vercel 프로젝트의 Root Directory는 web으로 지정한다.
 - web/src/core/에서는 React, Next.js, Supabase를 import하지 않는다. 브라우저와 Route Handler가 함께 쓴다.
+- 테스트 파일은 대상 파일 옆에 둔다 (예: src/core/angle.ts → src/core/angle.test.ts).
 - tests/fixtures/에는 합성 데이터만 둔다. AI Hub 데이터나 실제 작업 영상에서 나온 값은 넣지 않는다.
 - web/ 밖의 tests/fixtures/를 TypeScript 테스트에서 읽는 방식은 스캐폴딩 때 확인한다.
 - 라우트의 구체적인 URL 설계는 TBD.
@@ -126,7 +127,14 @@ deullim/
 - 수작업 평가 대조 파일(validation/)의 판정 값은 사용자가 채운다.
 
 ## 주요 명령어
-TBD (스캐폴딩 후 작성)
+web/ 폴더에서 실행한다. Node는 24.x(web/.nvmrc)이며, 로컬 Node가 다르면 npm install 때 EBADENGINE 경고가 난다.
+- npm run dev: 개발 서버 (localhost만, http://localhost:3000)
+- npm run build: 프로덕션 빌드
+- npm run lint: ESLint (docs/lint-rules.md L1~L13)
+- npm run typecheck: tsc --noEmit
+- npm run test: Vitest 단위 테스트
+- npm run format / npm run format:check: Prettier 적용 / 검사
+- 작업 보고 전: npm run lint && npm run typecheck && npm run test
 
 ## 참조 문서
 - 데이터 모델과 권한: @docs/data-model.md

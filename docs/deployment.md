@@ -27,11 +27,12 @@ main ─→ Vercel 운영 배포 (Root Directory: web)
 | 이름 | 노출 범위 | 위치 |
 |---|---|---|
 | NEXT_PUBLIC_SUPABASE_URL | 클라이언트 | Vercel, 로컬 .env.local |
-| NEXT_PUBLIC_SUPABASE_ANON_KEY | 클라이언트 | Vercel, 로컬 .env.local |
-| SUPABASE_SERVICE_ROLE_KEY | 서버 전용 | Vercel 서버 환경 변수, 로컬 .env.local |
+| NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY | 클라이언트 | Vercel, 로컬 .env.local |
+| SUPABASE_SECRET_KEY | 서버 전용 (RLS 우회) | Vercel 서버 환경 변수, 로컬 .env.local |
 | NEXT_TELEMETRY_DISABLED=1 | 빌드 | Vercel, 로컬 |
 
-- Supabase의 공개 키와 비밀 키 명칭이 바뀌었을 수 있다. 스캐폴딩 때 Supabase 공식 문서로 이름을 확인하고 이 표를 갱신한다.
+- Supabase 키는 publishable key와 secret key를 쓴다. anon, service_role 키는 legacy이며 2026년 말까지 폐기 예정이다
+  (https://supabase.com/docs/guides/api/api-keys, 2026-10-22 확인). secret key는 service_role 역할로 동작해 RLS를 우회한다.
 - .env.local은 .gitignore의 `.env.*`에 포함되어 커밋되지 않는다. 필요한 변수 이름은 .env.example에 값 없이 적는다.
 
 ## DB 변경
@@ -56,4 +57,4 @@ main ─→ Vercel 운영 배포 (Root Directory: web)
 ## 확인 필요
 - Vercel Hobby의 미리보기 배포 제공 조건
 - GitHub Actions의 비공개 레포 무료 사용량
-- Supabase 키 명칭
+- Pretendard 글꼴 중복: web/public/fonts/pretendard의 CSS를 layout에서 import하면 woff2가 _next/static/media에 따로 번들되어 public 복사본은 실행 중 쓰이지 않는다

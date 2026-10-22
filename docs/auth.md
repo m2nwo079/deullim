@@ -21,8 +21,8 @@
 
 ## 권한 강제
 - 1차: DB의 Row Level Security. 관리자는 소속 사업장, 파트너는 공개된 요청과 자기 회사 견적만 읽는다 (docs/data-model.md 권한 표).
-- 2차: service role 키를 쓰는 Route Handler는 요청한 사용자의 역할과 소속을 코드에서 직접 확인한다.
-- service role 키는 web/src/lib/supabase/admin.ts에서만 참조하고, 이 파일은 서버 전용이다 (docs/lint-rules.md L4, L5).
+- 2차: secret key(`SUPABASE_SECRET_KEY`)를 쓰는 Route Handler는 요청한 사용자의 역할과 소속을 코드에서 직접 확인한다.
+- secret key(`SUPABASE_SECRET_KEY`)는 web/src/lib/supabase/admin.ts에서만 참조하고, 이 파일은 서버 전용이다 (docs/lint-rules.md L4, L5).
 - 화면 분기만으로 권한을 처리하지 않는다.
 
 ## 세션
