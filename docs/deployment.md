@@ -37,6 +37,13 @@ main ─→ Vercel 운영 배포 (Root Directory: web)
 - QR의 사이트 주소는 Vercel 시스템 환경 변수로 정한다. VERCEL_ENV가 production이면 VERCEL_PROJECT_PRODUCTION_URL,
   preview이면 VERCEL_URL, 그 밖(로컬)이면 http://localhost:3000. "Enable access to System Environment Variables"가 켜져 있어야 한다.
 
+## MediaPipe 파일
+- WASM과 자세 모델은 같은 사이트의 /mediapipe/에서 제공한다. 시연 때 외부 CDN에 기대지 않기 위해서다.
+- web/scripts/fetch-mediapipe.mjs가 npm run dev와 npm run build 전에 실행된다(predev, prebuild).
+  - WASM 4개(SIMD, SIMD 미지원 각 .js와 .wasm)는 설치된 @mediapipe/tasks-vision에서 복사한다.
+  - 모델은 버전이 고정된 주소에서 받아 SHA-256을 대조하고, 다르면 빌드를 실패시킨다. 빌드할 때만 Google 저장소에 접속한다.
+  - 결과는 web/public/mediapipe/에 생기며 커밋하지 않는다(.gitignore). 모델 종류와 실행 방식은 web/src/features/capture/pose-model.json 한 곳에서 바꾼다.
+
 ## DB 변경
 - 변경은 supabase/migrations/의 SQL 파일로만 한다.
 - 적용 순서: 개발 프로젝트 → 확인 → 운영 프로젝트.
@@ -53,7 +60,7 @@ main ─→ Vercel 운영 배포 (Root Directory: web)
   - Supabase 운영 프로젝트가 일시 정지되지 않았는지 (7일 미사용 시 정지)
   - 시연용 계정으로 로그인되는지
   - 운영 주소에서 iPhone 카메라와 자세 추정이 동작하는지
-  - MediaPipe WASM과 모델 파일을 불러오는 방식(CDN 또는 자체 호스팅)이 발표장 네트워크에서 동작하는지
+  - 운영 주소에서 /mediapipe/ 아래 WASM과 모델 파일이 받아지는지 (같은 주소에서 제공하므로 외부 CDN은 쓰지 않는다)
   - 시연 전 과정을 녹화한 백업 영상
 
 ## 확인 필요
