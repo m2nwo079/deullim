@@ -19,7 +19,7 @@ import angles as ang
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 ZIP_GLOB = os.path.join(REPO, "data/aihub/253.*/01-1.*/Validation/02.*/VL.zip")
-RESULT_PATH = os.path.join(HERE, "results", "posture_code_angles_v1.md")
+RESULT_PATH = os.path.join(HERE, "results", "posture_code_angles_v2.md")
 DIAGNOSTICS_PATH = os.path.join(HERE, "results", "keypoint_diagnostics_v1.md")
 # Groups with fewer valid values than this show "-" so no single record leaks.
 MIN_N = 10
@@ -40,6 +40,24 @@ ITEM_METRICS = {
     "lowerarm": ["elbow_l", "elbow_r", "elbow_max"],
     "legs": ["knee_l", "knee_r", "knee_max", "ankle_height_diff"],
 }
+# Keypoints each angle reads; an angle is None unless all of them are valid.
+METRIC_KEYPOINTS = {
+    "trunk_angle": [18, 4],
+    "neck_angle": [18, 4, 0],
+    "upperarm_l": [4, 18, 5, 6],
+    "upperarm_r": [4, 18, 11, 12],
+    "elbow_l": [5, 6, 7],
+    "elbow_r": [11, 12, 13],
+    "knee_l": [19, 20, 21],
+    "knee_r": [23, 24, 25],
+    "ankle_height_diff": [21, 25, 5, 11],
+}
+# A posture item is aggregated only when every keypoint of its angles is valid.
+ITEM_FILTER_KEYPOINTS = {
+    item: sorted({i for m in metrics if m in METRIC_KEYPOINTS for i in METRIC_KEYPOINTS[m]})
+    for item, metrics in ITEM_METRICS.items()
+}
+# Target keypoints for the 7-3 flag=2 count.
 ITEM_KEYPOINTS = {
     "neck": [0, 4, 18],
     "trunk": [4, 18],
@@ -211,7 +229,7 @@ def bbox_box(bbox, mode):
     return (x, y, x + a, y + b) if mode == "xywh" else (x, y, a, b)
 
 
-def compute_angles(p):
+def compute_angles(p, valid):
     m = {
         "trunk_angle": ang.trunk_angle(p[18], p[4]),
         "neck_angle": ang.neck_angle(p[18], p[4], p[0]),
@@ -223,6 +241,9 @@ def compute_angles(p):
         "knee_r": ang.knee_flexion(p[23], p[24], p[25]),
         "ankle_height_diff": ang.ankle_height_diff(p[21], p[25], p[5], p[11]),
     }
+    for metric, idx in METRIC_KEYPOINTS.items():
+        if not all(valid[i] for i in idx):
+            m[metric] = None
     for name in ("upperarm", "elbow", "knee"):
         m[name + "_max"] = ang.max_or_none(m[name + "_l"], m[name + "_r"])
     return m
@@ -246,8 +267,10 @@ def load_records(zip_path, stats):
             if img is None or kp is None or not (isinstance(bbox, list) and len(bbox) == 4):
                 stats["skipped_malformed"] += 1
                 continue
+            w, h = float(img["width"]), float(img["height"])
             records.append({
-                "w": float(img["width"]), "h": float(img["height"]),
+                "w": w, "h": h,
+                "valid": [0 < x <= w and 0 < y <= h for x, y, _ in kp],
                 "light": str(img.get("light")), "camera": str(img.get("angle")),
                 "bbox": bbox, "kp": kp,
                 "posture": a.get("posture") or {},
@@ -276,29 +299,62 @@ def bbox_check(records, mode):
     }
 
 
-def order_check(records, label):
+def below_pelvis(p, idx):
+    pelvis_low = max(p[i][1] for i in (18, 19, 23))
+    return all(p[i][1] > pelvis_low for i in idx)
+
+
+def head_ratio(p):
+    sw = math.dist(p[5][:2], p[11][:2])
+    if sw == 0:
+        return None
+    return max(math.dist(p[i][:2], p[j][:2]) for i in range(4) for j in range(i + 1, 4)) / sw
+
+
+def order_check(records):
+    """Each check on all records, next to the same check on records whose needed keypoints are valid."""
+    checks = [(f"kp {i} below pelvis (18,19,23)", lambda p, i=i: below_pelvis(p, [i]), [i, 18, 19, 23])
+              for i in (21, 25, 22, 26)]
+    checks.append(("all of 21,25,22,26 below pelvis", lambda p: below_pelvis(p, [21, 25, 22, 26]),
+                   [21, 25, 22, 26, 18, 19, 23]))
+    for side, (s, e, w) in (("left", (5, 6, 7)), ("right", (11, 12, 13))):
+        checks.append((f"{side} elbow within shoulder-wrist distance",
+                       lambda p, s=s, e=e, w=w: elbow_within(p[s], p[e], p[w]), [s, e, w]))
     n = len(records)
-    below = Counter()
-    head_ratio = []
-    elbow_ok = Counter()
+    rows = []
+    for label, cond, needed in checks:
+        hit_all = sum(cond(r["kp"]) for r in records)
+        sub = [r for r in records if all(r["valid"][i] for i in needed)]
+        hit = sum(cond(r["kp"]) for r in sub)
+        rows.append((label, hit_all, pct(hit_all, n), hit, len(sub), pct(hit, len(sub))))
+    table(["check", "all: count", "all: ratio", "valid only: count", "valid only: n", "valid only: ratio"], rows)
+    head_valid = [r for r in records if all(r["valid"][i] for i in (0, 1, 2, 3, 5, 11))]
+    table(["max dist among kp 0-3 / shoulder width", "n", "p5", "p25", "p50", "p75", "p95"],
+          [["all"] + quantile_row(head_ratio(r["kp"]) for r in records),
+           ["valid only"] + quantile_row(head_ratio(r["kp"]) for r in head_valid)])
+
+
+def knee_check(records, bbox_mode):
+    """4-4: (bbox_y2 - knee y) / shoulder width for invalid set {21,22,25,26} vs no invalid keypoints."""
+    groups = {"invalid exactly 21,22,25,26": defaultdict(list), "no invalid keypoints": defaultdict(list)}
     for r in records:
+        bad = {i for i, ok in enumerate(r["valid"]) if not ok}
+        key = "no invalid keypoints" if not bad else "invalid exactly 21,22,25,26" if bad == {21, 22, 25, 26} else None
+        if key is None:
+            continue
+        groups[key]["records"].append(r)
         p = r["kp"]
-        pelvis_low = max(p[i][1] for i in (18, 19, 23))
-        for i in (21, 25, 22, 26):
-            below[i] += p[i][1] > pelvis_low
-        below["all"] += all(p[i][1] > pelvis_low for i in (21, 25, 22, 26))
         sw = math.dist(p[5][:2], p[11][:2])
-        if sw > 0:
-            head_ratio.append(max(math.dist(p[i][:2], p[j][:2]) for i in range(4) for j in range(i + 1, 4)) / sw)
-        for side, (s, e, w) in (("left", (5, 6, 7)), ("right", (11, 12, 13))):
-            elbow_ok[side] += elbow_within(p[s], p[e], p[w])
-    emit(f"### {label} (n={n})")
-    table(["check", "count", "ratio"],
-          [(f"kp {i} below pelvis (18,19,23)", below[i], pct(below[i], n)) for i in (21, 25, 22, 26)]
-          + [("all of 21,25,22,26 below pelvis", below["all"], pct(below["all"], n))]
-          + [(f"{s} elbow within shoulder-wrist distance", elbow_ok[s], pct(elbow_ok[s], n)) for s in ("left", "right")])
-    table(["ratio", "n", "p5", "p25", "p50", "p75", "p95"],
-          [["max dist among kp 0-3 / shoulder width"] + quantile_row(head_ratio)])
+        if sw == 0:
+            continue
+        y2 = bbox_box(r["bbox"], bbox_mode)[3]
+        for side, k in (("left knee 20", 20), ("right knee 24", 24)):
+            groups[key][side].append((y2 - p[k][1]) / sw)
+    rows = []
+    for g, d in groups.items():
+        for side in ("left knee 20", "right knee 24"):
+            rows.append([g, len(d["records"]), side] + quantile_row(d[side]))
+    table(["group", "records", "knee", "n", "p5", "p25", "p50", "p75", "p95"], rows)
 
 
 def keypoint_diagnostics(records, bbox_mode):
@@ -346,7 +402,7 @@ def elbow_within(shoulder, elbow, wrist):
 def code_tables(records, group_key=None, group_label=None):
     for item in POSTURE_ITEMS:
         groups = defaultdict(list)
-        for r in records:
+        for r in (r for r in records if r["item_ok"][item]):
             g = group_key(r, item) if group_key else None
             groups[(g, str(r["posture"].get(item, "<missing>")))].append(r)
         rows = []
@@ -362,7 +418,7 @@ def code_tables(records, group_key=None, group_label=None):
 def run_analysis(zip_path, margin, bbox_mode, diagnose_only):
     stats = Counter()
     records, image_values = load_records(zip_path, stats)
-    emit("# AI Hub posture code vs joint angle aggregates (v1)")
+    emit("# AI Hub posture code vs joint angle aggregates (v2)")
     emit()
     table(["metric", "count"], sorted(stats.items()) + [("records", len(records))])
 
@@ -385,22 +441,29 @@ def run_analysis(zip_path, margin, bbox_mode, diagnose_only):
         _, y1, _, y2 = bbox_box(r["bbox"], bbox_mode)
         return y1 >= margin and y2 <= r["h"] - margin
 
-    filtered = [r for r in records if full_body(r)]
+    filtered = records if margin is None else [r for r in records if full_body(r)]
 
-    emit("## 4-1 keypoint order")
-    order_check(records, "all records")
-    order_check(filtered, "full-body filtered records")
+    emit("## 4-1 keypoint order (valid = x > 0, y > 0, inside image)")
+    order_check(records)
 
     emit("## 4-3 keypoint validity (all records)")
     keypoint_diagnostics(records, bbox_mode)
 
-    emit(f"## 5 filter (margin={margin}px, bbox={bbox_mode})")
-    table(["stage", "records"], [("before filter", n), ("after filter", len(filtered))])
+    emit(f"## 4-4 knee position vs bbox bottom (bbox={bbox_mode}, records with an invalid shoulder excluded)")
+    knee_check([r for r in records if r["valid"][5] and r["valid"][11]], bbox_mode)
+
+    emit(f"## 5 filter (bbox margin={'off' if margin is None else f'{margin}px'}, then per-item keypoint validity)")
+    table(["stage", "records"], [("before bbox margin filter", n), ("after bbox margin filter", len(filtered))])
+    for r in filtered:
+        r["item_ok"] = {item: all(r["valid"][i] for i in idx) for item, idx in ITEM_FILTER_KEYPOINTS.items()}
+    table(["item", "required valid keypoints", "before", "after"],
+          [(item, ",".join(map(str, idx)), len(filtered), sum(r["item_ok"][item] for r in filtered))
+           for item, idx in ITEM_FILTER_KEYPOINTS.items()])
     if diagnose_only:
         return
 
     for r in filtered:
-        r["m"] = compute_angles([(x, y) for x, y, _ in r["kp"]])
+        r["m"] = compute_angles([(x, y) for x, y, _ in r["kp"]], r["valid"])
 
     emit("## 7-1 angles by posture code")
     code_tables(filtered)
@@ -432,7 +495,7 @@ def run_analysis(zip_path, margin, bbox_mode, diagnose_only):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--schema", action="store_true", help="print key paths, types, and counts only")
-    parser.add_argument("--margin", type=float, default=10.0, help="full-body filter margin in px")
+    parser.add_argument("--margin", type=float, default=None, help="optional bbox full-body filter margin in px (off by default)")
     parser.add_argument("--bbox", choices=["auto", "xywh", "xyxy"], default="auto")
     parser.add_argument("--diagnose-only", action="store_true", help="stop after sections 4 and 5, skip section 7")
     args = parser.parse_args()
