@@ -14,15 +14,15 @@ import sys
 import zipfile
 from collections import Counter, defaultdict
 
-# python3 -I drops the script folder from sys.path, so add it explicitly.
-HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-
 import angles as ang
 
+HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 ZIP_GLOB = os.path.join(REPO, "data/aihub/253.*/01-1.*/Validation/02.*/VL.zip")
 RESULT_PATH = os.path.join(HERE, "results", "posture_code_angles_v1.md")
+DIAGNOSTICS_PATH = os.path.join(HERE, "results", "keypoint_diagnostics_v1.md")
+# Groups with fewer valid values than this show "-" so no single record leaks.
+MIN_N = 10
 
 IMAGE_KEYS = ["id", "file_name", "width", "height", "date_captured", "light", "angle"]
 POSTURE_ITEMS = ["neck", "trunk", "upperarm", "lowerarm", "legs"]
@@ -87,19 +87,16 @@ def pct(n, d):
 
 def summary(values):
     vals = [v for v in values if v is not None]
-    if not vals:
-        return [0, None, None, None, None]
-    if len(vals) == 1:
-        q = [vals[0]] * 3
-    else:
-        q = statistics.quantiles(vals, n=4, method="inclusive")
+    if len(vals) < MIN_N:
+        return [len(vals), None, None, None, None]
+    q = statistics.quantiles(vals, n=4, method="inclusive")
     return [len(vals), statistics.fmean(vals), q[0], q[1], q[2]]
 
 
 def quantile_row(values, cuts=(0.05, 0.25, 0.5, 0.75, 0.95)):
     vals = sorted(v for v in values if v is not None)
-    if not vals:
-        return [0] + [None] * len(cuts)
+    if len(vals) < MIN_N:
+        return [len(vals)] + [None] * len(cuts)
     return [len(vals)] + [vals[min(len(vals) - 1, int(c * (len(vals) - 1) + 0.5))] for c in cuts]
 
 
@@ -304,6 +301,42 @@ def order_check(records, label):
           [["max dist among kp 0-3 / shoulder width"] + quantile_row(head_ratio)])
 
 
+def keypoint_diagnostics(records, bbox_mode):
+    n = len(records)
+    nonpos, off_image, off_bbox = Counter(), Counter(), Counter()
+    invalid_counts, invalid_sets = Counter(), Counter()
+    lower_all = upper_all = 0
+    for r in records:
+        x1, y1, x2, y2 = bbox_box(r["bbox"], bbox_mode)
+        bad = set()
+        for i, (x, y, _) in enumerate(r["kp"]):
+            checks = (
+                x <= 0 or y <= 0,
+                not (0 <= x <= r["w"] and 0 <= y <= r["h"]),
+                not (x1 <= x <= x2 and y1 <= y <= y2),
+            )
+            nonpos[i] += checks[0]
+            off_image[i] += checks[1]
+            off_bbox[i] += checks[2]
+            if any(checks):
+                bad.add(i)
+        invalid_counts[len(bad)] += 1
+        invalid_sets[tuple(sorted(bad))] += 1
+        lower_all += bad >= set(range(20, 27))
+        upper_all += bad >= set(range(17))
+    emit(f"Invalid = x or y <= 0, or outside image, or outside bbox ({bbox_mode}). n={n}")
+    emit()
+    table(["kp", "x or y <= 0", "outside image", "outside bbox"],
+          [(i, pct(nonpos[i], n), pct(off_image[i], n), pct(off_bbox[i], n)) for i in range(27)])
+    table(["invalid kp count", "records", "ratio"], [(k, c, pct(c, n)) for k, c in sorted(invalid_counts.items())])
+    table(["pattern", "records", "ratio"],
+          [("kp 20-26 all invalid", lower_all, pct(lower_all, n)), ("kp 0-16 all invalid", upper_all, pct(upper_all, n))])
+    emit("Top 10 invalid keypoint sets")
+    emit()
+    table(["invalid kp set", "records", "ratio"],
+          [(",".join(map(str, s)) or "(none)", c, pct(c, n)) for s, c in invalid_sets.most_common(10)])
+
+
 def elbow_within(shoulder, elbow, wrist):
     # Elbow counts as "within" when both segments are no longer than shoulder-to-wrist.
     reach = math.dist(shoulder[:2], wrist[:2])
@@ -326,7 +359,7 @@ def code_tables(records, group_key=None, group_label=None):
         table(headers, rows)
 
 
-def run_analysis(zip_path, margin, bbox_mode):
+def run_analysis(zip_path, margin, bbox_mode, diagnose_only):
     stats = Counter()
     records, image_values = load_records(zip_path, stats)
     emit("# AI Hub posture code vs joint angle aggregates (v1)")
@@ -358,8 +391,13 @@ def run_analysis(zip_path, margin, bbox_mode):
     order_check(records, "all records")
     order_check(filtered, "full-body filtered records")
 
+    emit("## 4-3 keypoint validity (all records)")
+    keypoint_diagnostics(records, bbox_mode)
+
     emit(f"## 5 filter (margin={margin}px, bbox={bbox_mode})")
     table(["stage", "records"], [("before filter", n), ("after filter", len(filtered))])
+    if diagnose_only:
+        return
 
     for r in filtered:
         r["m"] = compute_angles([(x, y) for x, y, _ in r["kp"]])
@@ -368,11 +406,11 @@ def run_analysis(zip_path, margin, bbox_mode):
     code_tables(filtered)
     emit("## 7-2 angles by posture code and camera angle (images[].angle)")
     code_tables(filtered, lambda r, item: r["camera"], "camera angle")
-    emit("## 7-3 angles by posture code and keypoint flag combination")
+    emit("## 7-3 angles by posture code and number of target keypoints with flag=2")
     for item, idx in ITEM_KEYPOINTS.items():
-        emit(f"Flag order for {item}: keypoints {', '.join(map(str, idx))}")
+        emit(f"Target keypoints for {item}: {', '.join(map(str, idx))}")
     emit()
-    code_tables(filtered, lambda r, item: ",".join(str(r["kp"][i][2]) for i in ITEM_KEYPOINTS[item]), "flags")
+    code_tables(filtered, lambda r, item: sum(r["kp"][i][2] == 2 for i in ITEM_KEYPOINTS[item]), "flag=2 count")
 
     emit("## 7-4 extra flags")
     rows = []
@@ -382,7 +420,7 @@ def run_analysis(zip_path, margin, bbox_mode):
         medians = []
         for v in sorted(values):
             vals = [r["m"][metric] for r in filtered if str(r["flags"][f]) == v and r["m"][metric] is not None] if metric else []
-            medians.append(f"{v}: {statistics.median(vals):.2f}" if vals else f"{v}: -")
+            medians.append(f"{v}: {statistics.median(vals):.2f}" if len(vals) >= MIN_N else f"{v}: -")
         rows.append((f, ", ".join(f"{v}={c}" for v, c in sorted(values.items())), metric or "-", "; ".join(medians)))
     table(["flag", "value counts", "related metric", "median by value"], rows)
 
@@ -396,16 +434,18 @@ def main():
     parser.add_argument("--schema", action="store_true", help="print key paths, types, and counts only")
     parser.add_argument("--margin", type=float, default=10.0, help="full-body filter margin in px")
     parser.add_argument("--bbox", choices=["auto", "xywh", "xyxy"], default="auto")
+    parser.add_argument("--diagnose-only", action="store_true", help="stop after sections 4 and 5, skip section 7")
     args = parser.parse_args()
     zip_path = find_zip()
     if args.schema:
         run_schema(zip_path)
         return
-    run_analysis(zip_path, args.margin, args.bbox)
-    os.makedirs(os.path.dirname(RESULT_PATH), exist_ok=True)
-    with open(RESULT_PATH, "w", encoding="utf-8") as fh:
+    run_analysis(zip_path, args.margin, args.bbox, args.diagnose_only)
+    path = DIAGNOSTICS_PATH if args.diagnose_only else RESULT_PATH
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(out_lines) + "\n")
-    print(f"Saved: {os.path.relpath(RESULT_PATH, REPO)}")
+    print(f"Saved: {os.path.relpath(path, REPO)}")
 
 
 if __name__ == "__main__":
