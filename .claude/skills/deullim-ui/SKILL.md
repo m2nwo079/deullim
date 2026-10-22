@@ -27,5 +27,6 @@ description: 들림의 web/app 화면, 공통 컴포넌트, Tailwind 스타일, 
 - [ ] 위험도 표시, 공감 카드, 버튼 상태가 docs/design-tokens.md와 docs/components.md의 사용 규칙과 맞는다.
 - [ ] 화면 문구는 한국어로 컴포넌트에 직접 썼고, 식별자·주석·로그·예외 메시지는 영어로 썼다 (CLAUDE.md 기술 스택).
 - [ ] 화면 문구의 가운뎃점은 양옆을 띄웠다 (docs/design-principles.md 문구 규칙).
+- [ ] 문장형 안내에 마침표를 찍었다 (docs/design-principles.md 문구 규칙).
 - [ ] 화면 문구에 "법정 평가 완료", "조사 대체" 같은 표현이 없다 (CLAUDE.md 평가 원칙).
 - [ ] 사용자가 Chrome에서 확인할 주소와 화면에 보여야 하는 것을 보고에 적었다.
