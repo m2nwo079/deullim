@@ -46,3 +46,7 @@ pnpm-debug.log*
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Stack spike: self-hosted MediaPipe assets (copied or downloaded, never commit)
+spike/next-pose/public/mediapipe/
+spike/next-pose/public/models/
