@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "description": "Synthetic 2D vectors and the expected angle between them in degrees (0-180). expected_deg is null when either vector has zero length.",
+  "tolerance_deg": 1e-9,
+  "cases": [
+    { "name": "perpendicular", "a": [1, 0], "b": [0, 1], "expected_deg": 90 },
+    { "name": "same direction, different length", "a": [2, 2], "b": [1, 1], "expected_deg": 0 },
+    { "name": "opposite", "a": [1, 0], "b": [-1, 0], "expected_deg": 180 },
+    { "name": "45 degrees", "a": [1, 0], "b": [1, 1], "expected_deg": 45 },
+    { "name": "135 degrees", "a": [1, 0], "b": [-1, 1], "expected_deg": 135 },
+    { "name": "order does not matter", "a": [-1, 1], "b": [1, 0], "expected_deg": 135 },
+    { "name": "image coordinates, y down", "a": [0, -100], "b": [100, -100], "expected_deg": 45 },
+    {
+      "name": "near parallel, acos would round to 0",
+      "a": [1, 0],
+      "b": [1, 1e-9],
+      "expected_deg": 5.729577951308232e-8
+    },
+    { "name": "zero-length first vector", "a": [0, 0], "b": [1, 0], "expected_deg": null },
+    { "name": "zero-length second vector", "a": [3, 4], "b": [0, 0], "expected_deg": null }
+  ]
+}

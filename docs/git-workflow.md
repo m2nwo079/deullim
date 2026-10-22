@@ -23,7 +23,8 @@ Claude Code는 git add, commit, push를 실행하지 않는다(전역 규칙).
 ## 커밋
 - 형식: <type>(<scope>): <summary>
 - scope 목록: worker, console, partners, assessment, optimizer, report,
-  auth, db, infra, analysis, docs
+  auth, db, infra, analysis, docs, ui
+  - ui: 스타일, 디자인 토큰, 공통 컴포넌트, 화면
 - 목록에 없는 scope가 필요하면 임의로 만들지 않고 묻는다.
 - 예: feat(assessment): add 2D joint angle utilities
 

@@ -15,8 +15,8 @@
 |---|---|---|---|
 | L1 | 주석은 코드와 같은 줄에 쓰지 않는다 | 전역 규칙 | `line-comment-position: ["error", { position: "above" }]`, `no-inline-comments: "error"` |
 | L2 | web/src/core/에서 react, next, @supabase, @mediapipe를 import하지 않는다 | CLAUDE.md 디렉터리 규칙 | core 경로 override에 `no-restricted-imports` |
-| L3 | @mediapipe/*는 web/src/features/capture/ 안에서만 import한다 | 클라이언트 전용 실행 원칙 | 전체에 `no-restricted-imports`, capture 경로만 해제 |
-| L4 | `process.env.SUPABASE_SERVICE_ROLE_KEY`는 web/src/lib/supabase/admin.ts에서만 참조한다 | 보안 원칙 | 전체에 `no-restricted-syntax`, 해당 파일만 해제 |
+| L3 | @mediapipe/*는 web/src/features/capture/ 안에서만 import한다 | 클라이언트 전용 실행 원칙 | 전체에 `no-restricted-imports`, capture 경로만 해제. 동적 `import()`도 `no-restricted-syntax`로 함께 검사 |
+| L4 | `process.env.SUPABASE_SECRET_KEY`는 web/src/lib/supabase/admin.ts에서만 참조한다 | 보안 원칙 (secret key는 RLS 우회) | 전체에 `no-restricted-syntax`(점·대괄호 접근, 구조 분해), 해당 파일만 해제 |
 | L5 | admin.ts는 서버 전용임을 표시한다 | 보안 원칙 | 파일 첫 줄 `import "server-only"`를 코드 리뷰로 확인 (패키지 도입 시 승인 필요) |
 | L6 | 클래스에 임의 색상 값(`bg-[#...]`, `text-[rgb(...)]` 등)을 쓰지 않는다 | 디자인 토큰 원칙 | 문자열과 템플릿 리터럴에 `no-restricted-syntax` 정규식 검사 |
 | L7 | TS, TSX 파일에 hex 색상 리터럴을 쓰지 않는다 | 디자인 토큰 원칙 | 문자열 리터럴 `/#[0-9a-fA-F]{3,8}\b/` 검사. 토큰 CSS 파일은 대상 아님 |
@@ -25,6 +25,7 @@
 | L10 | Hooks 규칙 | React | `react-hooks/rules-of-hooks: "error"`, `react-hooks/exhaustive-deps: "warn"` |
 | L11 | 접근성 기본 규칙 | 접근성 | jsx-a11y recommended |
 | L12 | web/src에서 console.log 금지 | 운영 로그 정리 | `no-console: ["error", { allow: ["warn", "error"] }]` |
+| L13 | 간격·크기 클래스에 8px 단위의 소수 배수(`p-0.5`, `gap-1.5` 등)를 쓰지 않는다 | 디자인 토큰 원칙 (`--spacing: 8px`) | 문자열과 템플릿 리터럴에 `no-restricted-syntax` 정규식 검사. 대상: p*, m*, gap*, space-x/y, w, h, size, min-/max-w/h, inset*, top/right/bottom/left/start/end, translate-x/y, scroll-m*/p*, indent, leading, basis |
 
 - 화면의 한국어 문구는 컴포넌트에 직접 쓸 수 있다 (CLAUDE.md 결정). 한글 문자열을 막는 규칙은 두지 않는다.
 - Tailwind 기본 색 이름(`bg-blue-600` 등) 사용 검출은 Tailwind 전용 린트 플러그인이 현재 Tailwind 버전을 지원하는 경우에만 추가한다. 지원하지 않으면 코드 리뷰로 확인한다.
@@ -46,8 +47,8 @@ export default [
       }],
       "no-restricted-syntax": ["error",
         {
-          selector: "MemberExpression[object.object.name='process'][property.name='SUPABASE_SERVICE_ROLE_KEY']",
-          message: "Use the service role key only in src/lib/supabase/admin.ts."
+          selector: "MemberExpression[object.object.name='process'][property.name='SUPABASE_SECRET_KEY']",
+          message: "Use the Supabase secret key only in src/lib/supabase/admin.ts."
         },
         {
           selector: "Literal[value=/\\[(#|rgb|hsl|oklch)/]",

@@ -1,0 +1,154 @@
+@import "tailwindcss";
+
+/* Design tokens from docs/design-tokens.md (draft v2, light mode). */
+
+/* Primitive tokens: CSS variables only, not exposed as Tailwind classes. */
+:root {
+  --brand-50: #f6f6fd;
+  --brand-100: #ededfb;
+  --brand-200: #d8d9f7;
+  --brand-300: #b6b8ed;
+  --brand-400: #888ad1;
+  --brand-500: #6567ae;
+  --brand-600: #46519c;
+  --brand-700: #314b81;
+  --brand-800: #23375c;
+  --brand-900: #19263f;
+
+  --gray-0: #ffffff;
+  --gray-50: #f6f5f2;
+  --gray-100: #eeede8;
+  --gray-200: #e4e1da;
+  --gray-300: #d2cdc5;
+  --gray-400: #a9a49b;
+  --gray-500: #7f7971;
+  --gray-600: #625d56;
+  --gray-700: #49443f;
+  --gray-800: #312d29;
+  --gray-900: #1d1a17;
+
+  --risk-low-base: #399d57;
+  --risk-low-strong: #246e3a;
+  --risk-low-soft: #e4f8e7;
+  --risk-caution-base: #e6b731;
+  --risk-caution-strong: #845a0f;
+  --risk-caution-soft: #fff5d7;
+  --risk-high-base: #e87f25;
+  --risk-high-strong: #a84811;
+  --risk-high-soft: #ffeede;
+  --risk-very-high-base: #cf4040;
+  --risk-very-high-strong: #b02a2d;
+  --risk-very-high-soft: #ffeceb;
+}
+
+/* Semantic tokens (light mode). */
+:root {
+  --surface: var(--gray-0);
+  --surface-muted: var(--gray-50);
+  --surface-sunken: var(--gray-100);
+  --border: var(--gray-200);
+  --border-strong: var(--gray-300);
+  --text: var(--brand-900);
+  --text-secondary: var(--gray-600);
+  --text-disabled: var(--gray-500);
+  --primary: var(--brand-600);
+  --primary-hover: var(--brand-700);
+  --primary-active: var(--brand-800);
+  --on-primary: var(--gray-0);
+  --nav: var(--brand-700);
+  --empathy-bg: var(--brand-50);
+  --empathy-fg: var(--brand-500);
+  --focus-ring: var(--brand-500);
+
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --motion-emphasis: 480ms;
+  --scrim: rgba(29, 26, 23, 0.4);
+}
+
+/* Tailwind theme: default palette, radii, shadows, easings, and weights are reset to tokens only. */
+@theme inline {
+  --color-*: initial;
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-disabled: var(--text-disabled);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-on-primary: var(--on-primary);
+  --color-nav: var(--nav);
+  --color-empathy-bg: var(--empathy-bg);
+  --color-empathy-fg: var(--empathy-fg);
+  --color-focus-ring: var(--focus-ring);
+  --color-scrim: var(--scrim);
+
+  --color-risk-low: var(--risk-low-base);
+  --color-risk-low-text: var(--risk-low-strong);
+  --color-risk-low-bg: var(--risk-low-soft);
+  --color-risk-caution: var(--risk-caution-base);
+  --color-risk-caution-text: var(--risk-caution-strong);
+  --color-risk-caution-bg: var(--risk-caution-soft);
+  --color-risk-high: var(--risk-high-base);
+  --color-risk-high-text: var(--risk-high-strong);
+  --color-risk-high-bg: var(--risk-high-soft);
+  --color-risk-very-high: var(--risk-very-high-base);
+  --color-risk-very-high-text: var(--risk-very-high-strong);
+  --color-risk-very-high-bg: var(--risk-very-high-soft);
+
+  --ease-*: initial;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+}
+
+@theme {
+  /* Spacing and sizing utilities are whole multiples of 8px (p-1 = 8px, h-6 = 48px). */
+  --spacing: 8px;
+
+  --radius-*: initial;
+  --radius-control: 8px;
+  --radius-surface: 12px;
+  --radius-surface-lg: 16px;
+
+  --shadow-*: initial;
+  --shadow-sm: 0 2px 8px rgba(29, 26, 23, 0.06);
+  --shadow-md: 0 8px 24px rgba(29, 26, 23, 0.1);
+  --shadow-lg: 0 16px 48px rgba(29, 26, 23, 0.14);
+
+  --font-*: initial;
+  --font-sans:
+    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  --font-weight-*: initial;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+
+  --text-*: initial;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-small: 14px;
+  --text-small--line-height: 24px;
+  --text-body: 16px;
+  --text-body--line-height: 24px;
+  --text-body-lg: 18px;
+  --text-body-lg--line-height: 28px;
+  --text-title-sm: 20px;
+  --text-title-sm--line-height: 32px;
+  --text-title: 24px;
+  --text-title--line-height: 32px;
+  --text-display: 32px;
+  --text-display--line-height: 40px;
+}
+
+body {
+  background-color: var(--surface-muted);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
