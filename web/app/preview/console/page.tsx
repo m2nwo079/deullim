@@ -276,7 +276,7 @@ export default function ConsoleOverviewPreview() {
             </Link>
           }
         >
-          용접 3번 작업대 수시 조사 기한이 11월 14일입니다 (신고 누적으로 시작)
+          용접 3번 작업대 수시 조사 기한이 11월 14일입니다 (신고 누적으로 시작).
         </InlineAlert>
 
         <section aria-labelledby="workstations-title" className="flex flex-col gap-2">
