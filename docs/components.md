@@ -1,0 +1,66 @@
+# 들림 공통 컴포넌트 (초안 v1)
+
+토큰은 docs/design-tokens.md를 따른다. 이 문서는 컴포넌트의 종류, 크기, 상태, 사용 규칙을 정한다.
+
+## 원칙
+- 화면 코드에서는 이 문서의 공통 컴포넌트를 쓴다. 긴 Tailwind 클래스 나열은 공통 컴포넌트 안에만 둔다.
+- 컴포넌트 안에서도 의미 토큰과 컴포넌트 토큰만 쓴다. hex 값과 Tailwind 기본 색은 쓰지 않는다.
+- 위험도 색은 RiskBadge, RiskBar, HeatmapCell에서만 쓴다.
+- 새 공통 컴포넌트가 필요하면 임의로 만들지 않고 사용자에게 묻는다.
+
+## 크기
+| 화면 | 컨트롤 높이 | 비고 |
+|---|---|---|
+| 관리자 콘솔, 파트너 페이지 | 40px | |
+| 작업자 화면 | 최소 48px | 장갑 착용 고려 |
+| 작업자 화면의 핵심 동작 (촬영 시작, 신고 보내기) | 56px | 화면당 하나 |
+
+- 모서리: 컨트롤은 radius-control(8px), 카드와 패널은 radius-surface(12px), 모달과 하단 시트는 radius-surface-lg(16px)
+
+## 상태
+모든 컨트롤은 아래 여섯 상태를 정의한다.
+
+| 상태 | 표현 |
+|---|---|
+| 기본 | 컴포넌트별 정의 |
+| hover | 한 단계 진한 토큰 (예: primary → primary-hover), motion-fast |
+| 누름 | 두 단계 진한 토큰 (예: primary-active) |
+| 키보드 포커스 | focus-ring 색 2px 테두리, 2px 간격 |
+| 비활성 | surface-sunken 배경, text-disabled 글자, 포인터 비활성 |
+| 로딩 | 라벨 자리에 진행 표시, 크기 유지, 중복 입력 차단 |
+
+## 목록
+| 분류 | 컴포넌트 | 규칙 |
+|---|---|---|
+| 기본 | Button | 종류: primary, secondary, text. 화면당 primary는 하나 |
+| 기본 | IconButton | 아이콘만 있을 때도 접근성 이름(aria-label)을 반드시 둔다 |
+| 기본 | TextField, Select, Checkbox, Toggle, SegmentedControl, Tabs | 라벨은 항상 보이게 둔다. placeholder를 라벨 대신 쓰지 않는다 |
+| 피드백 | Toast | motion-base로 나타나고 4초 후 사라진다 (시작값). 중요한 결과는 Toast만으로 알리지 않는다 |
+| 피드백 | InlineAlert | 정보와 오류 표시. 위험도 색을 쓰지 않는다 |
+| 피드백 | EmpathyCard | "들려요" 응답 전용. empathy-bg, empathy-fg, 대표 모션 |
+| 피드백 | EmptyState, Skeleton, ProgressIndicator | 빈 화면 안내는 공감 톤의 문구를 쓴다 |
+| 데이터 | RiskBadge | 위험도 라벨 글자(낮음, 주의, 높음, 매우 높음)를 항상 함께 표시한다 |
+| 데이터 | RiskBar | 색 막대와 함께 수치 또는 라벨을 표시한다 |
+| 데이터 | HeatmapCell | 칸마다 위험 단계 숫자나 짧은 라벨을 표시한다. 색으로만 구분하지 않는다 |
+| 데이터 | DataTable, StatCard | 숫자는 고정폭 숫자로, 오른쪽 정렬 |
+| 덮는 요소 | Modal | 관리자 콘솔용. 표면 3층 |
+| 덮는 요소 | BottomSheet | 작업자 화면용. 표면 3층 |
+| 덮는 요소 | Popover | 표면 2층 |
+| 내비게이션 | ConsoleSidebar | nav 토큰 |
+| 내비게이션 | WorkerTopBar | 작업장 이름과 뒤로 가기만 둔다 |
+| 들림 전용 | CameraCaptureView | 아래 별도 규칙 |
+| 들림 전용 | CaptureTimer | 촬영 남은 시간 표시. 촬영 중 화면 위 애니메이션은 최소화 |
+| 들림 전용 | BodyMap | 통증 부위 선택. 부위마다 텍스트 라벨을 둔다 |
+| 들림 전용 | OptimizerResultTable | 선택된 개선안, 비용, 예상 위험 감소량을 표로 표시 |
+| 들림 전용 | QrEntryScreen | QR 접속 직후 첫 화면. 익명이라는 점을 먼저 안내한다 |
+
+## 위험한 동작
+- 삭제처럼 되돌릴 수 없는 동작은 secondary 버튼으로 두고, 누르면 Modal로 결과를 설명한 뒤 한 번 더 확인받는다.
+- 빨간 버튼은 쓰지 않는다 (위험도 색 규칙과 충돌).
+
+## CameraCaptureView 규칙
+- 영상은 video 요소, 관절 점은 그 위의 canvas에 그린다.
+- MediaPipe에 넣는 영상은 좌우반전하지 않는다. 거울 모드에서는 video와 canvas를 함께 뒤집는다.
+- 가시성 기준 미만인 점은 무효로 처리하고, 무효 점이 포함된 각도는 표시하지 않는다.
+- 카메라 권한 거부, 카메라 없음, 분석 실패 상태를 각각 정의한다.
+- 촬영 중에는 transform과 opacity 외의 애니메이션을 쓰지 않는다.
