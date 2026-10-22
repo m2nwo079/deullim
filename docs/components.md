@@ -50,7 +50,8 @@
 | 내비게이션 | WorkerTopBar | 작업장 이름과 뒤로 가기만 둔다 |
 | 들림 전용 | CameraCaptureView | 아래 별도 규칙 |
 | 들림 전용 | CaptureTimer | 촬영 남은 시간 표시. 촬영 중 화면 위 애니메이션은 최소화 |
-| 들림 전용 | BodyMap | 통증 부위 선택. 부위마다 텍스트 라벨을 둔다 |
+| 들림 전용 | BodyMap | 통증 부위 선택. 부위마다 텍스트 라벨을 둔다. MVP는 ChoiceChipGrid로 구현한다 |
+| 기본 | ChoiceChipGrid | 여러 개를 고르는 칩 격자. 작업자 화면에서 칩 높이 48px, 선택 상태는 테두리와 글자색으로 표시 |
 | 들림 전용 | OptimizerResultTable | 선택된 개선안, 비용, 예상 위험 감소량을 표로 표시 |
 | 들림 전용 | QrEntryScreen | QR 접속 직후 첫 화면. 익명이라는 점을 먼저 안내한다 |
 

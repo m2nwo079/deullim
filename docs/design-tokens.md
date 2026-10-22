@@ -82,7 +82,8 @@ base는 막대·점·채움 전용이다. 글자는 strong을 쓰고, 배경은 
 | focus-ring | brand-500 | 키보드 포커스 표시 |
 | risk-{level} | risk-{level}-base | 위험도 막대, 히트맵 칸 |
 | risk-{level}-text | risk-{level}-strong | 위험도 라벨 글자 |
-| risk-{level}-bg | risk-{level}-soft | 위험도 배지 배경 |
+| risk-{level}-bg | risk-{level}-soft | 작업자 결과 화면의 넓은 배경 (배지에는 쓰지 않음) |
+| risk-neutral | gray-500 | 콘솔에서 낮음·주의의 막대 (글자는 text-secondary) |
 
 ## 3. 컴포넌트 토큰 (예시)
 
@@ -92,7 +93,7 @@ base는 막대·점·채움 전용이다. 글자는 strong을 쓰고, 배경은 
 | 주 버튼 | 글자 | on-primary | on-primary | on-primary | text-disabled |
 | 공감 카드 | 배경 | empathy-bg | - | - | - |
 | 공감 카드 | 강조 글자 | empathy-fg | - | - | - |
-| 위험도 배지 | 배경 / 글자 | risk-{level}-bg / risk-{level}-text | - | - | - |
+| 위험도 배지 | 왼쪽 3px 막대 / 글자 | risk-{level} / risk-{level}-text (콘솔의 낮음·주의: risk-neutral / text-secondary) | - | - | - |
 
 ## 4. 형태 토큰
 - 간격: 8px 배수만 쓴다 (8, 16, 24, 32, 40, 48, 64)
@@ -129,7 +130,7 @@ base는 막대·점·채움 전용이다. 글자는 strong을 쓰고, 배경은 
 | 2. 떠 있는 요소 | 드롭다운, 팝오버, 툴팁 | surface | shadow-sm |
 | 3. 덮는 요소 | 모달, 하단 시트 | surface | shadow-lg + scrim |
 | 공감 | "들려요" 응답, 신고 완료 | empathy-bg | 테두리 없음 |
-| 위험도 | 위험도 배지, 경고 영역 | risk-{level}-bg | 위험도 라벨 필수 |
+| 위험도 | 작업자 결과 화면의 넓은 배경 | risk-{level}-bg | 위험도 라벨 필수. 배지와 알림에는 쓰지 않음 |
 
 | 토큰 | 값 (시작값, 화면에서 조정) |
 |---|---|
@@ -220,6 +221,7 @@ TBD. 지원하기로 정하면 의미 토큰마다 어두운 배경용 값을 �
   --empathy-bg: var(--brand-50);
   --empathy-fg: var(--brand-500);
   --focus-ring: var(--brand-500);
+  --risk-neutral: var(--gray-500);
 }
 ```
 
