@@ -60,14 +60,45 @@
 새 도메인 용어가 필요하면 임의로 정하지 않고 사용자에게 묻는다.
 
 ## 기술 스택
-- 프론트엔드: TBD
-- 자세 추정: TBD
-- 백엔드 / DB / 인증: TBD
-- 최적화 솔버: TBD
-- 배포: TBD (무료 티어 안에서만 운영)
+- 프론트엔드: Next.js (App Router), TypeScript strict 모드
+  - 카메라와 MediaPipe 코드는 클라이언트 컴포넌트에서만 실행한다. 서버 렌더링에서 불러오지 않는다.
+  - next.config의 agentRules는 false로 둔다. 에이전트 지침은 CLAUDE.md로만 관리한다.
+  - 개발 서버는 평소 localhost로만 연다. 실기기 테스트가 필요할 때만 사용자 승인 후 외부에 연다.
+- 자세 추정: MediaPipe Tasks Vision (Pose Landmarker), 브라우저에서만 실행
+  - 모델 종류(lite, full, heavy)와 실행 방식(GPU, CPU)은 TBD. 실기기 테스트 후 정한다.
+  - 카메라 접근은 HTTPS 또는 localhost에서만 동작한다. iPhone 실기기 테스트는 HTTPS 환경에서 한다.
+  - MediaPipe에 넣는 영상은 좌우반전하지 않는다. 거울 모드가 필요하면 화면의 영상과 점 레이어만 함께 뒤집는다.
+    (좌우는 작업자 본인 기준이며 AI Hub 라벨과 같다. 스파이크에서 확인함)
+- 백엔드 / DB / 인증: Supabase (Postgres, Auth, Row Level Security, Realtime)
+  - 서버 코드 위치: Next.js Route Handler. Supabase Edge Function은 쓰지 않는다.
+  - Route Handler에서 service role 키를 쓸 때는 요청한 사용자의 역할과 소속을 코드에서 직접 확인한다.
+  - 무료 플랜은 7일간 활동이 없으면 프로젝트가 일시 정지된다. 발표 전에 접속해 상태를 확인한다.
+  - 신규 프로젝트는 Data API를 쓰려면 테이블별 Postgres 권한을 명시적으로 부여해야 한다.
+  - service role 키는 서버 환경 변수에만 둔다. 클라이언트 코드와 커밋에 포함하지 않는다.
+- 최적화: 다중 선택 배낭 문제를 TypeScript 동적계획법으로 직접 구현한다. 외부 솔버는 쓰지 않는다.
+- 배포: Vercel Hobby (비상업적 용도로만 사용)
+- 무료 티어 안에서만 운영한다.
 
 ## 디렉터리 구조
-TBD (스캐폴딩 후 작성)
+```
+deullim/
+├── web/              Next.js 앱. npm 명령은 이 폴더에서 실행한다
+│   ├── app/          라우트 (worker, console, partners 화면과 api)
+│   ├── src/core/     순수 TypeScript: 각도, 점수 산정, 필터, DP 최적화
+│   ├── src/features/ 화면별 컴포넌트와 로직
+│   ├── src/lib/      Supabase 클라이언트 등
+│   └── public/
+├── supabase/         DB 마이그레이션, RLS 정책
+├── tests/fixtures/   합성 테스트 벡터 (Python과 TypeScript가 함께 읽는다)
+├── analysis/         Python 분석 도구 (서비스와 독립)
+├── docs/
+└── data/             원본 데이터 (커밋하지 않음)
+```
+- Vercel 프로젝트의 Root Directory는 web으로 지정한다.
+- web/src/core/에서는 React, Next.js, Supabase를 import하지 않는다. 브라우저와 Route Handler가 함께 쓴다.
+- tests/fixtures/에는 합성 데이터만 둔다. AI Hub 데이터나 실제 작업 영상에서 나온 값은 넣지 않는다.
+- web/ 밖의 tests/fixtures/를 TypeScript 테스트에서 읽는 방식은 스캐폴딩 때 확인한다.
+- 라우트의 구체적인 URL 설계는 TBD.
 
 ## 보안과 개인정보 원칙
 - 촬영 영상과 프레임 이미지는 서버로 전송하거나 저장하지 않는다. 브라우저에서 관절 좌표만 추출한다.
