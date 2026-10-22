@@ -64,6 +64,13 @@
   - 카메라와 MediaPipe 코드는 클라이언트 컴포넌트에서만 실행한다. 서버 렌더링에서 불러오지 않는다.
   - next.config의 agentRules는 false로 둔다. 에이전트 지침은 CLAUDE.md로만 관리한다.
   - 개발 서버는 평소 localhost로만 연다. 실기기 테스트가 필요할 때만 사용자 승인 후 외부에 연다.
+  - 스타일: Tailwind CSS. 기본 색상표는 끄고 docs/design-tokens.md의 토큰만 쓴다.
+    공통 컴포넌트 규칙은 docs/components.md를 따른다.
+    화면 코드에서는 공통 컴포넌트를 쓰고, 긴 클래스 나열은 공통 컴포넌트 안에 둔다.
+  - 린트와 포맷: ESLint + Prettier. 작업 보고 전에 린트, 타입 검사, 테스트를 실행한다.
+  - 검사 강제: GitHub Actions의 PR 검사(린트, 타입 검사, 테스트, 빌드)만 쓴다. git hook은 쓰지 않는다. 배포는 Vercel이 맡는다.
+  - 화면에 보이는 한국어 문구는 이 프로젝트에 한해 컴포넌트에 직접 쓴다.
+    식별자, 주석, 로그, 예외 메시지는 전역 규칙대로 영어로 쓴다.
 - 자세 추정: MediaPipe Tasks Vision (Pose Landmarker), 브라우저에서만 실행
   - 모델 종류(lite, full, heavy)와 실행 방식(GPU, CPU)은 TBD. 실기기 테스트 후 정한다.
   - 카메라 접근은 HTTPS 또는 localhost에서만 동작한다. iPhone 실기기 테스트는 HTTPS 환경에서 한다.
@@ -120,6 +127,13 @@ deullim/
 
 ## 주요 명령어
 TBD (스캐폴딩 후 작성)
+
+## 참조 문서
+- 데이터 모델과 권한: @docs/data-model.md
+- 인증: @docs/auth.md
+- 배포: @docs/deployment.md
+- 린트 규칙: @docs/lint-rules.md
+- 디자인 토큰과 컴포넌트: @docs/design-tokens.md, @docs/components.md
 
 ## 브랜치와 커밋 규칙
 @docs/git-workflow.md
