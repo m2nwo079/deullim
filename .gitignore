@@ -49,3 +49,7 @@ pnpm-debug.log*
 
 # Analysis outputs derived from licensed datasets (never commit)
 analysis/**/results/
+
+# Next.js generated files
+web/next-env.d.ts
+*.tsbuildinfo
