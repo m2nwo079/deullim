@@ -1,5 +1,14 @@
 -- Synthetic demo data. No real company, person, account or token.
--- Run once after the migrations. Accounts are linked separately with link-accounts.sql.
+-- Run once after the migrations, then seed-tasks.sql. Accounts are linked separately with link-accounts.sql.
+
+-- Running this again would duplicate the sites and add pain reports to the existing ones.
+do $$
+begin
+  if exists (select 1 from public.sites where name in ('합성 제1공장', '합성 제2공장')) then
+    raise exception 'seed.sql has already been applied; run seed-tasks.sql instead';
+  end if;
+end;
+$$;
 
 with site as (
   insert into public.sites (name) values ('합성 제1공장') returning id
