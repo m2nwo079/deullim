@@ -3,10 +3,12 @@ import unittest
 from angles import (
     angle_between,
     ankle_height_diff,
+    count_above,
     elbow_flexion,
     knee_flexion,
     max_or_none,
     neck_angle,
+    neck_signed,
     trunk_angle,
     upperarm_angle,
 )
@@ -55,6 +57,37 @@ class AngleTest(unittest.TestCase):
     def test_max_or_none(self):
         self.assertEqual(max_or_none(10.0, 20.0), 20.0)
         self.assertIsNone(max_or_none(None, 20.0))
+
+    def test_neck_signed_flexion_and_extension(self):
+        pelvis, neck = (0, 200), (0, 100)
+        nose_right, nose_left = (20, 90), (-20, 90)
+        # Head tilts toward the nose: positive.
+        self.assertAlmostEqual(neck_signed(pelvis, neck, (50, 50), nose_right, 0.05), 45.0)
+        self.assertAlmostEqual(neck_signed(pelvis, neck, (-50, 50), nose_left, 0.05), 45.0)
+        # Head tilts away from the nose: negative.
+        self.assertAlmostEqual(neck_signed(pelvis, neck, (-50, 50), nose_right, 0.05), -45.0)
+        self.assertAlmostEqual(neck_signed(pelvis, neck, (50, 50), nose_left, 0.05), -45.0)
+        self.assertAlmostEqual(neck_signed(pelvis, neck, (0, 50), nose_right, 0.05), 0.0)
+
+    def test_neck_signed_undetermined_and_missing(self):
+        pelvis, neck, head = (0, 200), (0, 100), (50, 50)
+        # Nose on the trunk line, and 0.02 of trunk length off it: below 0.05.
+        self.assertIsNone(neck_signed(pelvis, neck, head, (0, 90), 0.05))
+        self.assertIsNone(neck_signed(pelvis, neck, head, (2, 90), 0.05))
+        self.assertIsNotNone(neck_signed(pelvis, neck, head, (2, 90), 0.01))
+        self.assertIsNone(neck_signed(pelvis, neck, None, (20, 90), 0.05))
+        self.assertIsNone(neck_signed(pelvis, pelvis, head, (20, 90), 0.05))
+
+    def test_count_above(self):
+        left_sh, right_sh = (0, 100), (40, 100)
+        self.assertEqual(count_above([(left_sh, (0, 150)), (right_sh, (40, 150))]), 0)
+        self.assertEqual(count_above([(left_sh, (0, 50)), (right_sh, (40, 150))]), 1)
+        self.assertEqual(count_above([(left_sh, (0, 50)), (right_sh, (40, 50))]), 2)
+        # Same height is not above.
+        self.assertEqual(count_above([(left_sh, (0, 100)), (right_sh, (40, 100))]), 0)
+        # One side missing.
+        self.assertIsNone(count_above([(left_sh, (0, 50)), (right_sh, None)]))
+        self.assertIsNone(count_above([(None, (0, 50)), (right_sh, (40, 50))]))
 
 
 if __name__ == "__main__":

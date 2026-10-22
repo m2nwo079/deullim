@@ -59,3 +59,36 @@ def ankle_height_diff(left_ankle, right_ankle, left_shoulder, right_shoulder):
 
 def max_or_none(a, b):
     return None if a is None or b is None else max(a, b)
+
+
+def cross(v1, v2):
+    return v1[0] * v2[1] - v1[1] * v2[0]
+
+
+def neck_signed(pelvis, neck, head, nose, min_ratio):
+    """Signed angle from pelvis->neck to neck->head; positive toward the nose side.
+
+    Returns None when a point is missing (None), a vector has zero length, or the
+    nose-to-trunk-line distance / trunk length is below min_ratio.
+    """
+    if any(p is None for p in (pelvis, neck, head, nose)):
+        return None
+    trunk = vec(pelvis, neck)
+    head_vec = vec(neck, head)
+    trunk_sq = trunk[0] ** 2 + trunk[1] ** 2
+    if trunk_sq == 0 or head_vec == (0, 0):
+        return None
+    # |cross| / |trunk| is the nose distance to the trunk line; divide by |trunk| again for the ratio.
+    facing = cross(trunk, vec(neck, nose))
+    if abs(facing) / trunk_sq < min_ratio:
+        return None
+    dot = trunk[0] * head_vec[0] + trunk[1] * head_vec[1]
+    signed = math.degrees(math.atan2(cross(trunk, head_vec), dot))
+    return signed if facing > 0 else -signed
+
+
+def count_above(pairs):
+    """Count (shoulder, point) pairs whose point is above the shoulder (smaller y); None if any point is None."""
+    if any(s is None or p is None for s, p in pairs):
+        return None
+    return sum(p[1] < s[1] for s, p in pairs)

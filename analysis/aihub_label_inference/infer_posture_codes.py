@@ -19,10 +19,12 @@ import angles as ang
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 ZIP_GLOB = os.path.join(REPO, "data/aihub/253.*/01-1.*/Validation/02.*/VL.zip")
-RESULT_PATH = os.path.join(HERE, "results", "posture_code_angles_v2.md")
+RESULT_PATH = os.path.join(HERE, "results", "posture_code_angles_v3.md")
 DIAGNOSTICS_PATH = os.path.join(HERE, "results", "keypoint_diagnostics_v1.md")
 # Groups with fewer valid values than this show "-" so no single record leaks.
 MIN_N = 10
+# neck_signed is None when nose-to-trunk-line distance / trunk length is below this.
+FACING_MIN_RATIO = 0.05
 
 IMAGE_KEYS = ["id", "file_name", "width", "height", "date_captured", "light", "angle"]
 POSTURE_ITEMS = ["neck", "trunk", "upperarm", "lowerarm", "legs"]
@@ -97,6 +99,23 @@ def fmt(v):
     if isinstance(v, float):
         return f"{v:.2f}"
     return str(v)
+
+
+def count_cell(c):
+    return f"<{MIN_N}" if 0 < c < MIN_N else c
+
+
+def sort_key(v):
+    return (v is None, type(v).__name__, 0 if v is None else v)
+
+
+def crosstab(pairs, row_label, col_label, row_fmt=str):
+    """Count table of (row, col) pairs; cells from 1 to MIN_N - 1 show as "<MIN_N"."""
+    counts = Counter(pairs)
+    rows = sorted({r for r, _ in counts}, key=sort_key)
+    cols = sorted({c for _, c in counts}, key=sort_key)
+    table([f"{row_label} \\ {col_label}"] + [str(c) for c in cols],
+          [[row_fmt(r)] + [count_cell(counts[(r, c)]) for c in cols] for r in rows])
 
 
 def pct(n, d):
@@ -272,6 +291,7 @@ def load_records(zip_path, stats):
                 "w": w, "h": h,
                 "valid": [0 < x <= w and 0 < y <= h for x, y, _ in kp],
                 "light": str(img.get("light")), "camera": str(img.get("angle")),
+                "factory_process": f"{a.get('factory')},{a.get('process')}",
                 "bbox": bbox, "kp": kp,
                 "posture": a.get("posture") or {},
                 "flags": {f: a.get(f) for f in EXTRA_FLAGS},
@@ -418,7 +438,7 @@ def code_tables(records, group_key=None, group_label=None):
 def run_analysis(zip_path, margin, bbox_mode, diagnose_only):
     stats = Counter()
     records, image_values = load_records(zip_path, stats)
-    emit("# AI Hub posture code vs joint angle aggregates (v2)")
+    emit("# AI Hub posture code vs joint angle aggregates (v3)")
     emit()
     table(["metric", "count"], sorted(stats.items()) + [("records", len(records))])
 
@@ -464,6 +484,11 @@ def run_analysis(zip_path, margin, bbox_mode, diagnose_only):
 
     for r in filtered:
         r["m"] = compute_angles([(x, y) for x, y, _ in r["kp"]], r["valid"])
+        pv = [(x, y) if ok else None for (x, y, _), ok in zip(r["kp"], r["valid"])]
+        r["m"]["neck_signed"] = ang.neck_signed(pv[18], pv[4], pv[0], pv[3], FACING_MIN_RATIO)
+        r["facing_undetermined"] = r["m"]["neck_signed"] is None and all(r["valid"][i] for i in (0, 3, 4, 18))
+        r["wrists_above"] = ang.count_above([(pv[5], pv[7]), (pv[11], pv[13])])
+        r["elbows_above"] = ang.count_above([(pv[5], pv[6]), (pv[11], pv[12])])
 
     emit("## 7-1 angles by posture code")
     code_tables(filtered)
@@ -490,6 +515,59 @@ def run_analysis(zip_path, margin, bbox_mode, diagnose_only):
     emit("## 7-5 image light and angle distribution (all images)")
     for k, c in image_values.items():
         table([f"images[].{k}", "count"], sorted(c.items()))
+
+    section_8(filtered)
+
+
+def code_of(r, item):
+    return str(r["posture"].get(item, "<missing>"))
+
+
+def section_8(records):
+    emit(f"Count cells from 1 to {MIN_N - 1} show as <{MIN_N}.")
+    emit()
+    neck = [r for r in records if r["item_ok"]["neck"]]
+    emit(f"## 8-1 neck_signed by neck code (FACING_MIN_RATIO={FACING_MIN_RATIO}, records passing the neck filter)")
+    rows = []
+    for code in sorted({code_of(r, "neck") for r in neck}):
+        rs = [r for r in neck if code_of(r, "neck") == code]
+        vals = [r["m"]["neck_signed"] for r in rs if r["m"]["neck_signed"] is not None]
+        neg = pct(sum(v < 0 for v in vals), len(vals)) if len(vals) >= MIN_N else None
+        rows.append([code, len(rs)] + summary(vals) + [neg, sum(r["facing_undetermined"] for r in rs)])
+    table(["code", "n", "n_valid", "mean", "p25", "p50", "p75", "negative ratio", "facing undetermined"], rows)
+
+    emit("## 8-2 wrists and elbows above the shoulder")
+    for item in ("upperarm", "lowerarm"):
+        rs = [r for r in records if r["item_ok"][item]]
+        for key in ("wrists_above", "elbows_above"):
+            emit(f"### {item} code x {key} (records passing the {item} filter)")
+            emit()
+            crosstab([(code_of(r, item), r[key]) for r in rs], f"{item} code", key)
+
+    emit("## 8-3 angle histograms by posture code")
+    for metric, item, width in (("trunk_angle", "trunk", 5), ("neck_angle", "neck", 5),
+                                ("neck_signed", "neck", 5), ("upperarm_max", "upperarm", 10)):
+        emit(f"### {metric} by {item} code ({width} degree bins)")
+        emit()
+        pairs = [(math.floor(r["m"][metric] / width) * width, code_of(r, item))
+                 for r in records if r["item_ok"][item] and r["m"][metric] is not None]
+        crosstab(pairs, "bin", f"{item} code", lambda b, w=width: f"[{b}, {b + w})")
+
+    emit("## 8-4 keypoint flag by validity (all records)")
+    emit()
+    crosstab([("valid" if ok else "invalid", kp[2]) for r in records for kp, ok in zip(r["kp"], r["valid"])],
+             "validity", "flag")
+    crosstab([((i, "valid" if r["valid"][i] else "invalid"), r["kp"][i][2]) for r in records for i in range(27)],
+             "kp, validity", "flag", lambda k: f"{k[0]} {k[1]}")
+    emit("Knee flags in records whose invalid set is exactly 21,22,25,26")
+    emit()
+    knee_rs = [r for r in records if {i for i, ok in enumerate(r["valid"]) if not ok} == {21, 22, 25, 26}]
+    crosstab([(i, r["kp"][i][2]) for r in knee_rs for i in (20, 24)], "kp", "flag")
+
+    emit("## 8-5 light cross counts (all records)")
+    emit()
+    crosstab([(r["factory_process"], r["light"]) for r in records], "factory,process", "light")
+    crosstab([(r["camera"], r["light"]) for r in records], "images[].angle", "light")
 
 
 def main():
