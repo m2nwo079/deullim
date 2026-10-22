@@ -2,6 +2,7 @@
 
 전역 규칙(~/.claude/CLAUDE.md)을 따르며, 이 파일은 프로젝트 고유 내용만 담는다.
 전역 규칙과 충돌하면 전역 규칙의 "예외 없는 절대 금지" 항목이 항상 우선한다.
+작업별 절차는 .claude/skills/의 해당 스킬을 따른다.
 
 ## 프로젝트 개요
 - 서비스명: 들림 (Deullim)
@@ -22,18 +23,6 @@
 - API 엔드포인트나 요청·응답 형식을 추가하거나 바꿔야 할 때
 - 설계 문서가 모호하거나, 구현 중 설계의 결함을 발견했을 때
   (우회 구현으로 메우지 않고 문제를 보고한다)
-
-### 테스트
-- 기능 코드와 같은 작업 단위 안에서 테스트 코드를 함께 작성한다.
-- 작성한 테스트는 실행하고, 실제 실행 결과를 그대로 보고한다.
-- 실패하는 테스트를 통과시키기 위해 테스트를 수정하거나 단언을 약하게 바꾸지 않는다.
-  테스트 수정이 필요하다고 판단되면 이유를 설명하고 승인을 받는다.
-
-### 리뷰 요청 형식
-작업 단위를 마치면 아래를 정리해 리뷰를 요청한다.
-- 변경한 파일 목록과 각 변경의 이유
-- 테스트 실행 결과
-- 설계 문서와 다르게 구현한 부분과 그 이유 (없으면 "없음")
 
 ## 사용자 역할과 화면
 - worker (현장 작업자): "들림" 모바일 웹. QR 진입, 자세 촬영, 위험도 리포트, 익명 통증 신고, 개선 제안
@@ -60,28 +49,19 @@
 새 도메인 용어가 필요하면 임의로 정하지 않고 사용자에게 묻는다.
 
 ## 기술 스택
-- 프론트엔드: Next.js (App Router), TypeScript strict 모드
-  - 카메라와 MediaPipe 코드는 클라이언트 컴포넌트에서만 실행한다. 서버 렌더링에서 불러오지 않는다.
-  - next.config의 agentRules는 false로 둔다. 에이전트 지침은 CLAUDE.md로만 관리한다.
+- 프론트엔드: Next.js (App Router), TypeScript strict 모드, Tailwind CSS. 세부 규칙은 deullim-ui 스킬
   - 개발 서버는 평소 localhost로만 연다. 실기기 테스트가 필요할 때만 사용자 승인 후 외부에 연다.
-  - 스타일: Tailwind CSS. 기본 색상표는 끄고 docs/design-tokens.md의 토큰만 쓴다.
-    공통 컴포넌트 규칙은 docs/components.md를 따른다.
-    화면 코드에서는 공통 컴포넌트를 쓰고, 긴 클래스 나열은 공통 컴포넌트 안에 둔다.
-  - 린트와 포맷: ESLint + Prettier. 작업 보고 전에 린트, 타입 검사, 테스트를 실행한다.
   - 검사 강제: GitHub Actions의 PR 검사(린트, 타입 검사, 테스트, 빌드)만 쓴다. git hook은 쓰지 않는다. 배포는 Vercel이 맡는다.
   - 화면에 보이는 한국어 문구는 이 프로젝트에 한해 컴포넌트에 직접 쓴다.
     식별자, 주석, 로그, 예외 메시지는 전역 규칙대로 영어로 쓴다.
 - 자세 추정: MediaPipe Tasks Vision (Pose Landmarker), 브라우저에서만 실행
+  - 카메라와 MediaPipe 코드는 클라이언트 컴포넌트에서만 실행한다. 서버 렌더링에서 불러오지 않는다.
   - 모델 종류(lite, full, heavy)와 실행 방식(GPU, CPU)은 TBD. 실기기 테스트 후 정한다.
   - 카메라 접근은 HTTPS 또는 localhost에서만 동작한다. iPhone 실기기 테스트는 HTTPS 환경에서 한다.
   - MediaPipe에 넣는 영상은 좌우반전하지 않는다. 거울 모드가 필요하면 화면의 영상과 점 레이어만 함께 뒤집는다.
     (좌우는 작업자 본인 기준이며 AI Hub 라벨과 같다. 스파이크에서 확인함)
-- 백엔드 / DB / 인증: Supabase (Postgres, Auth, Row Level Security, Realtime)
+- 백엔드 / DB / 인증: Supabase (Postgres, Auth, Row Level Security, Realtime). 세부 규칙은 deullim-data-auth 스킬
   - 서버 코드 위치: Next.js Route Handler. Supabase Edge Function은 쓰지 않는다.
-  - Route Handler에서 secret key(SUPABASE_SECRET_KEY, RLS 우회)를 쓸 때는 요청한 사용자의 역할과 소속을 코드에서 직접 확인한다.
-  - 무료 플랜은 7일간 활동이 없으면 프로젝트가 일시 정지된다. 발표 전에 접속해 상태를 확인한다.
-  - 신규 프로젝트는 Data API를 쓰려면 테이블별 Postgres 권한을 명시적으로 부여해야 한다.
-  - secret key는 서버 환경 변수에만 둔다. 클라이언트 코드와 커밋에 포함하지 않는다.
 - 최적화: 다중 선택 배낭 문제를 TypeScript 동적계획법으로 직접 구현한다. 외부 솔버는 쓰지 않는다.
 - 배포: Vercel Hobby (비상업적 용도로만 사용)
 - 무료 티어 안에서만 운영한다.
@@ -105,7 +85,6 @@ deullim/
 - web/src/core/에서는 React, Next.js, Supabase를 import하지 않는다. 브라우저와 Route Handler가 함께 쓴다.
 - 테스트 파일은 대상 파일 옆에 둔다 (예: src/core/angle.ts → src/core/angle.test.ts).
 - tests/fixtures/에는 합성 데이터만 둔다. AI Hub 데이터나 실제 작업 영상에서 나온 값은 넣지 않는다.
-- web/ 밖의 tests/fixtures/를 TypeScript 테스트에서 읽는 방식은 스캐폴딩 때 확인한다.
 - 라우트의 구체적인 URL 설계는 TBD.
 
 ## 보안과 개인정보 원칙
@@ -116,14 +95,16 @@ deullim/
   - 차감으로 역산되지 않도록, 합산 대상 공정이 생기면 같은 상위 단위의 다른 공정을 하나 이상 함께 묶는다.
   - 5명 미만 공정의 신고는 실시간으로 반영하지 않고 모아서 지연 반영한다.
 - 역할별 접근 권한은 서버(DB 정책)에서 강제한다. 프론트엔드 화면 분기만으로 권한을 처리하지 않는다.
+- secret key(SUPABASE_SECRET_KEY)는 서버 환경 변수에만 두고 web/src/lib/supabase/admin.ts에서만 읽는다.
+  클라이언트 코드와 커밋에 포함하지 않는다.
 - 개발과 검증에 쓰는 실제 작업 영상은 data/ 아래에만 두며 커밋하지 않는다.
 
 ## 평가와 최적화 원칙
 - 들림은 상시 선별 도구이자 정밀 조사 대상 추천 도구이며, 법정 유해요인조사를 대체하지 않는다.
   화면 문구, 보고서 템플릿, 출력 문자열에 "법정 평가 완료", "조사 대체" 같은 표현을 쓰지 않는다.
 - 보고서 기능은 보고서 초안과 근거 자료를 생성하며, 최종 조사와 근로자 참여는 사업장이 수행한다.
-- 자세 평가는 @docs/assessment-rules.md의 규칙만 따른다. 임의로 가중치나 구간을 바꾸지 않는다.
-- 최적화 모델의 목적함수와 제약은 @docs/optimization-model.md를 기준으로 한다.
+- 자세 평가는 docs/assessment-rules.md의 규칙만 따른다. 임의로 가중치나 구간을 바꾸지 않는다.
+- 최적화 모델의 목적함수와 제약은 docs/optimization-model.md를 기준으로 한다.
 - 수작업 평가 대조 파일(validation/)의 판정 값은 사용자가 채운다.
 
 ## 주요 명령어
@@ -136,12 +117,11 @@ web/ 폴더에서 실행한다. Node는 24.x(web/.nvmrc)이며, 로컬 Node가 �
 - npm run format / npm run format:check: Prettier 적용 / 검사
 - 작업 보고 전: npm run lint && npm run typecheck && npm run test
 
-## 참조 문서
-- 데이터 모델과 권한: @docs/data-model.md
-- 인증: @docs/auth.md
-- 배포: @docs/deployment.md
-- 린트 규칙: @docs/lint-rules.md
-- 디자인 토큰과 컴포넌트: @docs/design-tokens.md, @docs/components.md
+## 문서 목록 (필요할 때 읽는다)
+- 디자인: docs/design-principles.md, docs/design-tokens.md, docs/components.md
+- 평가와 최적화: docs/assessment-rules.md, docs/optimization-model.md, docs/aihub-label-codes.md
+- 데이터와 인증: docs/data-model.md, docs/auth.md
+- 배포와 린트: docs/deployment.md, docs/lint-rules.md
 
 ## 브랜치와 커밋 규칙
 @docs/git-workflow.md
