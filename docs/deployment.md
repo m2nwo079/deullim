@@ -34,6 +34,8 @@ main ─→ Vercel 운영 배포 (Root Directory: web)
 - Supabase 키는 publishable key와 secret key를 쓴다. anon, service_role 키는 legacy이며 2026년 말까지 폐기 예정이다
   (https://supabase.com/docs/guides/api/api-keys, 2026-10-22 확인). secret key는 service_role 역할로 동작해 RLS를 우회한다.
 - .env.local은 .gitignore의 `.env.*`에 포함되어 커밋되지 않는다. 필요한 변수 이름은 .env.example에 값 없이 적는다.
+- QR의 사이트 주소는 Vercel 시스템 환경 변수로 정한다. VERCEL_ENV가 production이면 VERCEL_PROJECT_PRODUCTION_URL,
+  preview이면 VERCEL_URL, 그 밖(로컬)이면 http://localhost:3000. "Enable access to System Environment Variables"가 켜져 있어야 한다.
 
 ## DB 변경
 - 변경은 supabase/migrations/의 SQL 파일로만 한다.
