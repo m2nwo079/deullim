@@ -8,9 +8,11 @@ description: 들림의 analysis/ 폴더에서 Python 분석 도구를 만들거�
 ## 읽을 문서
 - docs/aihub-label-codes.md: 출처와 이용 표시, 확인된 데이터 구조, 코드 역추정 결과, 미해결 질문
 - CLAUDE.local.md: 데이터셋별 위치와 사용 제한
+- data/SOURCES.md: 데이터셋 출처와 라이선스
 
 ## 규칙 (AI Hub 이용정책의 국외 반출, 제3자 열람 금지 조항 때문)
 - 원본은 압축을 풀지 않고 zipfile로 직접 읽는다. data/ 안에 파일을 만들거나 고치지 않는다.
+  단, data/SOURCES.md는 사용자가 관리하며 Claude Code는 읽기만 한다.
 - Claude Code는 원본 zip이나 JSON을 직접 열어 보지 않는다.
 - 터미널 출력과 결과 파일에는 건수, 비율, 분위수 같은 집계만 넣는다. 개별 레코드, 좌표, 파일명은 출력하지 않는다.
 - 통계값은 표본이 10건 미만이면 "-"로, 건수표의 1~9는 "<10"으로 가린다.
