@@ -30,7 +30,7 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Do not add code between client creation and getClaims(); it validates and refreshes the token.
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
 
-  return response;
+  return { response, signedIn: Boolean(data?.claims.sub) };
 }
