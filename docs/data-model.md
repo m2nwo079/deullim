@@ -23,6 +23,8 @@ erDiagram
     workstations ||--o{ pain_reports : receives
     workstations ||--o{ suggestions : receives
     workstations ||--o{ improvement_options : has
+    improvement_options ||--o{ option_effects : estimates
+    tasks ||--o{ option_effects : affected
     workstations ||--o{ improvement_requests : has
     partners ||--o{ partner_members : has
     profiles ||--o{ partner_members : joins
@@ -40,7 +42,7 @@ erDiagram
 |---|---|---|
 | sites | id, name, created_at | 사업장 |
 | workstations | id, site_id, parent_group, name, headcount | parent_group은 5명 미만 합산의 상위 단위 |
-| tasks | id, workstation_id, name | 단위작업 |
+| tasks | id, workstation_id, name, daily_hours, load_category, load_shock, coupling, static_hold, unstable_base, sitting, arm_supported | 단위작업. 하루 작업 시간과 REBA 관리자 입력 항목 (docs/assessment-rules.md) |
 | profiles | id (auth.users.id), role (manager, partner), display_name | 작업자 행은 없음 |
 | site_members | site_id, profile_id | 관리자의 소속 사업장 |
 | partners | id, company_name | 설비 업체 |
@@ -52,6 +54,7 @@ erDiagram
 | pain_reports | id, workstation_id, body_parts (text[]), intensity, created_at, visible_from | 작성자 열 없음 |
 | suggestions | id, workstation_id, body, status, created_at | 작성자 열 없음 |
 | improvement_options | id, workstation_id, title, cost, expected_risk_reduction, duration_days, quote_id | |
+| option_effects | option_id, task_id, expected_high_risk_ratio, source (simulation, manual) | 개선안 적용 후 단위작업별 예상 고위험 비율 (docs/optimization-model.md) |
 | improvement_requests | id, workstation_id, status, created_by | created_by는 관리자 profile |
 | quotes | id, request_id, partner_id, price, lead_time_days, status | |
 | improvement_plans | id, site_id, budget, solver_version, created_by, created_at | |
@@ -70,7 +73,7 @@ erDiagram
 | sites, workstations, tasks | 소속 사업장만 읽기·쓰기 | 없음 | 직접 접근 없음 |
 | capture_sessions, assessments | 소속 사업장만 읽기 | 없음 | Route Handler가 서버 권한으로 쓰기 |
 | pain_reports, suggestions | 테이블 직접 읽기 없음, 집계 뷰만 | 없음 | Route Handler가 서버 권한으로 쓰기 |
-| improvement_options, improvement_plans, plan_items | 소속 사업장만 읽기·쓰기 | 없음 | 없음 |
+| improvement_options, option_effects, improvement_plans, plan_items | 소속 사업장만 읽기·쓰기 | 없음 | 없음 |
 | improvement_requests | 소속 사업장만 읽기·쓰기 | 공개된 요청만 읽기 | 없음 |
 | quotes | 소속 사업장 요청의 견적 읽기 | 자기 회사 견적만 읽기·쓰기 | 없음 |
 | entry_tokens, report_rate_limits | 소속 사업장 토큰 발급·비활성화 | 없음 | Route Handler만 조회 |
