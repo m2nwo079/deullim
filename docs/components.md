@@ -34,9 +34,9 @@
 |---|---|---|
 | 기본 | Button | 종류: primary, secondary, text. 화면당 primary는 하나 |
 | 기본 | IconButton | 아이콘만 있을 때도 접근성 이름(aria-label)을 반드시 둔다 |
-| 기본 | TextField, Select, Checkbox, Toggle, SegmentedControl, Tabs | 라벨은 항상 보이게 둔다. placeholder를 라벨 대신 쓰지 않는다 |
+| 기본 | TextField, Select, Checkbox, Toggle, SegmentedControl, Tabs | 라벨은 항상 보이게 둔다. placeholder를 라벨 대신 쓰지 않는다. 입력 오류는 브라우저 말풍선 대신 칸 아래 문구로 알리고, aria-invalid와 aria-describedby로 칸에 연결하며, 칸 테두리를 border-text로 바꾼다 |
 | 피드백 | Toast | motion-base로 나타나고 4초 후 사라진다 (시작값). 중요한 결과는 Toast만으로 알리지 않는다 |
-| 피드백 | InlineAlert | 정보, 기한, 오류 표시. 위험도 색을 쓰지 않고 중립 배경과 아이콘으로 표시한다 |
+| 피드백 | InlineAlert | 정보, 기한, 오류 표시. 위험도 색을 쓰지 않고 중립 배경과 아이콘으로 표시한다. 종류: 일반(info), 오류(error). 오류는 왼쪽 3px 막대와 굵은 글자, alert 아이콘을 모두 text 색으로 표시하고 role="alert"로 바로 알린다 |
 | 피드백 | EmpathyCard | "들려요" 응답 전용. empathy-bg, empathy-fg, 대표 모션 |
 | 피드백 | EmptyState, Skeleton, ProgressIndicator | 빈 화면 안내는 공감 톤의 문구를 쓴다 |
 | 데이터 | RiskBadge | 표지형: 왼쪽 3px 색 막대 + 라벨 글자. 배경 없음, 모서리 없음. 콘솔에서 낮음·주의는 중립 회색 |
