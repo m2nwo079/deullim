@@ -44,7 +44,7 @@ export default function WorkerResultPreview() {
       </section>
 
       <div className="mt-auto flex flex-col gap-2">
-        <p className="text-body text-text-secondary">정밀 조사를 대신하지 않는 선별 결과예요</p>
+        <p className="text-body text-text-secondary">정밀 조사를 대신하지 않는 선별 결과예요.</p>
         <ButtonLink href="/preview/worker/pain" size="worker-main" iconBefore="message">
           아픈 곳 알리기
         </ButtonLink>

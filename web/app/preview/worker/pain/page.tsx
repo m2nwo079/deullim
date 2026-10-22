@@ -25,7 +25,7 @@ export default function WorkerPainPreview() {
       <ChoiceChipGrid
         name="body-parts"
         legend="어디가 아프세요?"
-        description="이름은 남지 않아요"
+        description="이름은 남지 않아요."
         descriptionIcon="lock"
         options={BODY_PARTS}
       />
