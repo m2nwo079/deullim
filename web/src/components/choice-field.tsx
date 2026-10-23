@@ -22,10 +22,26 @@ type ChoiceFieldProps = {
   disabled: boolean;
   loading: boolean;
   layout: string;
+  /** worker: 48px options with large text. console: 40px options, left-aligned, like TextField. */
+  size: "worker" | "console";
+  describedBy?: string;
 };
 
+const SIZE = {
+  worker: {
+    fieldset: "gap-2",
+    legend: "text-title-sm font-bold",
+    option: "min-h-6 justify-center text-center text-body-lg",
+  },
+  console: {
+    fieldset: "gap-1",
+    legend: "text-small font-medium",
+    option: "min-h-5 justify-start text-left text-body",
+  },
+} as const;
+
 const OPTION =
-  "flex h-full min-h-6 items-center justify-center rounded-control border px-2 py-1 text-center text-body-lg transition-colors duration-(--motion-fast) ease-standard peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus-ring";
+  "flex h-full items-center rounded-control border px-2 py-1 transition-colors duration-(--motion-fast) ease-standard peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus-ring";
 
 const ENABLED =
   "cursor-pointer border-border-strong bg-surface text-text hover:bg-surface-muted active:bg-surface-sunken peer-checked:border-primary peer-checked:font-medium peer-checked:text-primary";
@@ -43,16 +59,18 @@ export function ChoiceField({
   disabled,
   loading,
   layout,
+  size,
+  describedBy,
 }: ChoiceFieldProps): ReactNode {
   const descriptionId = description ? `${name}-description` : undefined;
   return (
     <fieldset
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      aria-describedby={descriptionId}
-      className="flex flex-col gap-2"
+      aria-describedby={[descriptionId, describedBy].filter(Boolean).join(" ") || undefined}
+      className={`flex flex-col ${SIZE[size].fieldset}`}
     >
-      <legend className="text-title-sm font-bold">{legend}</legend>
+      <legend className={SIZE[size].legend}>{legend}</legend>
       {description ? (
         <p
           id={descriptionId}
@@ -72,7 +90,9 @@ export function ChoiceField({
               defaultChecked={defaultChecked.includes(value)}
               className="peer sr-only"
             />
-            <span className={`${OPTION} ${disabled && !loading ? DISABLED : ENABLED}`}>
+            <span
+              className={`${OPTION} ${SIZE[size].option} ${disabled && !loading ? DISABLED : ENABLED}`}
+            >
               {label}
             </span>
           </label>

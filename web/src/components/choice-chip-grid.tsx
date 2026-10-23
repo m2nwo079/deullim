@@ -26,6 +26,7 @@ export function ChoiceChipGrid({
       disabled={disabled}
       loading={loading}
       layout="grid grid-cols-2 gap-1"
+      size="worker"
       {...rest}
     />
   );
