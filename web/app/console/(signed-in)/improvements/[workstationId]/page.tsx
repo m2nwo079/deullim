@@ -73,14 +73,14 @@ function optionColumns(workstationId: string): Column<OptionView>[] {
     {
       key: "actions",
       header: "관리",
-      hiddenHeader: true,
+      action: true,
       render: (row) => (
-        <div className="flex gap-1">
+        <>
           <ButtonLink href={`${IMPROVEMENTS_PAGE}/${workstationId}/${row.id}`} variant="secondary">
             수정
           </ButtonLink>
           <DeleteOptionButton optionId={row.id} title={row.title} />
-        </div>
+        </>
       ),
     },
   ];

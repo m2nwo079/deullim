@@ -5,8 +5,13 @@ export type Column<Row> = {
   header: string;
   /** Numeric columns use tabular figures and right alignment. */
   numeric?: boolean;
-  /** Keeps the header for screen readers but hides it visually (e.g. an actions column). */
+  /** Keeps the header for screen readers but hides it visually. */
   hiddenHeader?: boolean;
+  /**
+   * Row buttons: the column takes only its content's width at the right edge of the table, and
+   * its header is hidden visually like hiddenHeader (docs/components.md).
+   */
+  action?: boolean;
   render: (row: Row) => ReactNode;
 };
 
@@ -35,9 +40,9 @@ export function DataTable<Row>({ caption, columns, rows, rowKey }: DataTableProp
               <th
                 key={column.key}
                 scope="col"
-                className={`px-2 py-1 text-caption font-medium whitespace-nowrap text-text-secondary ${column.numeric ? "text-right" : ""}`}
+                className={`px-2 py-1 text-caption font-medium whitespace-nowrap text-text-secondary ${column.numeric || column.action ? "text-right" : ""} ${column.action ? "w-0" : ""}`}
               >
-                {column.hiddenHeader ? (
+                {column.hiddenHeader || column.action ? (
                   <span className="sr-only">{column.header}</span>
                 ) : (
                   column.header
@@ -52,9 +57,13 @@ export function DataTable<Row>({ caption, columns, rows, rowKey }: DataTableProp
               {columns.map((column) => (
                 <td
                   key={column.key}
-                  className={`px-2 py-1 whitespace-nowrap ${column.numeric ? "text-right tabular-nums" : ""}`}
+                  className={`px-2 py-1 whitespace-nowrap ${column.numeric ? "text-right tabular-nums" : ""} ${column.action ? "w-0" : ""}`}
                 >
-                  {column.render(row)}
+                  {column.action ? (
+                    <div className="flex justify-end gap-1">{column.render(row)}</div>
+                  ) : (
+                    column.render(row)
+                  )}
                 </td>
               ))}
             </tr>
