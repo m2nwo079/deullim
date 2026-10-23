@@ -104,7 +104,7 @@ export default async function WorkstationOptionsPage({
   const loaded = await loadWorkstationOptions(session.supabase, workstationId);
   if (loaded === null) {
     return (
-      <main className="flex flex-col gap-3 px-3 py-3">
+      <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
         <InlineAlert tone="error">
           개선안을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
         </InlineAlert>
@@ -118,7 +118,7 @@ export default async function WorkstationOptionsPage({
   }
 
   return (
-    <main className="flex flex-col gap-3 px-3 py-3">
+    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex flex-col gap-1">
           <p className="text-caption text-text-secondary">

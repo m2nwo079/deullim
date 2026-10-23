@@ -25,7 +25,7 @@ export default async function ConsolePage({
   const site = (sites ?? []).find((s) => s.id === requested) ?? sites?.[0];
   if (!site) {
     return (
-      <main className="flex flex-col gap-3 px-3 py-3">
+      <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
         <h1 className="text-title font-bold">개요</h1>
         <EmptyState
           icon="inbox"

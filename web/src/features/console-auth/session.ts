@@ -25,6 +25,7 @@ export const getConsoleSession = cache(async () => {
 
   return {
     supabase,
+    userId,
     access: consoleAccess(profile?.role),
     displayName: profile?.display_name ?? "",
   };

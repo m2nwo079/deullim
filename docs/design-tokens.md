@@ -162,6 +162,17 @@ base는 막대·점·채움 전용이다. 글자는 strong을 쓰고, 배경은 
 - 대표 모션: "들려요" 공감 카드가 scale 0.96 → 1, opacity 0 → 1로 motion-emphasis 동안 한 번 나타난다.
 - 진동 피드백은 iOS Safari 지원 여부를 확인한 뒤 정한다.
 
+## 4.4 레이아웃 폭
+콘솔 화면의 내용은 최대 폭 안에서 가운데로 모은다. 넓은 화면에서 표와 입력 칸이 양 끝으로 벌어지지 않게 하기 위해서다.
+
+| 토큰 | 값 | 쓰는 곳 |
+|---|---|---|
+| container-console | 1280px | 표 화면: 개요, QR 관리, 개선안 목록과 상세, 개선 계획 |
+| container-console-form | 720px | 입력 폼 화면: 개선안 추가와 수정 (로그인은 별도의 400px 카드) |
+
+- 좌우 여백은 최소 16px(spacing 2)이다. 화면 폭이 최대 폭보다 좁으면 여백만 남기고 화면 폭을 따른다.
+- 상단 헤더의 안쪽 내용도 container-console에 맞춘다.
+
 ## 5. 다크 모드
 TBD. 지원하기로 정하면 의미 토큰마다 어두운 배경용 값을 추가하고 대비를 다시 검증한다.
 
@@ -225,6 +236,12 @@ TBD. 지원하기로 정하면 의미 토큰마다 어두운 배경용 값을 �
   --empathy-fg: var(--brand-500);
   --focus-ring: var(--brand-500);
   --risk-neutral: var(--gray-500);
+}
+
+/* Layout widths (Tailwind max-w-console, max-w-console-form) */
+@theme {
+  --container-console: 1280px;
+  --container-console-form: 720px;
 }
 ```
 

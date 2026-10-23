@@ -45,14 +45,16 @@ export function Modal({ open, title, children, actions, onClose }: ModalProps) {
         event.preventDefault();
         onClose();
       }}
-      className="m-auto w-full max-w-60 rounded-surface-lg bg-surface p-3 text-text shadow-lg backdrop:bg-scrim"
+      // The dialog renders in the top layer but inherits text styles from where it sits in the DOM,
+      // such as a table cell's nowrap, so wrapping and alignment are reset here.
+      className="m-auto w-[calc(100%-32px)] max-w-60 rounded-surface-lg bg-surface p-3 text-left wrap-anywhere whitespace-normal text-text shadow-lg backdrop:bg-scrim"
     >
       <div className="flex flex-col gap-2">
         <h2 id={titleId} className="text-title-sm font-bold">
           {title}
         </h2>
         <div className="text-body">{children}</div>
-        <div className="flex justify-end gap-1 pt-1">{actions}</div>
+        <div className="flex flex-wrap justify-end gap-1 pt-1">{actions}</div>
       </div>
     </dialog>
   );

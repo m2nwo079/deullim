@@ -159,7 +159,7 @@ type ConsoleOverviewProps = {
 /** Console overview (preview: /preview/console). Metric definitions: docs/console-metrics.md. */
 export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleOverviewProps) {
   return (
-    <main className="flex min-w-0 flex-1 flex-col gap-3 px-3 py-2 lg:px-4">
+    <main className="mx-auto flex w-full max-w-console min-w-0 flex-col gap-3 px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-body font-medium">{site.name}</span>
@@ -187,6 +187,9 @@ export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleO
         <div className="flex flex-wrap gap-2">
           <ButtonLink href="/console/improvements" variant="secondary" iconBefore="document">
             개선안
+          </ButtonLink>
+          <ButtonLink href="/console/plans" variant="secondary" iconBefore="report">
+            개선 계획
           </ButtonLink>
           <ButtonLink href="/console/qr" variant="secondary" iconBefore="qr">
             QR 관리

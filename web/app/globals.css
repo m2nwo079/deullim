@@ -118,6 +118,10 @@
   --radius-surface: 12px;
   --radius-surface-lg: 16px;
 
+  /* Console content widths (docs/design-tokens.md 4.4): max-w-console, max-w-console-form. */
+  --container-console: 1280px;
+  --container-console-form: 720px;
+
   --shadow-*: initial;
   --shadow-sm: 0 2px 8px rgba(19, 24, 30, 0.06);
   --shadow-md: 0 8px 24px rgba(19, 24, 30, 0.1);

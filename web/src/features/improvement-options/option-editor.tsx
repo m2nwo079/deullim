@@ -3,6 +3,7 @@
 import { useActionState, useState, type FormEvent } from "react";
 import { Button, ButtonLink } from "../../components/button";
 import { InlineAlert } from "../../components/inline-alert";
+import { MoneyField } from "../../components/money-field";
 import { TextField } from "../../components/text-field";
 import { saveOption, type SaveOptionState } from "./actions";
 import type { TaskView } from "./load-options";
@@ -72,11 +73,10 @@ export function OptionForm({
         defaultValue={text.description}
         error={errors.description}
       />
-      <TextField
+      <MoneyField
         id={FIELDS.cost}
         name={FIELDS.cost}
         label="비용 (원)"
-        inputMode="numeric"
         aria-required
         defaultValue={text.cost}
         error={errors.cost}

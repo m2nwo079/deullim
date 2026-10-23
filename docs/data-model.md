@@ -57,8 +57,8 @@ erDiagram
 | option_effects | option_id, task_id, expected_high_risk_ratio, source (simulation, manual) | 개선안 적용 후 단위작업별 예상 고위험 비율 (docs/optimization-model.md). 단위작업은 개선안과 같은 공정이어야 함(트리거). 개선안 입력 화면은 manual만 쓴다 |
 | improvement_requests | id, workstation_id, status, created_by | created_by는 관리자 profile. 기본값 auth.uid(), 추가 시 본인만 허용 |
 | quotes | id, request_id, partner_id, price, lead_time_days, status | |
-| improvement_plans | id, site_id, budget, solver_version, created_by, created_at | created_by는 기본값 auth.uid(), 추가 시 본인만 허용 |
-| plan_items | plan_id, option_id | |
+| improvement_plans | id, site_id, budget, solver_version, total_cost, total_reduction, exposure_before, warnings (jsonb), created_by, created_at | 저장 시점의 계산 결과를 그대로 남긴다. 쓰기는 서버의 save_improvement_plan만 한다. created_by는 저장한 관리자. total_cost, total_reduction은 항목의 합 |
+| plan_items | plan_id, workstation_id, workstation_name, option_id, option_title, cost, reduction, manual_estimate | 공정당 하나(기본 키 plan_id, workstation_id). 저장 시점 값을 복사해 두어 개선안을 고치거나 지워도 계획은 바뀌지 않는다. 개선안이 지워지면 option_id는 null |
 | adhoc_surveys | id, workstation_id, trigger_reason, due_date, status | due_date는 사유 발생 후 1개월 (제657조 제2항) |
 
 ## 집계 뷰: workstation_pain_summary
@@ -114,13 +114,20 @@ erDiagram
 - 수정할 때 그 개선안의 효과를 모두 지우고 다시 넣는다. 시뮬레이션 효과(simulation)를 저장하는 단계에서 이 동작을 다시 정한다.
 - 삭제는 improvement_options 행 삭제 한 번으로 하며, 효과는 cascade로 함께 지워진다.
 
+## DB 함수 (개선 계획 저장)
+- save_improvement_plan: 콘솔 Server Action이 세션으로 관리자와 소속 사업장을 확인하고, 세션 권한으로 읽은 데이터로 계획을 다시 계산한 뒤 service_role로 호출한다. 다른 역할은 실행할 수 없다.
+- 함수는 저장하는 관리자가 그 사업장 소속 manager인지, 모든 항목이 그 사업장의 현재 개선안이고 비용이 계산에 쓴 값과 같은지 확인한 뒤 계획과 항목을 한 트랜잭션에 넣는다. 개선안 이름과 공정 이름은 DB에서 복사한다.
+- 계획의 total_cost와 total_reduction은 매개변수로 받지 않고, 저장하는 항목의 cost와 reduction을 함수 안에서 더한다. 계획의 합계와 항목의 합이 다를 수 없게 하기 위해서다.
+- 계산과 저장 사이에 개선안 비용이 바뀌면 저장을 거부한다. 화면은 다시 계산하도록 안내한다.
+
 ## 권한 (RLS 요약)
 | 테이블 | manager | partner | 작업자 (계정 없음) |
 |---|---|---|---|
 | sites, workstations, tasks | 소속 사업장만 읽기·쓰기 | 없음 | 직접 접근 없음 |
 | capture_sessions, assessments | 소속 사업장만 읽기 | 없음 | Route Handler가 서버 권한으로 쓰기 |
 | pain_reports, suggestions | 테이블 직접 읽기 없음, 집계 뷰만 | 없음 | Route Handler가 서버 권한으로 쓰기 |
-| improvement_options, option_effects, improvement_plans, plan_items | 소속 사업장만 읽기·쓰기 | 없음 | 없음 |
+| improvement_options, option_effects | 소속 사업장만 읽기·쓰기 | 없음 | 없음 |
+| improvement_plans, plan_items | 소속 사업장만 읽기 (쓰기는 서버 함수) | 없음 | 없음 |
 | improvement_requests | 소속 사업장만 읽기·쓰기 | 공개된 요청(status = open)만 읽기 | 없음 |
 | quotes | 소속 사업장 요청의 견적 읽기 | 자기 회사 견적만 읽기·쓰기 | 없음 |
 | entry_tokens, report_rate_limits | 소속 사업장 토큰 발급·비활성화·기간 연장 | 없음 | Route Handler만 조회 |

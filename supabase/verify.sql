@@ -411,3 +411,147 @@ select
   pg_temp.ok('other_site_option_untouched') as other_site_option_untouched,
   pg_temp.ok('anon_cannot_execute') as anon_cannot_execute;
 rollback;
+
+-- 12. Improvement plans (migration 20261026000001). Run this block on its own, from the check below
+--     to rollback. Test options are added to 용접 3번 작업대, 프레스 2라인 and 가공 1라인 as the owner,
+--     plans are saved as service_role, then read as the manager of 합성 제1공장.
+--     Needs a linked partner account (link-accounts.sql). Expected: every column is true.
+do $$
+begin
+  if not exists (select 1 from public.partner_members) then
+    raise exception 'link a partner account with link-accounts.sql before running block 12';
+  end if;
+end;
+$$;
+begin;
+insert into public.improvement_options (workstation_id, title, cost)
+select w.id, t.title, 100000
+from public.workstations w
+join (values ('WLD-03', 'verify-weld'), ('WLD-03', 'verify-weld-2'),
+             ('PRS-02', 'verify-press'), ('MCH-01', 'verify-other')) as t (code, title)
+  on t.code = w.code;
+
+select
+  set_config('verify.site', (select id::text from public.sites where name = '합성 제1공장'), true),
+  set_config('verify.other_site', (select id::text from public.sites where name = '합성 제2공장'), true),
+  set_config('verify.manager', (select m.profile_id::text from public.site_members m
+    join public.sites s on s.id = m.site_id
+    join public.profiles p on p.id = m.profile_id
+    where s.name = '합성 제1공장' and p.role = 'manager' limit 1), true),
+  set_config('verify.partner', (select profile_id::text from public.partner_members limit 1), true),
+  set_config('verify.weld', (select id::text from public.improvement_options where title = 'verify-weld'), true),
+  set_config('verify.weld_2', (select id::text from public.improvement_options where title = 'verify-weld-2'), true),
+  set_config('verify.press', (select id::text from public.improvement_options where title = 'verify-press'), true),
+  set_config('verify.other', (select id::text from public.improvement_options where title = 'verify-other'), true);
+
+create function pg_temp.fails(stmt text) returns boolean
+language plpgsql
+as $$
+begin
+  execute stmt;
+  raise sqlstate 'DL001';
+exception
+  when sqlstate 'DL001' then return false;
+  when others then return true;
+end;
+$$;
+
+create function pg_temp.v(name text) returns uuid
+language sql
+as $$ select current_setting('verify.' || name)::uuid $$;
+
+create function pg_temp.keep(name text, ok boolean) returns void
+language sql
+as $$ select set_config('verify.ok_' || name, coalesce(ok, false)::text, true) $$;
+
+create function pg_temp.ok(name text) returns boolean
+language sql
+as $$ select current_setting('verify.ok_' || name)::boolean $$;
+
+-- Items are sent one option per element, as the Server Action sends them.
+-- Reductions differ (1.5, 2.5, ...) so the stored total shows they were summed.
+create function pg_temp.save(profile text, site text, variadic options text[]) returns uuid
+language sql
+as $$
+  select public.save_improvement_plan(
+    pg_temp.v(profile), pg_temp.v(site), 500000, 'mckp-dp-v1', 10, '[]',
+    (select coalesce(jsonb_agg(jsonb_build_object(
+       'option_id', pg_temp.v(o.name), 'cost', 100000, 'reduction', o.n + 0.5,
+       'manual_estimate', true)), '[]')
+     from unnest(options) with ordinality as o (name, n)))
+$$;
+
+-- The partner joins the site here, so only the role check can reject its save.
+insert into public.site_members (site_id, profile_id)
+values (pg_temp.v('site'), pg_temp.v('partner'));
+
+set local role service_role;
+select set_config('verify.plan', pg_temp.save('manager', 'site', 'weld', 'press')::text, true);
+select
+  pg_temp.keep('other_site_rejected', pg_temp.fails($q$ select pg_temp.save('manager', 'other_site', 'other') $q$)),
+  pg_temp.keep('foreign_option_rejected', pg_temp.fails($q$ select pg_temp.save('manager', 'site', 'other') $q$)),
+  pg_temp.keep('partner_rejected', pg_temp.fails($q$ select pg_temp.save('partner', 'site', 'weld') $q$)),
+  pg_temp.keep('two_per_workstation_rejected',
+    pg_temp.fails($q$ select pg_temp.save('manager', 'site', 'weld', 'weld_2') $q$)),
+  pg_temp.keep('stale_cost_rejected', pg_temp.fails($q$
+    select public.save_improvement_plan(pg_temp.v('manager'), pg_temp.v('site'), 500000, 'mckp-dp-v1',
+      10, '[]', jsonb_build_array(jsonb_build_object(
+        'option_id', pg_temp.v('weld'), 'cost', 90000, 'reduction', 1, 'manual_estimate', false))) $q$));
+reset role;
+
+select pg_temp.keep('totals_are_item_sums', (
+  select p.total_cost = 200000 and p.total_reduction = 4
+    and p.total_cost = (select sum(cost) from public.plan_items where plan_id = p.id)
+    and p.total_reduction = (select sum(reduction) from public.plan_items where plan_id = p.id)
+  from public.improvement_plans p where p.id = pg_temp.v('plan')));
+
+-- Edit and delete the saved options as the owner: the plan keeps its values.
+update public.improvement_options set title = 'changed', cost = 1 where id = pg_temp.v('weld');
+delete from public.improvement_options where id = pg_temp.v('press');
+-- A plan of the other site, which the manager must not see.
+insert into public.improvement_plans (site_id, budget, solver_version, created_by, total_cost, total_reduction)
+values (pg_temp.v('other_site'), 1, 'mckp-dp-v1', pg_temp.v('manager'), 0, 0);
+select pg_temp.keep('snapshot_kept', (
+  select count(*) = 2
+    and bool_and(cost = 100000)
+    and bool_or(option_title = 'verify-weld' and option_id = pg_temp.v('weld') and reduction = 1.5)
+    and bool_or(option_title = 'verify-press' and option_id is null and workstation_name = '프레스 2라인')
+  from public.plan_items where plan_id = pg_temp.v('plan')));
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', pg_temp.v('manager'), 'role', 'authenticated')::text,
+  true
+);
+set local role authenticated;
+select
+  pg_temp.keep('manager_reads_own_plan', exists (
+    select 1 from public.improvement_plans
+    where id = pg_temp.v('plan') and created_by = pg_temp.v('manager') and total_cost = 200000)),
+  pg_temp.keep('other_site_plan_hidden',
+    not exists (select 1 from public.improvement_plans where site_id = pg_temp.v('other_site'))),
+  pg_temp.keep('manager_cannot_write', pg_temp.fails($q$
+      insert into public.improvement_plans (site_id, budget, solver_version, total_cost, total_reduction)
+      values (pg_temp.v('site'), 1, 'x', 0, 0) $q$)
+    and pg_temp.fails($q$ update public.plan_items set cost = 1 where plan_id = pg_temp.v('plan') $q$)
+    and pg_temp.fails($q$ delete from public.improvement_plans where id = pg_temp.v('plan') $q$)),
+  pg_temp.keep('only_service_role_executes',
+    not has_function_privilege('authenticated',
+      'public.save_improvement_plan(uuid,uuid,bigint,text,numeric,jsonb,jsonb)', 'execute')
+    and not has_function_privilege('anon',
+      'public.save_improvement_plan(uuid,uuid,bigint,text,numeric,jsonb,jsonb)', 'execute'));
+reset role;
+
+select
+  pg_temp.ok('totals_are_item_sums') as totals_are_item_sums,
+  pg_temp.ok('snapshot_kept') as snapshot_kept,
+  pg_temp.ok('other_site_rejected') as other_site_rejected,
+  pg_temp.ok('foreign_option_rejected') as foreign_option_rejected,
+  pg_temp.ok('partner_rejected') as partner_rejected,
+  pg_temp.ok('two_per_workstation_rejected') as two_per_workstation_rejected,
+  pg_temp.ok('stale_cost_rejected') as stale_cost_rejected,
+  pg_temp.ok('manager_reads_own_plan') as manager_reads_own_plan,
+  pg_temp.ok('other_site_plan_hidden') as other_site_plan_hidden,
+  pg_temp.ok('manager_cannot_write') as manager_cannot_write,
+  pg_temp.ok('only_service_role_executes') as only_service_role_executes;
+rollback;
