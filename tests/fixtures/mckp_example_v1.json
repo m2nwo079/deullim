@@ -1,0 +1,442 @@
+{
+  "version": 1,
+  "description": "Hand-computed multiple-choice knapsack examples for optimizePlan (docs/optimization-model.md). Costs and budgets are in won, reductions in daily high-risk person-hours. Option reductions: A1 = 5 x 4 x 0.3 = 6.0, A2 = 5 x (4 x 0.1 + 2 x 0.3) = 5.0, B1 = 2 x 8 x 0.4 = 6.4, C1 = 10 x 1 x 0.2 = 2.0, C2 = 1.0 (dominated by C1), D1 = 1 x 1 x 0.5 = 0.5.",
+  "tolerance": 1e-09,
+  "cases": [
+    {
+      "name": "basic, budget 500,000: all three workstations fit exactly",
+      "input": {
+        "budget": 500000,
+        "workstations": [
+          {
+            "id": "A",
+            "headcount": 5,
+            "level": "high",
+            "tasks": [
+              {
+                "id": "a1",
+                "dailyHours": 4,
+                "highRiskRatio": 0.4
+              },
+              {
+                "id": "a2",
+                "dailyHours": 2,
+                "highRiskRatio": 0.5
+              }
+            ],
+            "options": [
+              {
+                "id": "A1",
+                "cost": 300000,
+                "effects": [
+                  {
+                    "taskId": "a1",
+                    "expectedHighRiskRatio": 0.1,
+                    "source": "simulation"
+                  }
+                ]
+              },
+              {
+                "id": "A2",
+                "cost": 150000,
+                "effects": [
+                  {
+                    "taskId": "a1",
+                    "expectedHighRiskRatio": 0.3,
+                    "source": "simulation"
+                  },
+                  {
+                    "taskId": "a2",
+                    "expectedHighRiskRatio": 0.2,
+                    "source": "simulation"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "B",
+            "headcount": 2,
+            "level": "very-high",
+            "tasks": [
+              {
+                "id": "b1",
+                "dailyHours": 8,
+                "highRiskRatio": 0.6
+              }
+            ],
+            "options": [
+              {
+                "id": "B1",
+                "cost": 250000,
+                "effects": [
+                  {
+                    "taskId": "b1",
+                    "expectedHighRiskRatio": 0.2,
+                    "source": "simulation"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "C",
+            "headcount": 10,
+            "level": "caution",
+            "tasks": [
+              {
+                "id": "c1",
+                "dailyHours": 1,
+                "highRiskRatio": 0.3
+              }
+            ],
+            "options": [
+              {
+                "id": "C1",
+                "cost": 100000,
+                "effects": [
+                  {
+                    "taskId": "c1",
+                    "expectedHighRiskRatio": 0.1,
+                    "source": "simulation"
+                  }
+                ]
+              },
+              {
+                "id": "C2",
+                "cost": 120000,
+                "effects": [
+                  {
+                    "taskId": "c1",
+                    "expectedHighRiskRatio": 0.2,
+                    "source": "simulation"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "plan": [
+          {
+            "workstationId": "A",
+            "optionId": "A2",
+            "cost": 150000,
+            "reduction": 5.0
+          },
+          {
+            "workstationId": "B",
+            "optionId": "B1",
+            "cost": 250000,
+            "reduction": 6.4
+          },
+          {
+            "workstationId": "C",
+            "optionId": "C1",
+            "cost": 100000,
+            "reduction": 2.0
+          }
+        ],
+        "totalCost": 500000,
+        "totalReduction": 13.4,
+        "budgetCurve": [
+          {
+            "budget": 0,
+            "reduction": 0
+          },
+          {
+            "budget": 100000,
+            "reduction": 2.0
+          },
+          {
+            "budget": 200000,
+            "reduction": 5.0
+          },
+          {
+            "budget": 300000,
+            "reduction": 7.0
+          },
+          {
+            "budget": 400000,
+            "reduction": 11.4
+          },
+          {
+            "budget": 500000,
+            "reduction": 13.4
+          }
+        ],
+        "warnings": []
+      }
+    },
+    {
+      "name": "basic, budget 400,000: A2 + B1 fits with 10,000-won units",
+      "input": {
+        "budget": 400000,
+        "workstations": [
+          {
+            "id": "A",
+            "headcount": 5,
+            "level": "high",
+            "tasks": [
+              {
+                "id": "a1",
+                "dailyHours": 4,
+                "highRiskRatio": 0.4
+              },
+              {
+                "id": "a2",
+                "dailyHours": 2,
+                "highRiskRatio": 0.5
+              }
+            ],
+            "options": [
+              {
+                "id": "A1",
+                "cost": 300000,
+                "effects": [
+                  {
+                    "taskId": "a1",
+                    "expectedHighRiskRatio": 0.1,
+                    "source": "simulation"
+                  }
+                ]
+              },
+              {
+                "id": "A2",
+                "cost": 150000,
+                "effects": [
+                  {
+                    "taskId": "a1",
+                    "expectedHighRiskRatio": 0.3,
+                    "source": "simulation"
+                  },
+                  {
+                    "taskId": "a2",
+                    "expectedHighRiskRatio": 0.2,
+                    "source": "simulation"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "B",
+            "headcount": 2,
+            "level": "very-high",
+            "tasks": [
+              {
+                "id": "b1",
+                "dailyHours": 8,
+                "highRiskRatio": 0.6
+              }
+            ],
+            "options": [
+              {
+                "id": "B1",
+                "cost": 250000,
+                "effects": [
+                  {
+                    "taskId": "b1",
+                    "expectedHighRiskRatio": 0.2,
+                    "source": "simulation"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "C",
+            "headcount": 10,
+            "level": "caution",
+            "tasks": [
+              {
+                "id": "c1",
+                "dailyHours": 1,
+                "highRiskRatio": 0.3
+              }
+            ],
+            "options": [
+              {
+                "id": "C1",
+                "cost": 100000,
+                "effects": [
+                  {
+                    "taskId": "c1",
+                    "expectedHighRiskRatio": 0.1,
+                    "source": "simulation"
+                  }
+                ]
+              },
+              {
+                "id": "C2",
+                "cost": 120000,
+                "effects": [
+                  {
+                    "taskId": "c1",
+                    "expectedHighRiskRatio": 0.2,
+                    "source": "simulation"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "plan": [
+          {
+            "workstationId": "A",
+            "optionId": "A2",
+            "cost": 150000,
+            "reduction": 5.0
+          },
+          {
+            "workstationId": "B",
+            "optionId": "B1",
+            "cost": 250000,
+            "reduction": 6.4
+          }
+        ],
+        "totalCost": 400000,
+        "totalReduction": 11.4,
+        "budgetCurve": [
+          {
+            "budget": 0,
+            "reduction": 0
+          },
+          {
+            "budget": 100000,
+            "reduction": 2.0
+          },
+          {
+            "budget": 200000,
+            "reduction": 5.0
+          },
+          {
+            "budget": 300000,
+            "reduction": 7.0
+          },
+          {
+            "budget": 400000,
+            "reduction": 11.4
+          }
+        ],
+        "warnings": []
+      }
+    },
+    {
+      "name": "rounding, budget 123,400: a cost of 123,400 is 13 units but the budget is 12",
+      "input": {
+        "budget": 123400,
+        "workstations": [
+          {
+            "id": "D",
+            "headcount": 1,
+            "level": "high",
+            "tasks": [
+              {
+                "id": "d1",
+                "dailyHours": 1,
+                "highRiskRatio": 0.5
+              }
+            ],
+            "options": [
+              {
+                "id": "D1",
+                "cost": 123400,
+                "effects": [
+                  {
+                    "taskId": "d1",
+                    "expectedHighRiskRatio": 0,
+                    "source": "simulation"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "plan": [],
+        "totalCost": 0,
+        "totalReduction": 0,
+        "budgetCurve": [
+          {
+            "budget": 0,
+            "reduction": 0
+          },
+          {
+            "budget": 100000,
+            "reduction": 0
+          },
+          {
+            "budget": 123400,
+            "reduction": 0
+          }
+        ],
+        "warnings": []
+      }
+    },
+    {
+      "name": "rounding, budget 130,000: 13 units fit",
+      "input": {
+        "budget": 130000,
+        "workstations": [
+          {
+            "id": "D",
+            "headcount": 1,
+            "level": "high",
+            "tasks": [
+              {
+                "id": "d1",
+                "dailyHours": 1,
+                "highRiskRatio": 0.5
+              }
+            ],
+            "options": [
+              {
+                "id": "D1",
+                "cost": 123400,
+                "effects": [
+                  {
+                    "taskId": "d1",
+                    "expectedHighRiskRatio": 0,
+                    "source": "simulation"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "plan": [
+          {
+            "workstationId": "D",
+            "optionId": "D1",
+            "cost": 123400,
+            "reduction": 0.5
+          }
+        ],
+        "totalCost": 123400,
+        "totalReduction": 0.5,
+        "budgetCurve": [
+          {
+            "budget": 0,
+            "reduction": 0
+          },
+          {
+            "budget": 100000,
+            "reduction": 0
+          },
+          {
+            "budget": 130000,
+            "reduction": 0.5
+          }
+        ],
+        "warnings": []
+      }
+    }
+  ]
+}
