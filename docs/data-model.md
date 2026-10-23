@@ -48,7 +48,7 @@ erDiagram
 | partners | id, company_name | 설비 업체 |
 | partner_members | partner_id, profile_id | |
 | entry_tokens | id, workstation_id, token_hash, active, expires_at | QR 토큰. 원문은 저장하지 않음. 공정당 활성 토큰은 하나(부분 고유 인덱스). 발급·재발급은 issue_entry_token 함수가 기존 토큰 비활성화와 새 토큰 추가를 한 트랜잭션에서 처리한다. 비활성 토큰은 바꿀 수 없고, 만료일은 지금부터 90일 뒤까지만 정할 수 있다 |
-| report_rate_limits | token_id, window_start, count | 토큰별 신고 수 제한. 개인 정보 없음 |
+| report_rate_limits | token_id, kind (pain, assessment), window_start, count | 토큰별·요청 종류별 시간당 요청 수 제한(정시 기준 고정 창). 개인 정보 없음 |
 | capture_sessions | id, task_id, frame_count, inference_fps, created_at | 원본 좌표 미저장 |
 | assessments | id, session_id, method (reba, rula), part_summary (jsonb), valid_frame_ratio, high_risk_ratio, score_p90, level, algorithm_version, created_at | 서버 재계산 결과 (docs/assessment-rules.md 세션 결과) |
 | pain_reports | id, workstation_id, body_parts (text[]), intensity, created_at, visible_from | 작성자 열 없음 |
@@ -93,6 +93,15 @@ erDiagram
 | quotes.status | submitted, accepted, rejected |
 | adhoc_surveys.status | open, done |
 
+## DB 함수 (작업자 저장)
+- 작업자 저장은 Route Handler가 service_role로 아래 함수를 호출해 한 트랜잭션에서 처리한다. 다른 역할은 실행할 수 없다.
+- save_assessment: 토큰 유효성과 단위작업의 공정을 확인하고, 촬영 저장 횟수를 올린 뒤 capture_sessions와 assessments를 함께 저장한다.
+  점수는 서버가 tasks의 관리자 입력으로 다시 계산한 값만 받는다. 제한에 걸리면 아무것도 저장하지 않고 false를 돌려준다.
+- submit_pain_report: 토큰 유효성을 확인하고 공정은 토큰에서 찾는다. 신고 횟수를 올린 뒤 pain_reports에 저장한다.
+  visible_from은 트리거가 채운다. 제한에 걸리면 저장하지 않고 false를 돌려준다.
+- 제한 횟수는 정시 기준 고정 창(date_trunc('hour'))으로 센다. 창의 경계 전후로 최대 두 배까지 연달아 들어올 수 있다.
+- 지난 시간 창의 행은 지우지 않는다(토큰·종류별 시간당 1행).
+
 ## 권한 (RLS 요약)
 | 테이블 | manager | partner | 작업자 (계정 없음) |
 |---|---|---|---|
@@ -113,4 +122,5 @@ erDiagram
 
 ## 확정
 - 5명 미만 공정 신고의 지연 시간: 24시간
-- 토큰별 신고 수 제한: 시간당 20건
+- 토큰별 신고 수 제한: 시간당 20건 (정시 기준 고정 창)
+- 토큰별 촬영 저장 제한: 시간당 10건 (시작값, 정시 기준 고정 창). 같은 QR로 반복 촬영을 보내 공정 위험도를 부풀리는 것을 막는다

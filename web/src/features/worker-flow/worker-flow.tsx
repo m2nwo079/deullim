@@ -6,7 +6,7 @@ import { InlineAlert } from "../../components/inline-alert";
 import { RiskBadge } from "../../components/risk-badge";
 import { SegmentedControl } from "../../components/segmented-control";
 import type { CaptureInput } from "../../core/landmarks";
-import { assessSession, type SessionResult } from "../../core/reba-session";
+import type { SessionResult } from "../../core/reba-session";
 import {
   CameraCaptureView,
   type CameraFacing,
@@ -14,6 +14,8 @@ import {
 } from "../capture/camera-capture-view";
 import { CAPTURE_SECONDS } from "../capture/sampling";
 import type { EntryResponse, EntryTask } from "../worker-entry/entry-check";
+import { encodeCapture } from "../worker-submit/capture-payload";
+import { PainReportDone, PainReportForm } from "./pain-report";
 import { postureRows } from "./result-summary";
 
 type Step =
@@ -24,7 +26,15 @@ type Step =
   | { name: "guide"; entry: EntryResponse; task: EntryTask }
   | { name: "capture"; entry: EntryResponse; task: EntryTask }
   | { name: "capture-error"; entry: EntryResponse; task: EntryTask; error: CaptureError }
-  | { name: "result"; entry: EntryResponse; task: EntryTask; result: SessionResult };
+  | { name: "saving"; entry: EntryResponse; task: EntryTask; input: CaptureInput }
+  | { name: "save-error"; entry: EntryResponse; task: EntryTask; input: CaptureInput }
+  | { name: "insufficient"; entry: EntryResponse; task: EntryTask }
+  | { name: "result"; entry: EntryResponse; task: EntryTask; result: Assessment; saved: boolean }
+  | { name: "pain"; entry: EntryResponse; task: EntryTask; result: Assessment; saved: boolean }
+  | { name: "pain-done"; entry: EntryResponse; bodyParts: string[] };
+
+/** The server-computed result (docs/auth.md: the server rescores and saves). */
+type Assessment = Extract<SessionResult, { ok: true }>;
 
 const CAPTURE_ERRORS: Record<CaptureError, string> = {
   denied: "카메라를 쓸 수 없어요. 브라우저 설정에서 카메라 권한을 허용한 뒤 다시 시도해 주세요.",
@@ -42,8 +52,9 @@ function takeTokenFromHash(): string {
 }
 
 /**
- * Worker flow (stage C): QR entry, task choice, capture guide, capture and an unsaved result.
- * The token stays in memory only (no storage, no cookie) while the screen is open.
+ * Worker flow: QR entry, task choice, capture guide, capture, server-scored result and pain report.
+ * The token stays in memory only (no storage, no cookie) while the screen is open. The browser
+ * sends landmarks only; the score shown is the one the server computed and saved.
  */
 export function WorkerFlow() {
   const [step, setStep] = useState<Step>({ name: "checking" });
@@ -85,13 +96,33 @@ export function WorkerFlow() {
     void checkEntry();
   }, [checkEntry]);
 
-  const handleDone = useCallback((input: CaptureInput) => {
-    setStep((current) =>
-      current.name === "capture"
-        ? { ...current, name: "result", result: assessSession(input, current.task.inputs) }
-        : current,
-    );
-  }, []);
+  const submitCapture = useCallback(
+    async (entry: EntryResponse, task: EntryTask, input: CaptureInput) => {
+      setStep({ name: "saving", entry, task, input });
+      try {
+        const response = await fetch("/api/worker/assessments", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(encodeCapture(token.current ?? "", task.id, input)),
+          cache: "no-store",
+        });
+        if (response.status === 401) {
+          setStep({ name: "rejected" });
+        } else if (response.status === 422) {
+          setStep({ name: "insufficient", entry, task });
+        } else if (response.status === 429 || response.ok) {
+          // 429: the hourly limit was reached; the result is shown but was not saved.
+          const { result } = (await response.json()) as { result: Assessment };
+          setStep({ name: "result", entry, task, result, saved: response.ok });
+        } else {
+          setStep({ name: "save-error", entry, task, input });
+        }
+      } catch {
+        setStep({ name: "save-error", entry, task, input });
+      }
+    },
+    [],
+  );
 
   const handleError = useCallback((error: CaptureError) => {
     setStep((current) =>
@@ -171,7 +202,11 @@ export function WorkerFlow() {
     case "capture":
       return (
         <Screen>
-          <CameraCaptureView facing={facing} onDone={handleDone} onError={handleError} />
+          <CameraCaptureView
+            facing={facing}
+            onDone={(input) => void submitCapture(step.entry, step.task, input)}
+            onError={handleError}
+          />
           <Footer>
             <Button
               variant="secondary"
@@ -197,8 +232,77 @@ export function WorkerFlow() {
         </Screen>
       );
 
+    case "saving":
+      return <Centered>결과를 계산하고 있어요.</Centered>;
+
+    case "save-error":
+      return (
+        <Screen>
+          <h1 className="text-title font-bold">결과를 보내지 못했어요</h1>
+          <p className="text-body-lg">인터넷 연결을 확인한 뒤 다시 보내 주세요.</p>
+          <Footer>
+            <Button
+              size="worker-main"
+              onClick={() => void submitCapture(step.entry, step.task, step.input)}
+            >
+              다시 보내기
+            </Button>
+            <Button
+              variant="secondary"
+              size="worker"
+              onClick={() => setStep({ name: "guide", entry: step.entry, task: step.task })}
+            >
+              다시 찍기
+            </Button>
+          </Footer>
+        </Screen>
+      );
+
+    case "insufficient":
+      return (
+        <Screen>
+          <h1 className="text-title font-bold">자세가 잘 보이지 않았어요</h1>
+          <p className="text-body-lg">
+            머리부터 발끝까지 옆모습이 보이게 다시 찍어 주세요. 밝은 곳이면 더 잘 보여요.
+          </p>
+          <Footer>
+            <Button
+              size="worker-main"
+              iconBefore="refresh"
+              onClick={() => setStep({ ...step, name: "guide" })}
+            >
+              다시 찍기
+            </Button>
+          </Footer>
+        </Screen>
+      );
+
     case "result":
-      return <Result step={step} onRetake={() => setStep({ ...step, name: "guide" })} />;
+      return (
+        <Result
+          step={step}
+          onPain={() => setStep({ ...step, name: "pain" })}
+          onRetake={() => setStep({ name: "guide", entry: step.entry, task: step.task })}
+        />
+      );
+
+    case "pain":
+      return (
+        <PainReportForm
+          token={token.current ?? ""}
+          onSent={(bodyParts) => setStep({ name: "pain-done", entry: step.entry, bodyParts })}
+          onRejected={() => setStep({ name: "rejected" })}
+          onBack={() => setStep({ ...step, name: "result" })}
+        />
+      );
+
+    case "pain-done":
+      return (
+        <PainReportDone
+          bodyParts={step.bodyParts}
+          onHome={() => setStep({ name: "select", entry: step.entry })}
+        />
+      );
   }
 }
 
@@ -274,30 +378,22 @@ function TaskSelect({
 
 function Result({
   step,
+  onPain,
   onRetake,
 }: {
   step: Extract<Step, { name: "result" }>;
+  onPain: () => void;
   onRetake: () => void;
 }) {
-  const { entry, task, result } = step;
-  if (!result.ok) {
-    return (
-      <Screen>
-        <h1 className="text-title font-bold">자세가 잘 보이지 않았어요</h1>
-        <p className="text-body-lg">
-          머리부터 발끝까지 옆모습이 보이게 다시 찍어 주세요. 밝은 곳이면 더 잘 보여요.
-        </p>
-        <Footer>
-          <Button size="worker-main" iconBefore="refresh" onClick={onRetake}>
-            다시 찍기
-          </Button>
-        </Footer>
-      </Screen>
-    );
-  }
-
+  const { entry, task, result, saved } = step;
   return (
     <Screen>
+      {saved ? null : (
+        <InlineAlert icon="alert">
+          지금은 결과를 더 저장할 수 없어요. 한 시간쯤 뒤에 다시 찍어 주세요. 아래 결과는 저장되지
+          않았어요.
+        </InlineAlert>
+      )}
       <div className="flex flex-col gap-1">
         <p className="text-small text-text-secondary">
           {entry.workstationName} · {task.name}
@@ -329,8 +425,10 @@ function Result({
       </section>
 
       <Footer>
-        <InlineAlert>아직 저장되지 않는 확인용 결과예요. 이 화면을 닫으면 사라져요.</InlineAlert>
         <p className="text-body text-text-secondary">정밀 조사를 대신하지 않는 선별 결과예요.</p>
+        <Button size="worker-main" iconBefore="message" onClick={onPain}>
+          아픈 곳 알리기
+        </Button>
         <Button variant="secondary" size="worker" iconBefore="refresh" onClick={onRetake}>
           다시 찍기
         </Button>

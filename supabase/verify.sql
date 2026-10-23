@@ -132,3 +132,87 @@ select
     where token_hash = 'verify-current'
   $q$) as extend_90_days_allowed;
 rollback;
+
+-- 9. Worker submissions (migration 20261023000001). Run this block on its own, from begin to rollback.
+--    It adds a test token to 용접 3번 작업대 and removes it with the rollback.
+--    Expected: every column is true.
+begin;
+-- Real tokens of this workstation are set aside first; the rollback restores them.
+update public.entry_tokens t set active = false
+from public.workstations w
+where t.workstation_id = w.id and w.code = 'WLD-03' and t.active;
+insert into public.entry_tokens (workstation_id, token_hash)
+select w.id, 'verify-submit' from public.workstations w where w.code = 'WLD-03';
+
+create function pg_temp.fails(stmt text) returns boolean
+language plpgsql
+as $$
+begin
+  execute stmt;
+  raise sqlstate 'DL001';
+exception
+  when sqlstate 'DL001' then return false;
+  when others then return true;
+end;
+$$;
+
+create function pg_temp.pain_calls(n integer) returns boolean[]
+language plpgsql
+as $$
+declare
+  results boolean[] := '{}';
+begin
+  for i in 1..n loop
+    results := results || public.submit_pain_report(
+      (select id from public.entry_tokens where token_hash = 'verify-submit'),
+      array['neck'], 'mild', 20);
+  end loop;
+  return results;
+end;
+$$;
+
+create function pg_temp.assessment_calls(n integer, task_code text) returns boolean[]
+language plpgsql
+as $$
+declare
+  results boolean[] := '{}';
+begin
+  for i in 1..n loop
+    results := results || public.save_assessment(
+      (select id from public.entry_tokens where token_hash = 'verify-submit'),
+      (select t.id from public.tasks t join public.workstations w on w.id = t.workstation_id
+       where w.code = task_code order by t.name limit 1),
+      450, 15, '{}'::jsonb, 1, 0, 3, 'low', 'reba-2d-v1', 10);
+  end loop;
+  return results;
+end;
+$$;
+
+set local role service_role;
+select
+  -- Rows that existed before this migration were filled with 'pain'.
+  not exists (
+    select 1 from public.report_rate_limits r
+    where r.token_id <> (select id from public.entry_tokens where token_hash = 'verify-submit')
+      and r.kind <> 'pain'
+  ) as old_rows_are_pain,
+  pg_temp.pain_calls(21) = array_fill(true, array[20]) || false as pain_21st_rejected,
+  pg_temp.assessment_calls(11, 'WLD-03') = array_fill(true, array[10]) || false
+    as assessment_11th_rejected,
+  pg_temp.fails($q$ select pg_temp.assessment_calls(1, 'PRS-02') $q$) as other_task_rejected,
+  not has_function_privilege('anon', 'public.submit_pain_report(uuid,text[],text,integer)', 'execute')
+    and not has_function_privilege('authenticated', 'public.save_assessment(uuid,uuid,integer,numeric,jsonb,numeric,numeric,numeric,text,text,integer)', 'execute')
+    as anon_and_authenticated_blocked;
+-- A separate statement, so it sees the rows the functions above inserted.
+select count(*) = 10 as ten_sessions_saved
+from public.assessments a
+join public.capture_sessions s on s.id = a.session_id
+where s.created_at = now();
+reset role;
+update public.entry_tokens set active = false where token_hash = 'verify-submit';
+set local role service_role;
+select pg_temp.fails($q$
+  select public.submit_pain_report(
+    (select id from public.entry_tokens where token_hash = 'verify-submit'), array['neck'], 'mild', 20)
+$q$) as inactive_token_rejected;
+rollback;
