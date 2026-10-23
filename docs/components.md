@@ -54,7 +54,7 @@
 | 들림 전용 | CaptureTimer | 촬영 남은 시간 표시. 촬영 중 화면 위 애니메이션은 최소화 |
 | 들림 전용 | BodyMap | 통증 부위 선택. 부위마다 텍스트 라벨을 둔다. MVP는 ChoiceChipGrid로 구현한다 |
 | 기본 | ChoiceChipGrid | 여러 개를 고르는 칩 격자. 작업자 화면에서 칩 높이 48px, 선택 상태는 테두리와 글자색으로 표시 |
-| 기본 | Icon | 선(outline) 아이콘. 선 굵기 통일, 크기 16px 또는 20px, 색은 currentColor. 장식용은 aria-hidden, 아이콘만 있는 버튼은 aria-label. 이모지를 쓰지 않는다 |
+| 기본 | Icon | 선(outline) 아이콘. 선 굵기 통일, 크기 16px 또는 20px, 색은 currentColor. 장식용은 aria-hidden, 아이콘만 있는 버튼은 aria-label. 이모지를 쓰지 않는다. 콘솔에서 화면으로 가는 버튼은 대상마다 다른 아이콘을 쓴다: 개선안 tool, 개선 계획 report, 보고서 초안 document, 수시 조사 survey, QR 관리 qr |
 | 기본 | IconTile | 회색 32px 타일 안의 아이콘. 공정 유형 표시와 EmptyState(옅은 타일)에 쓴다 |
 | 기본 | FilterTabs | 개수가 붙은 토글 버튼. 선택된 탭도 중립색이며 브랜드 색과 위험도 색을 쓰지 않는다 |
 | 기본 | SearchField | 검색 입력. 라벨을 항상 보이게 두고, 안내 문구(placeholder)는 text-secondary |
