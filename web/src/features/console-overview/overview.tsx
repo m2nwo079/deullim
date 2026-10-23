@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { ButtonLink } from "../../components/button";
 import { DataTable, type Column } from "../../components/data-table";
 import { EmptyState } from "../../components/empty-state";
@@ -6,6 +7,14 @@ import { InlineAlert } from "../../components/inline-alert";
 import { RiskBadge } from "../../components/risk-badge";
 import { RiskBar } from "../../components/risk-bar";
 import { StatStrip } from "../../components/stat-strip";
+import {
+  ALERT_MIN_REPORTS,
+  ALERT_WEEKS,
+  daysLeft,
+  daysLeftLabel,
+  DEADLINE_ALERT_DAYS,
+  REASON_LABELS,
+} from "../adhoc-surveys/survey-rules";
 import type { OverviewData } from "./load-overview";
 import type { MergedGroupPain, WorkstationOverview } from "./metrics";
 
@@ -22,8 +31,16 @@ const TIME = new Intl.DateTimeFormat("ko-KR", {
 });
 const HOURS = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 1 });
 
-function workstationNote(row: WorkstationOverview): string[] {
+type Row = WorkstationOverview & {
+  /** Screening alert on this workstation or on its merged group. */
+  review: string | null;
+};
+
+function workstationNote(row: Row): string[] {
   const parts: string[] = [];
+  if (row.review) {
+    parts.push(row.review);
+  }
   if (row.surveyedAt) {
     parts.push(`조사 ${DATE.format(new Date(row.surveyedAt))}`);
   }
@@ -35,7 +52,7 @@ function workstationNote(row: WorkstationOverview): string[] {
   return parts;
 }
 
-const COLUMNS: Column<WorkstationOverview>[] = [
+const COLUMNS: Column<Row>[] = [
   {
     key: "name",
     header: "공정",
@@ -185,7 +202,14 @@ export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleO
           <h1 className="text-title font-bold">개요</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <ButtonLink href="/console/improvements" variant="secondary" iconBefore="document">
+          <ButtonLink
+            href={`/console/surveys?site=${site.id}`}
+            variant="secondary"
+            iconBefore="survey"
+          >
+            수시 조사
+          </ButtonLink>
+          <ButtonLink href="/console/improvements" variant="secondary" iconBefore="tool">
             개선안
           </ButtonLink>
           <ButtonLink href="/console/plans" variant="secondary" iconBefore="report">
@@ -211,14 +235,47 @@ export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleO
           description="공정을 등록하면 자세 부담과 통증 신고를 이곳에 모아 보여 드려요."
         />
       ) : (
-        <OverviewBody data={data} />
+        <OverviewBody data={data} siteId={site.id} renderedAt={renderedAt} />
       )}
     </main>
   );
 }
 
-function OverviewBody({ data }: { data: OverviewData }) {
-  const { openSurveys, weeklyPain } = data;
+function dueDay(value: string): string {
+  return DATE.format(new Date(`${value}T00:00:00+09:00`));
+}
+
+function OverviewBody({
+  data,
+  siteId,
+  renderedAt,
+}: {
+  data: OverviewData;
+  siteId: string;
+  renderedAt: Date;
+}) {
+  const { openSurveys, weeklyPain, alerts } = data;
+  const surveysPage = `/console/surveys?site=${siteId}`;
+  const nearDue = openSurveys.filter((s) => daysLeft(s.dueDate, renderedAt) <= DEADLINE_ALERT_DAYS);
+  const reviewByWorkstation = new Map<string, string>();
+  for (const alert of alerts) {
+    for (const id of alert.workstationIds) {
+      reviewByWorkstation.set(id, alert.merged ? `${alert.label} 묶음 검토 권고` : "검토 권고");
+    }
+  }
+  const rows: Row[] = data.workstations.map((w) => ({
+    ...w,
+    review: reviewByWorkstation.get(w.id) ?? null,
+  }));
+  const link = (href: string, label: string) => (
+    <Link
+      href={href}
+      className="flex items-center gap-1 font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+    >
+      {label}
+      <Icon name="arrow-right" size={16} />
+    </Link>
+  );
   return (
     <>
       <StatStrip
@@ -239,10 +296,11 @@ function OverviewBody({ data }: { data: OverviewData }) {
           {
             icon: "survey",
             label: "진행 중 수시 조사",
-            value: String(openSurveys.count),
-            helper: openSurveys.earliestDue
-              ? `가장 빠른 기한 ${DATE.format(new Date(`${openSurveys.earliestDue}T00:00:00+09:00`))}`
-              : "진행 중인 조사가 없어요.",
+            value: String(openSurveys.length),
+            helper:
+              openSurveys.length > 0
+                ? `가장 빠른 기한 ${dueDay(openSurveys[0].dueDate)}`
+                : "진행 중인 조사가 없어요.",
           },
           {
             icon: "message",
@@ -252,6 +310,24 @@ function OverviewBody({ data }: { data: OverviewData }) {
           },
         ]}
       />
+
+      {nearDue.length > 0 ? (
+        <InlineAlert tone="deadline" action={link(surveysPage, "수시 조사 보기")}>
+          {nearDue[0].workstationName} 수시 조사 기한이 {dueDay(nearDue[0].dueDate)}이에요 (
+          {daysLeftLabel(daysLeft(nearDue[0].dueDate, renderedAt))},{" "}
+          {REASON_LABELS[nearDue[0].reason].item} 사유로 시작)
+          {nearDue.length > 1 ? `. 외 ${nearDue.length - 1}건` : ""}.
+        </InlineAlert>
+      ) : null}
+
+      {alerts.length > 0 ? (
+        <InlineAlert tone="caution" action={link(`${surveysPage}#alerts-title`, "검토하기")}>
+          수시 조사 검토 권고:{" "}
+          {alerts.map((a) => (a.merged ? `${a.label} 묶음` : a.label)).join(", ")}. 최근{" "}
+          {ALERT_WEEKS}주 &lsquo;중간&rsquo; 이상 통증 신고가 {ALERT_MIN_REPORTS}건 이상이에요. 통증
+          신고 누적은 제657조 제2항의 사유가 아니니, 사유에 해당하는 일이 있었는지 확인해 주세요.
+        </InlineAlert>
+      ) : null}
 
       {data.hiddenGroups.length > 0 ? (
         <InlineAlert>
@@ -266,7 +342,7 @@ function OverviewBody({ data }: { data: OverviewData }) {
         <DataTable
           caption="공정별 인원, 고위험 자세 비율, 가장 나쁜 작업 단계, 이번 주 통증 신고"
           columns={COLUMNS}
-          rows={data.workstations}
+          rows={rows}
           rowKey={(row) => row.id}
         />
         <p className="text-caption text-text-secondary">

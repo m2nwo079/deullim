@@ -277,7 +277,13 @@ export default function ConsoleOverviewPreview() {
             </Link>
           }
         >
-          용접 3번 작업대 수시 조사 기한이 11월 14일입니다 (신고 누적으로 시작).
+          용접 3번 작업대 수시 조사 기한이 11월 14일입니다 (제2호 새로운 작업·설비 도입으로 시작).
+        </InlineAlert>
+
+        <InlineAlert tone="caution">
+          수시 조사 검토 권고: 물류 묶음. 최근 4주 &lsquo;중간&rsquo; 이상 통증 신고가 3건
+          이상이에요. 통증 신고 누적은 제657조 제2항의 사유가 아니니, 사유에 해당하는 일이 있었는지
+          확인해 주세요.
         </InlineAlert>
 
         <section aria-labelledby="workstations-title" className="flex flex-col gap-2">
