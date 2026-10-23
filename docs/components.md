@@ -34,6 +34,7 @@
 |---|---|---|
 | 기본 | Button | 종류: primary, secondary, text. 화면당 primary는 하나 |
 | 기본 | IconButton | 아이콘만 있을 때도 접근성 이름(aria-label)을 반드시 둔다 |
+| 기본 | DateField | 콘솔 날짜 입력. 마우스 화면에서는 직접 입력(2026. 10. 14., 2026-10-14 등)과 들림 달력을 함께 둔다. 달력은 WAI-ARIA APG 날짜 선택 대화상자 방식으로, 입력 칸 아래에 펼친다: 화살표(하루·한 주), Home/End(주의 처음·끝), PageUp/PageDown(한 달), Shift+PageUp/PageDown(한 해), Enter·Space(고르기), Esc(닫고 달력 버튼으로 돌아가기). 날짜는 "2026년 10월 14일 수요일"로 읽고, 오늘은 aria-current="date", 고를 수 없는 날은 aria-disabled. 주는 일요일부터. max(오늘) 이후와 min 이전은 고를 수 없고 초점도 그 밖으로 가지 않는다. Modal 안에서 Esc는 달력만 닫는다. 터치 화면(pointer: coarse)에서는 기기의 기본 날짜 입력을 쓴다. 제출 값은 "YYYY-MM-DD" |
 | 기본 | MoneyField | 원 단위 금액 입력. 입력하는 동안 천 단위 쉼표를 붙이고 커서 위치를 숫자 기준으로 유지한다. 숫자 키패드(inputMode="numeric"). 서버에는 쉼표를 뺀 숫자만 보낸다. 나머지 규칙은 TextField와 같다 |
 | 기본 | TextField, Select, Checkbox, Toggle, SegmentedControl, Tabs | 라벨은 항상 보이게 둔다. placeholder를 라벨 대신 쓰지 않는다. 입력 오류는 브라우저 말풍선 대신 칸 아래 문구로 알리고, aria-invalid와 aria-describedby로 칸에 연결하며, 칸 테두리를 border-text로 바꾼다. 폼 전체에 대한 오류(저장 실패, 중복 등)는 제출 버튼 바로 위에 InlineAlert error(role="alert")로 둔다. 폼 안의 항목 사이는 24px, 한 항목의 라벨·입력·오류·안내 사이는 8px로 둔다. SegmentedControl은 작업자 크기(worker, 48px)와 콘솔 크기(console, 40px, 왼쪽 정렬, TextField와 같은 라벨)가 있고, 배치는 가로(horizontal), 한 줄에 하나(vertical, 긴 문장), 여러 열(grid, 짧은 이름 여러 개)이다 |
 | 피드백 | Toast | motion-base로 나타나고 4초 후 사라진다 (시작값). 중요한 결과는 Toast만으로 알리지 않는다 |
