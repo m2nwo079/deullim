@@ -104,9 +104,9 @@ export function TokenManager({ rows }: { rows: TokenRow[] }) {
     {
       key: "actions",
       header: "동작",
-      hiddenHeader: true,
+      action: true,
       render: (row) => (
-        <span className="flex justify-end gap-1">
+        <>
           {row.tokenId === null ? (
             <Button
               variant="secondary"
@@ -145,7 +145,7 @@ export function TokenManager({ rows }: { rows: TokenRow[] }) {
               </Button>
             </>
           )}
-        </span>
+        </>
       ),
     },
   ];
@@ -164,7 +164,7 @@ export function TokenManager({ rows }: { rows: TokenRow[] }) {
             <h2 id="issued-title" className="text-title-sm font-bold">
               QR을 발급했어요
             </h2>
-            <InlineAlert icon="alert">
+            <InlineAlert tone="caution">
               이 화면을 벗어나면 QR을 다시 볼 수 없어요. 잃어버리면 재발급해 주세요.
             </InlineAlert>
           </div>

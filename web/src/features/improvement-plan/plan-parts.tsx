@@ -84,13 +84,13 @@ export function PlanWarnings({ warnings }: { warnings: PlanWarningView[] }) {
   return (
     <>
       {missed.length > 0 ? (
-        <InlineAlert>
+        <InlineAlert tone="caution">
           가장 나쁜 작업 단계가 매우 높음인 {missed.join(", ")} 공정이 계획에서 빠졌어요. 인원이
           적으면 감소량이 작게 계산될 수 있으니 따로 판단해 주세요.
         </InlineAlert>
       ) : null}
       {manual.length > 0 ? (
-        <InlineAlert>
+        <InlineAlert tone="caution">
           관리자가 입력한 예상값이 포함돼 있어요({manual.join(", ")}). 실제 효과는 다를 수 있어요.
         </InlineAlert>
       ) : null}
