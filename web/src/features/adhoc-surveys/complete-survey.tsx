@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "../../components/button";
 import { InlineAlert } from "../../components/inline-alert";
 import { Modal } from "../../components/modal";
-import { TextField } from "../../components/text-field";
+import { DateField } from "../../components/date-field";
 import { completeSurvey } from "./actions";
 
 type CompleteSurveyButtonProps = {
@@ -65,17 +65,18 @@ export function CompleteSurveyButton({
           </>
         }
       >
-        <p>{workstationName}의 수시 조사를 마친 날을 넣어 주세요.</p>
-        <TextField
-          id={fieldId}
-          type="date"
-          label="완료일"
-          min={occurredOn}
-          max={today}
-          value={completedOn}
-          onChange={(event) => setCompletedOn(event.target.value)}
-        />
-        {message ? <InlineAlert tone="error">{message}</InlineAlert> : null}
+        <div className="flex flex-col gap-2">
+          <p>{workstationName}의 수시 조사를 마친 날을 넣어 주세요.</p>
+          <DateField
+            id={fieldId}
+            label="완료일"
+            min={occurredOn}
+            max={today}
+            defaultValue={today}
+            onValueChange={setCompletedOn}
+          />
+          {message ? <InlineAlert tone="error">{message}</InlineAlert> : null}
+        </div>
       </Modal>
     </>
   );

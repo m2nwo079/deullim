@@ -2,6 +2,7 @@
 
 import { useActionState, useState, type FormEvent } from "react";
 import { Button, ButtonLink } from "../../components/button";
+import { DateField } from "../../components/date-field";
 import { Icon } from "../../components/icons";
 import { InlineAlert } from "../../components/inline-alert";
 import { SegmentedControl } from "../../components/segmented-control";
@@ -72,8 +73,6 @@ export function SurveyForm({
     const target = event.target as HTMLInputElement;
     if (target.name === "reason") {
       setReason(target.value);
-    } else if (target.name === "occurredOn") {
-      setOccurredOn(target.value);
     }
   }
 
@@ -145,14 +144,14 @@ export function SurveyForm({
       </div>
 
       <div className="flex flex-col gap-1">
-        <TextField
+        <DateField
           id="occurredOn"
           name="occurredOn"
-          type="date"
           label="발생일"
           aria-required
           max={today}
           defaultValue={text?.occurredOn}
+          onValueChange={setOccurredOn}
           error={errors.occurredOn}
           aria-describedby="occurredOn-due"
         />
