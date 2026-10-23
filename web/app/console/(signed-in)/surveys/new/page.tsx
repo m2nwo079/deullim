@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
+import { EmptyState } from "../../../../../src/components/empty-state";
+import { InlineAlert } from "../../../../../src/components/inline-alert";
 import { SurveyForm } from "../../../../../src/features/adhoc-surveys/survey-form";
 import { todayKst } from "../../../../../src/features/adhoc-surveys/survey-rules";
 import { getConsoleSession } from "../../../../../src/features/console-auth/session";
-import { isUuid } from "../../../../../src/features/improvement-options/option-form";
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
@@ -24,20 +25,56 @@ export default async function NewSurveyPage({
   if (session.access !== "manager") {
     return null;
   }
-  const params = await searchParams;
-  const siteId = first(params.site);
-  if (!siteId || !isUuid(siteId)) {
-    notFound();
+  // RLS returns only the sites this manager belongs to, so ?site= cannot reach another site.
+  // Without a matching ?site=, the first site is used, as on the other console pages.
+  const [params, { data: sites }] = await Promise.all([
+    searchParams,
+    session.supabase
+      .from("sites")
+      .select("id, name")
+      .order("name")
+      .returns<{ id: string; name: string }[]>(),
+  ]);
+  const site = (sites ?? []).find((s) => s.id === first(params.site)) ?? sites?.[0];
+  if (!site) {
+    return (
+      <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
+        <h1 className="text-title font-bold">수시 조사 시작</h1>
+        <EmptyState
+          icon="inbox"
+          title="연결된 사업장이 없어요"
+          description="사업장에 연결되면 이곳에서 수시 조사를 기록할 수 있어요."
+        />
+      </main>
+    );
   }
-  // RLS returns only workstations of the manager's own sites.
-  const { data: rows } = await session.supabase
+  const { data: rows, error } = await session.supabase
     .from("workstations")
-    .select("id, name, parent_group, sites(name)")
-    .eq("site_id", siteId)
+    .select("id, name, parent_group")
+    .eq("site_id", site.id)
     .order("name")
-    .returns<{ id: string; name: string; parent_group: string; sites: { name: string } }[]>();
-  if (!rows || rows.length === 0) {
-    notFound();
+    .returns<{ id: string; name: string; parent_group: string }[]>();
+  if (error) {
+    return (
+      <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
+        <h1 className="text-title font-bold">수시 조사 시작</h1>
+        <InlineAlert tone="error">
+          공정을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
+        </InlineAlert>
+      </main>
+    );
+  }
+  if (rows.length === 0) {
+    return (
+      <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
+        <h1 className="text-title font-bold">수시 조사 시작</h1>
+        <EmptyState
+          icon="workstation"
+          title="등록된 공정이 없어요"
+          description="공정을 등록하면 이곳에서 수시 조사를 기록할 수 있어요."
+        />
+      </main>
+    );
   }
 
   const workstationId = first(params.workstation);
@@ -55,7 +92,7 @@ export default async function NewSurveyPage({
     <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
       <div className="flex flex-col gap-1">
         <p className="text-caption text-text-secondary">
-          {rows[0].sites.name}
+          {site.name}
           {group && !workstationId ? ` · ${group} 묶음` : ""}
         </p>
         <h1 className="text-title font-bold">수시 조사 시작</h1>
@@ -64,7 +101,7 @@ export default async function NewSurveyPage({
         workstations={choices.map((w) => ({ id: w.id, name: w.name }))}
         defaultWorkstationId={workstationId}
         today={todayKst(new Date())}
-        cancelHref={`/console/surveys?site=${siteId}`}
+        cancelHref={`/console/surveys?site=${site.id}`}
       />
     </main>
   );
