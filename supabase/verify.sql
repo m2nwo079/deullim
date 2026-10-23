@@ -279,7 +279,13 @@ select
   has_table_privilege('authenticated', 'public.task_latest_assessments', 'select')
     and not has_table_privilege('authenticated', 'public.task_latest_assessments', 'insert')
     and not has_table_privilege('anon', 'public.task_latest_assessments', 'select')
-    as select_only_for_authenticated;
+    as select_only_for_authenticated,
+  (select v.algorithm_version = 'reba-2d-v1' and v.valid_frame_ratio = 1 and v.part_summary = '{}'::jsonb
+   from public.task_latest_assessments v
+   join public.tasks t on t.id = v.task_id where t.name = '하부 용접') as report_columns_from_latest,
+  (select count(*) = 3 from information_schema.columns
+   where table_schema = 'public' and table_name = 'task_latest_assessments'
+     and column_name in ('valid_frame_ratio', 'algorithm_version', 'part_summary')) as report_columns_present;
 rollback;
 
 -- 11. Improvement options (migration 20261025000001). Run this block on its own, from begin to rollback.
