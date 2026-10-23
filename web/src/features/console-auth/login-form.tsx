@@ -39,11 +39,6 @@ export function LoginForm({ next }: { next: string }) {
   return (
     <form action={action} onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
       <input type="hidden" name="next" value={next} />
-      {serverError ? (
-        <InlineAlert id={ERROR_ID} tone="error">
-          {MESSAGES[serverError]}
-        </InlineAlert>
-      ) : null}
       <TextField
         id="email"
         name="email"
@@ -65,9 +60,17 @@ export function LoginForm({ next }: { next: string }) {
         error={fieldErrors.password}
         aria-describedby={describedBy}
       />
-      <Button type="submit" loading={pending}>
-        로그인
-      </Button>
+      <div className="flex flex-col gap-2">
+        {/* Errors about the whole form sit right above the button (docs/components.md). */}
+        {serverError ? (
+          <InlineAlert id={ERROR_ID} tone="error">
+            {MESSAGES[serverError]}
+          </InlineAlert>
+        ) : null}
+        <Button type="submit" loading={pending}>
+          로그인
+        </Button>
+      </div>
     </form>
   );
 }
