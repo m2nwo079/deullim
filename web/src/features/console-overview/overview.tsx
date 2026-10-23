@@ -184,9 +184,14 @@ export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleO
           <p className="text-caption text-text-secondary">{site.name} · 자세 부담 현황</p>
           <h1 className="text-title font-bold">개요</h1>
         </div>
-        <ButtonLink href="/console/qr" variant="secondary" iconBefore="qr">
-          QR 관리
-        </ButtonLink>
+        <div className="flex flex-wrap gap-2">
+          <ButtonLink href="/console/improvements" variant="secondary" iconBefore="document">
+            개선안
+          </ButtonLink>
+          <ButtonLink href="/console/qr" variant="secondary" iconBefore="qr">
+            QR 관리
+          </ButtonLink>
+        </div>
       </div>
 
       {data === null ? (
