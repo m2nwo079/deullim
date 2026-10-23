@@ -212,10 +212,18 @@ export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleO
           <ButtonLink href="/console/improvements" variant="secondary" iconBefore="tool">
             개선안
           </ButtonLink>
-          <ButtonLink href="/console/plans" variant="secondary" iconBefore="report">
+          <ButtonLink
+            href={`/console/plans?site=${site.id}`}
+            variant="secondary"
+            iconBefore="report"
+          >
             개선 계획
           </ButtonLink>
-          <ButtonLink href="/console/reports" variant="secondary" iconBefore="document">
+          <ButtonLink
+            href={`/console/reports?site=${site.id}`}
+            variant="secondary"
+            iconBefore="document"
+          >
             보고서 초안
           </ButtonLink>
           <ButtonLink href="/console/qr" variant="secondary" iconBefore="qr">

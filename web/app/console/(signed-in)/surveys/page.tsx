@@ -195,7 +195,7 @@ export default async function SurveysPage({
                 {other.name}
               </ButtonLink>
             ))}
-          <ButtonLink href="/console" variant="secondary">
+          <ButtonLink href={`/console?site=${site.id}`} variant="secondary">
             개요
           </ButtonLink>
           <ButtonLink href={`${PAGE}/new?site=${site.id}`} iconBefore="survey">

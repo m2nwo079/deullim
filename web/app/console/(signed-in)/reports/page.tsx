@@ -91,7 +91,7 @@ export default async function ReportPage({
     <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3 print:block print:max-w-none print:p-0">
       <div className="flex flex-col gap-2 print:hidden">
         <Link
-          href="/console"
+          href={`/console?site=${site.id}`}
           className="flex w-fit items-center gap-1 text-small font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
         >
           <Icon name="chevron-down" size={16} className="rotate-90" />
