@@ -191,6 +191,9 @@ export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleO
           <ButtonLink href="/console/plans" variant="secondary" iconBefore="report">
             개선 계획
           </ButtonLink>
+          <ButtonLink href="/console/reports" variant="secondary" iconBefore="document">
+            보고서 초안
+          </ButtonLink>
           <ButtonLink href="/console/qr" variant="secondary" iconBefore="qr">
             QR 관리
           </ButtonLink>
