@@ -82,7 +82,7 @@ erDiagram
 
 ## 최신 평가 뷰: task_latest_assessments
 - 단위작업마다 method = reba인 최신 평가 1건 (같은 시각이면 id가 큰 행).
-- 열: task_id, high_risk_ratio, level, score_p90, created_at
+- 열: task_id, high_risk_ratio, level, score_p90, created_at, valid_frame_ratio, algorithm_version, part_summary
 - 호출한 사용자의 권한으로 실행한다(security_invoker). capture_sessions와 assessments의 RLS가 그대로 적용된다.
 - 콘솔 개요 지표의 입력이다 (docs/console-metrics.md).
 
@@ -91,8 +91,8 @@ erDiagram
 |---|---|
 | tasks.load_category | lt5, 5to10, gt10 |
 | tasks.coupling | good, fair, poor, unacceptable |
-| pain_reports.body_parts | neck, shoulder, arm_elbow, hand_wrist, lower_back, leg_foot (시안 기준) |
-| pain_reports.intensity | mild, moderate, severe, very_severe (시안 기준) |
+| pain_reports.body_parts | neck, shoulder, arm_elbow, hand_wrist, lower_back, leg_foot (증상조사표와 같음) |
+| pain_reports.intensity | mild, moderate, severe, very_severe (증상조사표와 같음) |
 | assessments.level | low, caution, high, very-high (web/src/components/risk.ts와 같음) |
 | suggestions.status | new, reviewed, closed |
 | improvement_requests.status | draft, open, closed. 파트너는 open만 읽는다 |
@@ -137,9 +137,9 @@ erDiagram
 
 ## 미결정
 - 원본 좌표를 나중에 다른 알고리즘으로 재계산할 필요가 생길 경우의 저장 방식
-- 통증 부위와 정도의 허용 값을 KOSHA 근골격계 증상조사표 원문과 대조
 
 ## 확정
+- 통증 부위와 정도의 허용 값: 증상조사표 원문과 같음(고시 제2020-12호 별지 제2호서식, 2026-10-23 확인). 좌우, 지속 기간, 빈도, 치료 여부, 직업력은 들림에 없음
 - 5명 미만 공정 신고의 지연 시간: 24시간
 - 토큰별 신고 수 제한: 시간당 20건 (정시 기준 고정 창)
 - 토큰별 촬영 저장 제한: 시간당 10건 (시작값, 정시 기준 고정 창). 같은 QR로 반복 촬영을 보내 공정 위험도를 부풀리는 것을 막는다

@@ -37,14 +37,14 @@
 | 기본 | MoneyField | 원 단위 금액 입력. 입력하는 동안 천 단위 쉼표를 붙이고 커서 위치를 숫자 기준으로 유지한다. 숫자 키패드(inputMode="numeric"). 서버에는 쉼표를 뺀 숫자만 보낸다. 나머지 규칙은 TextField와 같다 |
 | 기본 | TextField, Select, Checkbox, Toggle, SegmentedControl, Tabs | 라벨은 항상 보이게 둔다. placeholder를 라벨 대신 쓰지 않는다. 입력 오류는 브라우저 말풍선 대신 칸 아래 문구로 알리고, aria-invalid와 aria-describedby로 칸에 연결하며, 칸 테두리를 border-text로 바꾼다 |
 | 피드백 | Toast | motion-base로 나타나고 4초 후 사라진다 (시작값). 중요한 결과는 Toast만으로 알리지 않는다 |
-| 피드백 | InlineAlert | 정보, 기한, 오류 표시. 위험도 색을 쓰지 않고 중립 배경과 아이콘으로 표시한다. 종류: 일반(info), 오류(error). 오류는 왼쪽 3px 막대와 굵은 글자, alert 아이콘을 모두 text 색으로 표시하고 role="alert"로 바로 알린다 |
+| 피드백 | InlineAlert | 위험도 색을 쓰지 않고 중립 배경과 아이콘으로 표시한다. 종류(tone): 일반(info, info 아이콘), 주의(caution, alert 아이콘), 기한(deadline, clock 아이콘), 오류(error). 시계 아이콘은 기한에만 쓴다. 오류는 왼쪽 3px 막대와 굵은 글자, alert 아이콘을 모두 text 색으로 표시하고 role="alert"로 바로 알린다. 그 밖의 아이콘(lock 등)은 icon으로 따로 지정한다 |
 | 피드백 | EmpathyCard | "들려요" 응답 전용. empathy-bg, empathy-fg, 대표 모션 |
 | 피드백 | EmptyState, Skeleton, ProgressIndicator | 빈 화면 안내는 공감 톤의 문구를 쓴다 |
 | 데이터 | RiskBadge | 표지형: 왼쪽 3px 색 막대 + 라벨 글자. 배경 없음, 모서리 없음. 콘솔에서 낮음·주의는 중립 회색 |
 | 데이터 | RiskBar | 색 막대와 함께 수치 또는 라벨을 표시한다 |
 | 데이터 | HeatmapCell | 칸마다 위험 단계 숫자나 짧은 라벨을 표시한다. 색으로만 구분하지 않는다. 콘솔에서는 높음 이상만 색 |
 | 데이터 | Sparkline | 작은 추이 선 그래프. 기본은 중립 회색, 콘솔에서는 높음 이상만 위험도 색. 여러 행은 같은 눈금(0~100%)으로 그린다 |
-| 데이터 | DataTable, StatStrip | 숫자는 고정폭, 오른쪽 정렬. 요약 수치는 카드 여러 장 대신 하나의 테두리 안에서 세로선으로 나눈다 (StatStrip) |
+| 데이터 | DataTable, StatStrip | 숫자는 고정폭, 오른쪽 정렬. 동작 열(버튼)은 내용 폭만 차지하고 표 오른쪽 끝에 붙인다(action 열). 요약 수치는 카드 여러 장 대신 하나의 테두리 안에서 세로선으로 나눈다 (StatStrip) |
 | 덮는 요소 | Modal | 관리자 콘솔용. 표면 3층. 네이티브 dialog(showModal)로 포커스를 안에 가두고, Esc로 닫으며, 닫으면 연 요소로 포커스를 돌려준다. 버튼은 취소를 먼저 둔다. 창의 폭은 min(480px, 화면 폭 − 32px)이다. 본문은 한글 띄어쓰기 단위로 줄바꿈하고, 한 단어가 창보다 길 때만 단어 중간에서 끊는다. 창 안에 가로 스크롤을 만들지 않는다 |
 | 덮는 요소 | BottomSheet | 작업자 화면용. 표면 3층 |
 | 덮는 요소 | Popover | 표면 2층 |
