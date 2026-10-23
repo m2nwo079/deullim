@@ -1,4 +1,4 @@
-import { ChoiceField } from "./choice-field";
+import { ChoiceField, type ChoiceOption } from "./choice-field";
 import type { IconName } from "./icons";
 
 type ChoiceChipGridProps = {
@@ -6,7 +6,7 @@ type ChoiceChipGridProps = {
   legend: string;
   description?: string;
   descriptionIcon?: IconName;
-  options: readonly string[];
+  options: readonly ChoiceOption[];
   defaultSelected?: readonly string[];
   disabled?: boolean;
   loading?: boolean;
