@@ -23,6 +23,11 @@ const DATE = new Intl.DateTimeFormat("ko-KR", {
   timeZone: "UTC",
 });
 const day = (value: string) => DATE.format(new Date(`${value}T00:00:00Z`));
+const MONTH_DAY = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  day: "numeric",
+  timeZone: "UTC",
+});
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
@@ -91,7 +96,8 @@ const DONE_COLUMNS: Column<SurveyView>[] = [
   { key: "note", header: "메모", render: (row) => <Note note={row.note} /> },
 ];
 
-function alertColumns(siteId: string): Column<PainAlert>[] {
+function alertColumns(siteId: string, open: SurveyView[]): Column<PainAlert>[] {
+  const openByWorkstation = new Map(open.map((s) => [s.workstationId, s]));
   return [
     {
       key: "unit",
@@ -110,11 +116,16 @@ function alertColumns(siteId: string): Column<PainAlert>[] {
       key: "start",
       header: "수시 조사",
       action: true,
-      render: (row) =>
-        row.openSurveyWorkstationId ? (
-          <ButtonLink href="#open-surveys" variant="secondary">
-            진행 중 조사 보기
-          </ButtonLink>
+      render: (row) => {
+        // The open survey is already listed in the table above, so it is named here, not linked.
+        const survey = row.openSurveyWorkstationId
+          ? openByWorkstation.get(row.openSurveyWorkstationId)
+          : undefined;
+        return survey ? (
+          <span className="text-text-secondary">
+            진행 중: {survey.workstationName} · 기한{" "}
+            {MONTH_DAY.format(new Date(`${survey.dueDate}T00:00:00Z`))}
+          </span>
         ) : (
           <ButtonLink
             href={
@@ -126,7 +137,8 @@ function alertColumns(siteId: string): Column<PainAlert>[] {
           >
             수시 조사 시작
           </ButtonLink>
-        ),
+        );
+      },
     },
   ];
 }
@@ -237,7 +249,7 @@ export default async function SurveysPage({
             ) : (
               <DataTable
                 caption="검토 권고가 있는 공정 또는 묶음과 최근 신고 수"
-                columns={alertColumns(site.id)}
+                columns={alertColumns(site.id, data.open)}
                 rows={data.alerts}
                 rowKey={(row) => `${row.merged ? "group" : "ws"}:${row.label}`}
               />

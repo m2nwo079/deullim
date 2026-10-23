@@ -92,6 +92,7 @@ export function SurveyForm({
     : null;
 
   return (
+    // Spacing: 24px between fields; label, control, error and hint of one field sit 8px apart.
     <form
       action={action}
       onChange={handleChange}
@@ -99,8 +100,6 @@ export function SurveyForm({
       noValidate
       className="flex flex-col gap-3"
     >
-      {state.message ? <InlineAlert tone="error">{state.message}</InlineAlert> : null}
-
       {fixed ? (
         <div className="flex flex-col gap-1">
           <input type="hidden" name="workstationId" value={fixed.id} />
@@ -112,9 +111,11 @@ export function SurveyForm({
           <SegmentedControl
             name="workstationId"
             legend="공정"
-            orientation="vertical"
+            orientation="grid"
+            size="console"
             options={workstations.map((w) => ({ value: w.id, label: w.name }))}
             defaultValue={text?.workstationId ?? defaultWorkstationId}
+            describedBy={errors.workstationId ? "workstationId-error" : undefined}
           />
           <FieldError id="workstationId-error" message={errors.workstationId} />
         </div>
@@ -125,12 +126,18 @@ export function SurveyForm({
           name="reason"
           legend="사유 (산업안전보건기준에 관한 규칙 제657조 제2항)"
           orientation="vertical"
+          size="console"
           options={REASON_OPTIONS}
           defaultValue={text?.reason}
+          describedBy={
+            [errors.reason ? "reason-error" : "", reason === "disease" ? "reason-proviso" : ""]
+              .filter(Boolean)
+              .join(" ") || undefined
+          }
         />
         <FieldError id="reason-error" message={errors.reason} />
         {reason === "disease" ? (
-          <p className="text-small text-text-secondary">
+          <p id="reason-proviso" className="text-small text-text-secondary">
             최근 1년 이내에 이 질환에 대해 조사하고 개선 조치를 했다면 제외돼요(제657조 제2항 단서).
             해당 여부는 직접 판단해 주세요.
           </p>
@@ -177,13 +184,17 @@ export function SurveyForm({
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" loading={pending}>
-          수시 조사 시작
-        </Button>
-        <ButtonLink href={cancelHref} variant="secondary">
-          취소
-        </ButtonLink>
+      <div className="flex flex-col gap-2">
+        {/* Errors about the whole form sit right above the buttons; InlineAlert error is role="alert". */}
+        {state.message ? <InlineAlert tone="error">{state.message}</InlineAlert> : null}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" loading={pending}>
+            수시 조사 시작
+          </Button>
+          <ButtonLink href={cancelHref} variant="secondary">
+            취소
+          </ButtonLink>
+        </div>
       </div>
     </form>
   );
