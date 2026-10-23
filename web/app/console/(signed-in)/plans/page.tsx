@@ -49,7 +49,7 @@ const COLUMNS: Column<SavedPlan>[] = [
   {
     key: "open",
     header: "보기",
-    hiddenHeader: true,
+    action: true,
     render: (row) => (
       <ButtonLink href={`${PAGE}/${row.id}`} variant="secondary">
         보기

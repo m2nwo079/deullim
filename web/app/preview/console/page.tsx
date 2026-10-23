@@ -266,6 +266,7 @@ export default function ConsoleOverviewPreview() {
         />
 
         <InlineAlert
+          tone="deadline"
           action={
             <Link
               href="/preview/console?survey=weld-3"

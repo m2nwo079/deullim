@@ -44,7 +44,7 @@ const COLUMNS: Column<WorkstationOptions>[] = [
   {
     key: "open",
     header: "열기",
-    hiddenHeader: true,
+    action: true,
     render: (row) => (
       <ButtonLink href={`${IMPROVEMENTS_PAGE}/${row.id}`} variant="secondary">
         개선안 보기

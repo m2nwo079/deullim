@@ -1,23 +1,30 @@
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "./icons";
 
+type Tone = "info" | "caution" | "deadline" | "error";
+
 type InlineAlertProps = {
   children: ReactNode;
   action?: ReactNode;
+  /** Overrides the tone's icon for a special case, such as lock for anonymity notes. */
   icon?: IconName;
   id?: string;
-  /** error: sign-style emphasis (3px bar, bold text, alert icon) in the text color, announced at once. */
-  tone?: "info" | "error";
+  /**
+   * info: plain notice. caution: needs attention. deadline: a due date (the only use of the clock).
+   * error: sign-style emphasis (3px bar, bold text, alert icon) in the text color, announced at once.
+   */
+  tone?: Tone;
 };
 
-/** Neutral notice for deadlines, information, and errors. Never uses risk colors. */
-export function InlineAlert({
-  children,
-  action,
-  icon = "clock",
-  id,
-  tone = "info",
-}: InlineAlertProps) {
+const TONE_ICONS: Record<Tone, IconName> = {
+  info: "info",
+  caution: "alert",
+  deadline: "clock",
+  error: "alert",
+};
+
+/** Neutral notice for information, cautions, deadlines and errors. Never uses risk colors. */
+export function InlineAlert({ children, action, icon, id, tone = "info" }: InlineAlertProps) {
   const error = tone === "error";
   return (
     <div
@@ -28,7 +35,7 @@ export function InlineAlert({
       }`}
     >
       <Icon
-        name={error ? "alert" : icon}
+        name={error ? "alert" : (icon ?? TONE_ICONS[tone])}
         size={20}
         className={error ? "text-text" : "text-text-secondary"}
       />
