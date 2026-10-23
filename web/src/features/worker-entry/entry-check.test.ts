@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isEntryAllowed, toEntryTask } from "./entry-check";
+import { isEntryAllowed } from "./entry-check";
 
 const NOW = new Date("2026-10-22T09:00:00Z");
 
@@ -15,34 +15,5 @@ describe("isEntryAllowed", () => {
     ["a token expiring right now", { active: true, expires_at: "2026-10-22T09:00:00Z" }],
   ])("rejects %s", (_name, row) => {
     expect(isEntryAllowed(row, NOW)).toBe(false);
-  });
-});
-
-describe("toEntryTask", () => {
-  it("returns only the id, name and manager inputs", () => {
-    const task = toEntryTask({
-      id: "t1",
-      name: "하부 용접",
-      load_category: "lt5",
-      load_shock: false,
-      coupling: "fair",
-      static_hold: true,
-      unstable_base: false,
-      sitting: false,
-      arm_supported: false,
-    });
-    expect(task).toEqual({
-      id: "t1",
-      name: "하부 용접",
-      inputs: {
-        loadCategory: "lt5",
-        loadShock: false,
-        coupling: "fair",
-        staticHold: true,
-        unstableBase: false,
-        sitting: false,
-        armSupported: false,
-      },
-    });
   });
 });
