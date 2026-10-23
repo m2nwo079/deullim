@@ -80,6 +80,12 @@ erDiagram
 - 열: site_id, parent_group, workstation_count, merged, visible, reason (single_workstation, under_five)
 - 콘솔은 visible = false인 그룹에 "그룹 설정을 바꿔야 신고를 볼 수 있다"는 안내를 띄운다.
 
+## 최신 평가 뷰: task_latest_assessments
+- 단위작업마다 method = reba인 최신 평가 1건 (같은 시각이면 id가 큰 행).
+- 열: task_id, high_risk_ratio, level, score_p90, created_at
+- 호출한 사용자의 권한으로 실행한다(security_invoker). capture_sessions와 assessments의 RLS가 그대로 적용된다.
+- 콘솔 개요 지표의 입력이다 (docs/console-metrics.md).
+
 ## 허용 값
 | 열 | 값 |
 |---|---|
