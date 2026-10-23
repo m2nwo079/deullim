@@ -175,9 +175,13 @@ export function optimizePlan(input: OptimizerInput): PlanResult {
   const size = units + 1;
 
   // dp over "at most b units": reduction, cost in won and option count per budget unit.
+  // Two sets of rows, swapped after each workstation, so no row is allocated per workstation.
   let reduction = new Float64Array(size);
   let cost = new Float64Array(size);
   let count = new Float64Array(size);
+  let nextReduction = new Float64Array(size);
+  let nextCost = new Float64Array(size);
+  let nextCount = new Float64Array(size);
   const lists = input.workstations.map(candidates);
   // choice[i][b]: 0 for no option, otherwise 1 + index into lists[i].
   const choice = lists.map((list) => {
@@ -188,9 +192,9 @@ export function optimizePlan(input: OptimizerInput): PlanResult {
   });
 
   lists.forEach((list, i) => {
-    const nextReduction = reduction.slice();
-    const nextCost = cost.slice();
-    const nextCount = count.slice();
+    nextReduction.set(reduction);
+    nextCost.set(cost);
+    nextCount.set(count);
     list.forEach((c, j) => {
       for (let b = c.units; b < size; b += 1) {
         const r = reduction[b - c.units] + c.reduction;
@@ -208,9 +212,9 @@ export function optimizePlan(input: OptimizerInput): PlanResult {
         }
       }
     });
-    reduction = nextReduction;
-    cost = nextCost;
-    count = nextCount;
+    [reduction, nextReduction] = [nextReduction, reduction];
+    [cost, nextCost] = [nextCost, cost];
+    [count, nextCount] = [nextCount, count];
   });
 
   const selected = new Map<number, Candidate>();
