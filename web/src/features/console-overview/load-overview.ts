@@ -2,6 +2,17 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RiskLevel } from "../../core/reba-score";
 import {
+  ALERT_SUMMARY_COLUMNS,
+  toAlertRows,
+  type AlertSummaryRow,
+} from "../adhoc-surveys/load-surveys";
+import {
+  alertFromWeek,
+  painAlerts,
+  type PainAlert,
+  type SurveyReason,
+} from "../adhoc-surveys/survey-rules";
+import {
   buildOverview,
   weekStartKst,
   type GroupVisibility,
@@ -10,8 +21,12 @@ import {
   type WorkstationInput,
 } from "./metrics";
 
+export type OpenSurvey = { workstationName: string; reason: SurveyReason; dueDate: string };
+
 export type OverviewData = Overview & {
-  openSurveys: { count: number; earliestDue: string | null };
+  /** Earliest due date first. */
+  openSurveys: OpenSurvey[];
+  alerts: PainAlert[];
 };
 
 type WorkstationRow = {
@@ -28,16 +43,7 @@ type AssessmentRow = {
   level: RiskLevel;
   created_at: string;
 };
-type PainSummaryRow = {
-  workstation_id: string | null;
-  parent_group: string;
-  merged: boolean;
-  report_count: number;
-  mild_count: number;
-  moderate_count: number;
-  severe_count: number;
-  very_severe_count: number;
-};
+type PainSummaryRow = AlertSummaryRow & { report_count: number; mild_count: number };
 type VisibilityRow = {
   parent_group: string;
   workstation_count: number;
@@ -77,13 +83,12 @@ export async function loadOverview(
       .from("task_latest_assessments")
       .select("task_id, high_risk_ratio, level, created_at")
       .returns<AssessmentRow[]>(),
+    // Weeks of the screening window; the overview metrics use this week's rows only.
     supabase
       .from("workstation_pain_summary")
-      .select(
-        "workstation_id, parent_group, merged, report_count, mild_count, moderate_count, severe_count, very_severe_count",
-      )
+      .select(`${ALERT_SUMMARY_COLUMNS}, report_count, mild_count`)
       .eq("site_id", siteId)
-      .eq("week_start", weekStartKst(now))
+      .gte("week_start", alertFromWeek(now))
       .returns<PainSummaryRow[]>(),
     supabase
       .from("pain_group_visibility")
@@ -92,11 +97,11 @@ export async function loadOverview(
       .returns<VisibilityRow[]>(),
     supabase
       .from("adhoc_surveys")
-      .select("due_date")
+      .select("workstation_id, trigger_reason, due_date")
       .in("workstation_id", ids)
       .eq("status", "open")
       .order("due_date")
-      .returns<{ due_date: string }[]>(),
+      .returns<{ workstation_id: string; trigger_reason: SurveyReason; due_date: string }[]>(),
   ]);
   if (tasks.error || assessments.error || painRows.error || visibility.error || surveys.error) {
     return null;
@@ -109,6 +114,7 @@ export async function loadOverview(
     parentGroup: w.parent_group,
     headcount: w.headcount,
   }));
+  const thisWeek = weekStartKst(now);
   const overview = buildOverview({
     workstations,
     tasks: tasks.data.map((t) => ({
@@ -122,16 +128,18 @@ export async function loadOverview(
       level: a.level,
       createdAt: a.created_at,
     })),
-    painRows: painRows.data.map((r): PainRow => ({
-      workstationId: r.workstation_id,
-      parentGroup: r.parent_group,
-      merged: r.merged,
-      reportCount: r.report_count,
-      mildCount: r.mild_count,
-      moderateCount: r.moderate_count,
-      severeCount: r.severe_count,
-      verySevereCount: r.very_severe_count,
-    })),
+    painRows: painRows.data
+      .filter((r) => r.week_start === thisWeek)
+      .map((r): PainRow => ({
+        workstationId: r.workstation_id,
+        parentGroup: r.parent_group,
+        merged: r.merged,
+        reportCount: r.report_count,
+        mildCount: r.mild_count,
+        moderateCount: r.moderate_count,
+        severeCount: r.severe_count,
+        verySevereCount: r.very_severe_count,
+      })),
     visibility: visibility.data.map((g): GroupVisibility => ({
       parentGroup: g.parent_group,
       workstationCount: g.workstation_count,
@@ -139,8 +147,20 @@ export async function loadOverview(
       visible: g.visible,
     })),
   });
+  const names = new Map(workstations.map((w) => [w.id, w.name]));
   return {
     ...overview,
-    openSurveys: { count: surveys.data.length, earliestDue: surveys.data[0]?.due_date ?? null },
+    openSurveys: surveys.data.map((s) => ({
+      workstationName: names.get(s.workstation_id) ?? "",
+      reason: s.trigger_reason,
+      dueDate: s.due_date,
+    })),
+    alerts: painAlerts({
+      workstations,
+      visibleGroups: visibility.data.filter((g) => g.visible).map((g) => g.parent_group),
+      painRows: toAlertRows(painRows.data),
+      openSurveyWorkstationIds: surveys.data.map((s) => s.workstation_id),
+      now,
+    }),
   };
 }

@@ -59,7 +59,7 @@ erDiagram
 | quotes | id, request_id, partner_id, price, lead_time_days, status | |
 | improvement_plans | id, site_id, budget, solver_version, total_cost, total_reduction, exposure_before, warnings (jsonb), created_by, created_at | 저장 시점의 계산 결과를 그대로 남긴다. 쓰기는 서버의 save_improvement_plan만 한다. created_by는 저장한 관리자. total_cost, total_reduction은 항목의 합 |
 | plan_items | plan_id, workstation_id, workstation_name, option_id, option_title, cost, reduction, manual_estimate | 공정당 하나(기본 키 plan_id, workstation_id). 저장 시점 값을 복사해 두어 개선안을 고치거나 지워도 계획은 바뀌지 않는다. 개선안이 지워지면 option_id는 null |
-| adhoc_surveys | id, workstation_id, trigger_reason, due_date, status | due_date는 사유 발생 후 1개월 (제657조 제2항) |
+| adhoc_surveys | id, workstation_id, trigger_reason, occurred_on, due_date, status, completed_on, note, created_at | 제657조 제2항의 사유로 시작한 수시 조사. due_date는 occurred_on부터 1개월(계산은 docs/console-metrics.md "수시 조사"). 공정당 진행 중(open) 조사는 하나(부분 고유 인덱스). status = done이면 completed_on이 있고 발생일 이후다. note는 500자 이하이며 개인 정보를 적지 않는다 |
 
 ## 집계 뷰: workstation_pain_summary
 - parent_group 안에 5명 미만 공정이 하나라도 있으면 그 parent_group 전체를 한 행으로 합산한다.
@@ -98,6 +98,7 @@ erDiagram
 | improvement_requests.status | draft, open, closed. 파트너는 open만 읽는다 |
 | quotes.status | submitted, accepted, rejected |
 | adhoc_surveys.status | open, done |
+| adhoc_surveys.trigger_reason | disease, new_work, work_change (제657조 제2항 제1호, 제2호, 제3호). 통증 신고 누적은 사유가 아니다 |
 
 ## DB 함수 (작업자 저장)
 - 작업자 저장은 Route Handler가 service_role로 아래 함수를 호출해 한 트랜잭션에서 처리한다. 다른 역할은 실행할 수 없다.

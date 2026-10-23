@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { ButtonLink } from "../../../../src/components/button";
+import { Icon } from "../../../../src/components/icons";
 import { EmptyState } from "../../../../src/components/empty-state";
 import { InlineAlert } from "../../../../src/components/inline-alert";
 import { getConsoleSession } from "../../../../src/features/console-auth/session";
@@ -73,48 +75,66 @@ export default async function ReportPage({
   ]);
   const siteQuery = `?site=${site.id}`;
 
+  const chip = (href: string, current: boolean, label: string, key?: string) => (
+    <ButtonLink
+      key={key}
+      href={href}
+      variant="secondary"
+      iconBefore={current ? "check" : undefined}
+      aria-current={current ? "page" : undefined}
+    >
+      {label}
+    </ButtonLink>
+  );
+
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3 print:max-w-none print:p-0">
+    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3 print:block print:max-w-none print:p-0">
       <div className="flex flex-col gap-2 print:hidden">
+        <Link
+          href={`/console?site=${site.id}`}
+          className="flex w-fit items-center gap-1 text-small font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+        >
+          <Icon name="chevron-down" size={16} className="rotate-90" />
+          개요
+        </Link>
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div className="flex flex-col gap-1">
             <p className="text-caption text-text-secondary">{site.name}</p>
             <h1 className="text-title font-bold">보고서 초안</h1>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {(sites ?? [])
-              .filter((s) => s.id !== site.id)
-              .map((other) => (
-                <ButtonLink key={other.id} href={`${PAGE}?site=${other.id}`} variant="secondary">
-                  {other.name}
-                </ButtonLink>
-              ))}
-            <ButtonLink href="/console" variant="secondary">
-              개요
-            </ButtonLink>
-            <PrintButton />
-          </div>
+          <PrintButton />
         </div>
-        <InlineAlert>
+        <p className="text-small text-text-secondary">
           화면을 열 때마다 지금 데이터로 새로 만들고 저장하지 않아요. 인쇄 창에서 &ldquo;PDF로
           저장&rdquo;을 고르면 파일로 남길 수 있어요.
-        </InlineAlert>
-        <div className="flex flex-wrap items-center gap-1 text-small">
-          <span className="font-medium">함께 넣을 개선 계획</span>
-          <ButtonLink href={`${PAGE}${siteQuery}`} variant="secondary">
-            넣지 않음
-          </ButtonLink>
-          {(plans ?? []).map((plan) => (
-            <ButtonLink
-              key={plan.id}
-              href={`${PAGE}${siteQuery}&plan=${plan.id}`}
-              variant="secondary"
-              iconBefore={plan.id === planId ? "check" : undefined}
-            >
-              {DATE_TIME.format(new Date(plan.created_at))} · {formatWon(Number(plan.budget))}
-            </ButtonLink>
-          ))}
-        </div>
+        </p>
+        <section
+          aria-label="보고서 설정"
+          className="flex flex-col gap-2 rounded-surface border border-border bg-surface p-2"
+        >
+          {(sites ?? []).length > 1 ? (
+            <nav aria-label="사업장" className="flex flex-wrap items-center gap-1">
+              <span className="w-full shrink-0 text-small font-medium sm:w-20">사업장</span>
+              {(sites ?? []).map((s) =>
+                chip(`${PAGE}?site=${s.id}`, s.id === site.id, s.name, s.id),
+              )}
+            </nav>
+          ) : null}
+          <nav aria-label="함께 넣을 개선 계획" className="flex flex-wrap items-center gap-1">
+            <span className="w-full shrink-0 text-small font-medium sm:w-20">
+              함께 넣을 개선 계획
+            </span>
+            {chip(`${PAGE}${siteQuery}`, planId === null, "넣지 않음")}
+            {(plans ?? []).map((plan) =>
+              chip(
+                `${PAGE}${siteQuery}&plan=${plan.id}`,
+                plan.id === planId,
+                `${DATE_TIME.format(new Date(plan.created_at))} · ${formatWon(Number(plan.budget))}`,
+                plan.id,
+              ),
+            )}
+          </nav>
+        </section>
       </div>
 
       {source === null ? (
@@ -122,8 +142,18 @@ export default async function ReportPage({
           보고서 초안을 만들지 못했어요. 잠시 후 다시 시도해 주세요.
         </InlineAlert>
       ) : (
-        <div className="rounded-surface border border-border bg-surface p-3 print:border-0 print:p-0">
-          <ReportDocument draft={buildReportDraft(source, now)} createdOn={now} />
+        // The paper keeps its table widths on phones and scrolls inside this area, not the page.
+        <div
+          role="region"
+          aria-label="보고서 미리보기"
+          // A scrollable region must be focusable so keyboard users can scroll it horizontally.
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          tabIndex={0}
+          className="overflow-x-auto rounded-surface bg-surface-muted p-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring sm:p-3 print:overflow-visible print:bg-surface print:p-0"
+        >
+          <div className="mx-auto max-w-console-form border border-border bg-surface p-3 print:max-w-none print:border-0 print:p-0">
+            <ReportDocument draft={buildReportDraft(source, now)} createdOn={now} />
+          </div>
         </div>
       )}
     </main>

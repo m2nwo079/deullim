@@ -102,6 +102,8 @@ type ButtonLinkProps = Partial<Pick<StyleOptions, "variant" | "size">> &
   IconSlots & {
     href: string;
     children: ReactNode;
+    /** Marks the link of the current choice, such as the selected site. */
+    "aria-current"?: "page";
   };
 
 /** Navigation styled as a button. Links have no disabled or loading state. */
@@ -112,9 +114,10 @@ export function ButtonLink({
   iconBefore,
   iconAfter,
   children,
+  "aria-current": current,
 }: ButtonLinkProps) {
   return (
-    <Link href={href} className={buttonClasses({ variant, size })}>
+    <Link href={href} aria-current={current} className={buttonClasses({ variant, size })}>
       <Label size={size} iconBefore={iconBefore} iconAfter={iconAfter}>
         {children}
       </Label>

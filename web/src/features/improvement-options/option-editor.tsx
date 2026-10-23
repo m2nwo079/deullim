@@ -57,7 +57,6 @@ export function OptionForm({
     <form action={action} onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
       <input type="hidden" name="workstationId" value={workstationId} />
       <input type="hidden" name="optionId" value={optionId ?? ""} />
-      {state.message ? <InlineAlert tone="error">{state.message}</InlineAlert> : null}
       <TextField
         id={FIELDS.title}
         name={FIELDS.title}
@@ -118,13 +117,17 @@ export function OptionForm({
         )}
       </fieldset>
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" loading={pending}>
-          저장
-        </Button>
-        <ButtonLink href={cancelHref} variant="secondary">
-          취소
-        </ButtonLink>
+      <div className="flex flex-col gap-2">
+        {/* Errors about the whole form sit right above the buttons (docs/components.md). */}
+        {state.message ? <InlineAlert tone="error">{state.message}</InlineAlert> : null}
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" loading={pending}>
+            저장
+          </Button>
+          <ButtonLink href={cancelHref} variant="secondary">
+            취소
+          </ButtonLink>
+        </div>
       </div>
     </form>
   );

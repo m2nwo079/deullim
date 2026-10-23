@@ -3,6 +3,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TaskInputs } from "../../core/reba-score";
 import type { PartSummary } from "../../core/reba-session";
 import type { RiskLevel } from "../../components/risk";
+import { SURVEY_COLUMNS, type SurveyRow } from "../adhoc-surveys/load-surveys";
+import { recentDoneFrom } from "../adhoc-surveys/survey-rules";
 import { painFromWeek, type ReportSource } from "./report-data";
 
 type WorkstationRow = {
@@ -128,10 +130,10 @@ export async function loadReportSource(
       .returns<VisibilityRow[]>(),
     supabase
       .from("adhoc_surveys")
-      .select("workstation_id, trigger_reason, due_date")
+      .select(SURVEY_COLUMNS)
       .in("workstation_id", ids)
-      .eq("status", "open")
-      .returns<{ workstation_id: string; trigger_reason: string; due_date: string }[]>(),
+      .or(`status.eq.open,completed_on.gte.${recentDoneFrom(now)}`)
+      .returns<SurveyRow[]>(),
     planId
       ? supabase
           .from("improvement_plans")
@@ -219,10 +221,13 @@ export async function loadReportSource(
       merged: g.merged,
       visible: g.visible,
     })),
-    openSurveys: surveys.data.map((s) => ({
+    surveys: surveys.data.map((s) => ({
       workstationId: s.workstation_id,
       reason: s.trigger_reason,
+      occurredOn: s.occurred_on,
       dueDate: s.due_date,
+      completedOn: s.completed_on,
+      note: s.note,
     })),
     plan: plan.data
       ? {

@@ -9,10 +9,12 @@ export type IconName =
   | "workstation"
   | "report"
   | "document"
+  | "tool"
   | "qr"
   | "check-circle"
   | "check"
   | "clock"
+  | "calendar"
   | "alert"
   | "info"
   | "refresh"
@@ -59,6 +61,7 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M14 3v4h4M9 12h6M9 16h6" />
     </>
   ),
+  tool: <path d="M15 4a4 4 0 0 0-4.6 5.4L4 15.8V20h4.2l6.4-6.4A4 4 0 0 0 20 9l-3 1-3-3 1-3z" />,
   qr: (
     <>
       <rect x="4" y="4" width="6" height="6" rx="1" />
@@ -74,6 +77,12 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   check: <path d="M5 12l5 5 9-10" />,
+  calendar: (
+    <>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 10h16M8 3v4M16 3v4" />
+    </>
+  ),
   clock: (
     <>
       <circle cx="12" cy="12" r="9" />

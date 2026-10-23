@@ -34,7 +34,9 @@ const MESSAGES: Record<Exclude<PlanError, "invalid_budget">, string> = {
 export function PlanScreen({ siteId }: { siteId: string }) {
   const [view, setView] = useState<PlanView | null>(null);
   const [budgetError, setBudgetError] = useState<string | undefined>();
-  const [message, setMessage] = useState<string | null>(null);
+  // Errors of each button, shown right above that button (docs/components.md).
+  const [computeError, setComputeError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [computing, startCompute] = useTransition();
   const [saving, startSave] = useTransition();
 
@@ -42,7 +44,8 @@ export function PlanScreen({ siteId }: { siteId: string }) {
     event.preventDefault();
     const value = new FormData(event.currentTarget).get(BUDGET_FIELD);
     const text = typeof value === "string" ? value : "";
-    setMessage(null);
+    setComputeError(null);
+    setSaveError(null);
     if (parseCost(text) === null) {
       setBudgetError(BUDGET_ERROR);
       return;
@@ -55,43 +58,52 @@ export function PlanScreen({ siteId }: { siteId: string }) {
       } else if (result.error === "invalid_budget") {
         setBudgetError(BUDGET_ERROR);
       } else {
-        setMessage(MESSAGES[result.error]);
+        setComputeError(MESSAGES[result.error]);
       }
     });
   }
 
   function handleSave(current: PlanView) {
-    setMessage(null);
+    setSaveError(null);
     startSave(async () => {
       // On success the action moves to the saved plan's page.
       const result = await savePlan(siteId, String(current.budget), {
         totalCost: current.totalCost,
         totalReduction: current.totalReduction,
       });
-      setMessage(result.error === "invalid_budget" ? BUDGET_ERROR : MESSAGES[result.error]);
+      setSaveError(result.error === "invalid_budget" ? BUDGET_ERROR : MESSAGES[result.error]);
     });
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <form onSubmit={handleSubmit} noValidate className="flex flex-wrap items-start gap-2">
-        <div className="w-full max-w-40">
-          <MoneyField
-            id={BUDGET_FIELD}
-            name={BUDGET_FIELD}
-            label="예산 (원)"
-            aria-required
-            error={budgetError}
-          />
-        </div>
-        <div className="pt-4">
-          <Button type="submit" loading={computing}>
-            계산
-          </Button>
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-2">
+        {computeError ? <InlineAlert tone="error">{computeError}</InlineAlert> : null}
+        <div className="flex flex-wrap items-start gap-2">
+          <div className="w-full max-w-40">
+            <MoneyField
+              id={BUDGET_FIELD}
+              name={BUDGET_FIELD}
+              label="예산 (원)"
+              aria-required
+              error={budgetError}
+            />
+          </div>
+          <div className="pt-4">
+            <Button type="submit" loading={computing}>
+              계산
+            </Button>
+          </div>
         </div>
       </form>
-      {message ? <InlineAlert tone="error">{message}</InlineAlert> : null}
-      {view ? <PlanResult view={view} saving={saving} onSave={() => handleSave(view)} /> : null}
+      {view ? (
+        <PlanResult
+          view={view}
+          saving={saving}
+          saveError={saveError}
+          onSave={() => handleSave(view)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -99,10 +111,12 @@ export function PlanScreen({ siteId }: { siteId: string }) {
 function PlanResult({
   view,
   saving,
+  saveError,
   onSave,
 }: {
   view: PlanView;
   saving: boolean;
+  saveError: string | null;
   onSave: () => void;
 }) {
   if (view.candidateCount === 0) {
@@ -143,10 +157,13 @@ function PlanResult({
         <PlanItemsTable rows={view.items} />
       </section>
       <BudgetCurve curve={view.curve} budget={view.budget} />
-      <div>
-        <Button variant="secondary" loading={saving} onClick={onSave}>
-          이 계획 저장
-        </Button>
+      <div className="flex flex-col gap-2">
+        {saveError ? <InlineAlert tone="error">{saveError}</InlineAlert> : null}
+        <div>
+          <Button variant="secondary" loading={saving} onClick={onSave}>
+            이 계획 저장
+          </Button>
+        </div>
       </div>
     </div>
   );
