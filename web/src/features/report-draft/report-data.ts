@@ -7,6 +7,7 @@ import {
   type GroupVisibility,
   type WorkstationInput,
 } from "../console-overview/metrics";
+import { recentDoneFrom, type SurveyReason } from "../adhoc-surveys/survey-rules";
 import { postureRows } from "../worker-flow/result-summary";
 
 // Report draft contents (docs/console-metrics.md, report draft). Every input row carries its site or
@@ -49,7 +50,15 @@ export type ReportSource = {
     >;
   }[];
   visibility: (GroupVisibility & { siteId: string })[];
-  openSurveys: { workstationId: string; reason: string; dueDate: string }[];
+  /** Open surveys and those completed within the last year. */
+  surveys: {
+    workstationId: string;
+    reason: SurveyReason;
+    occurredOn: string;
+    dueDate: string;
+    completedOn: string | null;
+    note: string | null;
+  }[];
   plan: {
     siteId: string;
     createdAt: string;
@@ -107,7 +116,8 @@ export type ReportDraft = {
   assessedTaskCount: number;
   taskCount: number;
   pain: { fromWeek: string; total: number; rows: PainSummaryRow[]; hiddenGroups: string[] };
-  surveys: { workstationName: string; reason: string; dueDate: string }[];
+  /** Open surveys by due date, then surveys completed within the last year, latest first. */
+  surveys: (Omit<ReportSource["surveys"][number], "workstationId"> & { workstationName: string })[];
   plan: ReportSource["plan"];
   manualEstimateUsed: boolean;
 };
@@ -264,14 +274,20 @@ export function buildReportDraft(source: ReportSource, now: Date): ReportDraft {
         .map((g) => g.parentGroup)
         .sort((a, b) => a.localeCompare(b, "ko")),
     },
-    surveys: source.openSurveys
-      .filter((s) => workstationIds.has(s.workstationId))
-      .map((s) => ({
-        workstationName: names.get(s.workstationId) ?? "",
-        reason: s.reason,
-        dueDate: s.dueDate,
-      }))
-      .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    surveys: source.surveys
+      .filter(
+        (s) =>
+          workstationIds.has(s.workstationId) &&
+          (s.completedOn === null || s.completedOn >= recentDoneFrom(now)),
+      )
+      .map(({ workstationId, ...s }) => ({ ...s, workstationName: names.get(workstationId) ?? "" }))
+      .sort(
+        (a, b) =>
+          Number(a.completedOn !== null) - Number(b.completedOn !== null) ||
+          (a.completedOn === null
+            ? a.dueDate.localeCompare(b.dueDate)
+            : (b.completedOn ?? "").localeCompare(a.completedOn ?? "")),
+      ),
     plan,
     manualEstimateUsed: plan?.items.some((item) => item.manualEstimate) ?? false,
   };

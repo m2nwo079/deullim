@@ -132,9 +132,56 @@ const source: ReportSource = {
     { siteId: "s1", parentGroup: "품질", workstationCount: 1, merged: true, visible: false },
     { siteId: "s2", parentGroup: "가공", workstationCount: 1, merged: true, visible: false },
   ],
-  openSurveys: [
-    { workstationId: "weld", reason: "신고 누적", dueDate: "2026-11-14" },
-    { workstationId: "other", reason: "다른 사업장", dueDate: "2026-11-01" },
+  surveys: [
+    {
+      workstationId: "weld",
+      reason: "new_work",
+      occurredOn: "2026-10-14",
+      dueDate: "2026-11-14",
+      completedOn: null,
+      note: "용접 지그 교체",
+    },
+    {
+      workstationId: "press",
+      reason: "work_change",
+      occurredOn: "2026-10-01",
+      dueDate: "2026-11-01",
+      completedOn: null,
+      note: null,
+    },
+    {
+      workstationId: "press",
+      reason: "disease",
+      occurredOn: "2025-09-10",
+      dueDate: "2025-10-10",
+      completedOn: "2025-10-23",
+      note: null,
+    },
+    {
+      workstationId: "dock",
+      reason: "new_work",
+      occurredOn: "2026-03-02",
+      dueDate: "2026-04-02",
+      completedOn: "2026-03-20",
+      note: null,
+    },
+    // Completed the day before the one-year window.
+    {
+      workstationId: "dock",
+      reason: "work_change",
+      occurredOn: "2025-09-01",
+      dueDate: "2025-10-01",
+      completedOn: "2025-10-22",
+      note: null,
+    },
+    {
+      workstationId: "other",
+      reason: "new_work",
+      occurredOn: "2026-10-01",
+      dueDate: "2026-11-01",
+      completedOn: null,
+      note: "다른 사업장",
+    },
   ],
   plan: null,
 };
@@ -196,10 +243,16 @@ describe("buildReportDraft", () => {
     expect(draft.pain.hiddenGroups).toEqual(["품질"]);
   });
 
-  it("lists open surveys of this site only", () => {
-    expect(draft.surveys).toEqual([
-      { workstationName: "용접 3번 작업대", reason: "신고 누적", dueDate: "2026-11-14" },
+  it("lists open and last-year surveys of this site, open ones first", () => {
+    expect(
+      draft.surveys.map((s) => [s.workstationName, s.reason, s.dueDate, s.completedOn]),
+    ).toEqual([
+      ["프레스 2라인", "work_change", "2026-11-01", null],
+      ["용접 3번 작업대", "new_work", "2026-11-14", null],
+      ["자재 입고장", "new_work", "2026-04-02", "2026-03-20"],
+      ["프레스 2라인", "disease", "2025-10-10", "2025-10-23"],
     ]);
+    expect(draft.surveys[1]).toMatchObject({ occurredOn: "2026-10-14", note: "용접 지그 교체" });
   });
 
   it("keeps a plan of this site and notes manual estimates", () => {
@@ -236,7 +289,7 @@ describe("buildReportDraft", () => {
         assessments: [],
         painRows: [],
         visibility: [],
-        openSurveys: [],
+        surveys: [],
       },
       NOW,
     );

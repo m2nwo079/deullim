@@ -74,34 +74,42 @@ export default async function ReportPage({
   const siteQuery = `?site=${site.id}`;
 
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3 print:max-w-none print:p-0">
-      <div className="flex flex-col gap-2 print:hidden">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div className="flex flex-col gap-1">
-            <p className="text-caption text-text-secondary">{site.name}</p>
-            <h1 className="text-title font-bold">보고서 초안</h1>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(sites ?? [])
-              .filter((s) => s.id !== site.id)
-              .map((other) => (
-                <ButtonLink key={other.id} href={`${PAGE}?site=${other.id}`} variant="secondary">
-                  {other.name}
-                </ButtonLink>
-              ))}
-            <ButtonLink href="/console" variant="secondary">
-              개요
-            </ButtonLink>
-            <PrintButton />
-          </div>
+    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3 lg:flex-row lg:items-start print:block print:max-w-none print:p-0">
+      <aside
+        aria-label="보고서 설정"
+        className="flex flex-col gap-3 rounded-surface border border-border bg-surface p-2 lg:sticky lg:top-2 lg:w-32 lg:shrink-0 print:hidden"
+      >
+        <div className="flex flex-col gap-1">
+          <p className="text-caption text-text-secondary">{site.name}</p>
+          <h1 className="text-title font-bold">보고서 초안</h1>
         </div>
+        <PrintButton />
         <InlineAlert>
           화면을 열 때마다 지금 데이터로 새로 만들고 저장하지 않아요. 인쇄 창에서 &ldquo;PDF로
           저장&rdquo;을 고르면 파일로 남길 수 있어요.
         </InlineAlert>
-        <div className="flex flex-wrap items-center gap-1 text-small">
-          <span className="font-medium">함께 넣을 개선 계획</span>
-          <ButtonLink href={`${PAGE}${siteQuery}`} variant="secondary">
+        {(sites ?? []).length > 1 ? (
+          <nav aria-label="사업장" className="flex flex-col gap-1">
+            <p className="text-small font-medium">사업장</p>
+            {(sites ?? []).map((s) => (
+              <ButtonLink
+                key={s.id}
+                href={`${PAGE}?site=${s.id}`}
+                variant="secondary"
+                iconBefore={s.id === site.id ? "check" : undefined}
+              >
+                {s.name}
+              </ButtonLink>
+            ))}
+          </nav>
+        ) : null}
+        <nav aria-label="함께 넣을 개선 계획" className="flex flex-col gap-1">
+          <p className="text-small font-medium">함께 넣을 개선 계획</p>
+          <ButtonLink
+            href={`${PAGE}${siteQuery}`}
+            variant="secondary"
+            iconBefore={planId === null ? "check" : undefined}
+          >
             넣지 않음
           </ButtonLink>
           {(plans ?? []).map((plan) => (
@@ -114,16 +122,23 @@ export default async function ReportPage({
               {DATE_TIME.format(new Date(plan.created_at))} · {formatWon(Number(plan.budget))}
             </ButtonLink>
           ))}
-        </div>
-      </div>
+        </nav>
+        <ButtonLink href="/console" variant="secondary">
+          개요
+        </ButtonLink>
+      </aside>
 
       {source === null ? (
-        <InlineAlert tone="error">
-          보고서 초안을 만들지 못했어요. 잠시 후 다시 시도해 주세요.
-        </InlineAlert>
+        <div className="min-w-0 flex-1">
+          <InlineAlert tone="error">
+            보고서 초안을 만들지 못했어요. 잠시 후 다시 시도해 주세요.
+          </InlineAlert>
+        </div>
       ) : (
-        <div className="rounded-surface border border-border bg-surface p-3 print:border-0 print:p-0">
-          <ReportDocument draft={buildReportDraft(source, now)} createdOn={now} />
+        <div className="min-w-0 flex-1 rounded-surface bg-surface-muted p-2 lg:p-3 print:bg-surface print:p-0">
+          <div className="mx-auto max-w-console-form border border-border bg-surface p-3 print:max-w-none print:border-0 print:p-0">
+            <ReportDocument draft={buildReportDraft(source, now)} createdOn={now} />
+          </div>
         </div>
       )}
     </main>
