@@ -561,3 +561,95 @@ select
   pg_temp.ok('manager_cannot_write') as manager_cannot_write,
   pg_temp.ok('only_service_role_executes') as only_service_role_executes;
 rollback;
+
+-- 13. Ad hoc surveys (migration 20261028000001). Run this block on its own, from begin to rollback.
+--     Surveys are written as the manager of 합성 제1공장, as the console does.
+--     Expected: every column is true.
+begin;
+select
+  set_config('verify.weld', (select id::text from public.workstations where code = 'WLD-03'), true),
+  set_config('verify.press', (select id::text from public.workstations where code = 'PRS-02'), true),
+  set_config('verify.other_ws', (select id::text from public.workstations where code = 'MCH-01'), true),
+  set_config('verify.manager', (select m.profile_id::text from public.site_members m
+    join public.sites s on s.id = m.site_id
+    join public.profiles p on p.id = m.profile_id
+    where s.name = '합성 제1공장' and p.role = 'manager' limit 1), true);
+
+create function pg_temp.fails(stmt text) returns boolean
+language plpgsql
+as $$
+begin
+  execute stmt;
+  raise sqlstate 'DL001';
+exception
+  when sqlstate 'DL001' then return false;
+  when others then return true;
+end;
+$$;
+
+create function pg_temp.v(name text) returns uuid
+language sql
+as $$ select current_setting('verify.' || name)::uuid $$;
+
+create function pg_temp.keep(name text, ok boolean) returns void
+language sql
+as $$ select set_config('verify.ok_' || name, coalesce(ok, false)::text, true) $$;
+
+create function pg_temp.ok(name text) returns boolean
+language sql
+as $$ select current_setting('verify.ok_' || name)::boolean $$;
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', pg_temp.v('manager'), 'role', 'authenticated')::text,
+  true
+);
+set local role authenticated;
+insert into public.adhoc_surveys (workstation_id, trigger_reason, occurred_on, due_date, note)
+values (pg_temp.v('weld'), 'new_work', date '2026-10-14', date '2026-11-14', 'verify');
+select
+  pg_temp.keep('manager_inserts', exists (
+    select 1 from public.adhoc_surveys
+    where workstation_id = pg_temp.v('weld') and status = 'open' and created_at is not null)),
+  pg_temp.keep('bad_reason_rejected', pg_temp.fails($q$
+    insert into public.adhoc_surveys (workstation_id, trigger_reason, occurred_on, due_date)
+    values (pg_temp.v('press'), '신고 누적', date '2026-10-14', date '2026-11-14') $q$)),
+  pg_temp.keep('due_out_of_range_rejected', pg_temp.fails($q$
+    insert into public.adhoc_surveys (workstation_id, trigger_reason, occurred_on, due_date)
+    values (pg_temp.v('press'), 'disease', date '2026-10-14', date '2026-11-15') $q$)
+    and pg_temp.fails($q$
+    insert into public.adhoc_surveys (workstation_id, trigger_reason, occurred_on, due_date)
+    values (pg_temp.v('press'), 'disease', date '2026-10-14', date '2026-10-14') $q$)),
+  pg_temp.keep('long_note_rejected', pg_temp.fails($q$
+    insert into public.adhoc_surveys (workstation_id, trigger_reason, occurred_on, due_date, note)
+    values (pg_temp.v('press'), 'disease', date '2026-10-14', date '2026-11-14', repeat('가', 501)) $q$)),
+  pg_temp.keep('second_open_rejected', pg_temp.fails($q$
+    insert into public.adhoc_surveys (workstation_id, trigger_reason, occurred_on, due_date)
+    values (pg_temp.v('weld'), 'work_change', date '2026-10-20', date '2026-11-20') $q$)),
+  pg_temp.keep('other_site_rejected', pg_temp.fails($q$
+    insert into public.adhoc_surveys (workstation_id, trigger_reason, occurred_on, due_date)
+    values (pg_temp.v('other_ws'), 'new_work', date '2026-10-14', date '2026-11-14') $q$)),
+  pg_temp.keep('done_needs_completed_on', pg_temp.fails($q$
+    update public.adhoc_surveys set status = 'done' where workstation_id = pg_temp.v('weld') $q$)
+    and pg_temp.fails($q$
+    update public.adhoc_surveys set status = 'done', completed_on = date '2026-10-13'
+    where workstation_id = pg_temp.v('weld') $q$));
+update public.adhoc_surveys set status = 'done', completed_on = date '2026-10-20'
+where workstation_id = pg_temp.v('weld');
+insert into public.adhoc_surveys (workstation_id, trigger_reason, occurred_on, due_date)
+values (pg_temp.v('weld'), 'work_change', date '2026-10-20', date '2026-11-20');
+select pg_temp.keep('reopen_after_done', (
+  select count(*) = 2 and count(*) filter (where status = 'open') = 1
+  from public.adhoc_surveys where workstation_id = pg_temp.v('weld')));
+reset role;
+
+select
+  pg_temp.ok('manager_inserts') as manager_inserts,
+  pg_temp.ok('bad_reason_rejected') as bad_reason_rejected,
+  pg_temp.ok('due_out_of_range_rejected') as due_out_of_range_rejected,
+  pg_temp.ok('long_note_rejected') as long_note_rejected,
+  pg_temp.ok('second_open_rejected') as second_open_rejected,
+  pg_temp.ok('other_site_rejected') as other_site_rejected,
+  pg_temp.ok('done_needs_completed_on') as done_needs_completed_on,
+  pg_temp.ok('reopen_after_done') as reopen_after_done;
+rollback;
