@@ -4,9 +4,10 @@ import { REASON_LABELS } from "../adhoc-surveys/survey-rules";
 import { formatHours, formatWon } from "../improvement-plan/curve";
 import type { PainSummaryRow, ReportDraft, ReportTask, ReportWorkstation } from "./report-data";
 
+// Short dates on paper, such as "2026. 10. 14.".
 const DATE = new Intl.DateTimeFormat("ko-KR", {
   year: "numeric",
-  month: "long",
+  month: "numeric",
   day: "numeric",
   timeZone: "Asia/Seoul",
 });
@@ -361,7 +362,14 @@ export function ReportDocument({ draft, createdOn }: { draft: ReportDraft; creat
                         참고: 들림에 기록된 수시 조사 (진행 중과 최근 1년 완료, 제657조 제2항)
                       </p>
                       <Table
-                        colClass={["min-w-12 break-keep", "w-24", "", "", "", ""]}
+                        colClass={[
+                          "whitespace-nowrap",
+                          "",
+                          "whitespace-nowrap",
+                          "whitespace-nowrap",
+                          "whitespace-nowrap",
+                          "",
+                        ]}
                         head={["작업명", "사유", "발생일", "기한", "상태", "메모"]}
                         rows={draft.surveys.map((s) => [
                           s.workstationName,
