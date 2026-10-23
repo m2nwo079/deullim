@@ -216,3 +216,65 @@ select pg_temp.fails($q$
     (select id from public.entry_tokens where token_hash = 'verify-submit'), array['neck'], 'mild', 20)
 $q$) as inactive_token_rejected;
 rollback;
+
+-- 10. Latest assessment per task (migration 20261024000001). Run this block on its own, from begin to rollback.
+--     Test captures are added to 하부 용접 (합성 제1공장) and to a test task in 합성 제2공장.
+--     Their times are a few minutes ahead, so they are the newest even if dev already has captures.
+--     Expected: every column is true.
+begin;
+insert into public.tasks (workstation_id, name, daily_hours, load_category, coupling)
+select w.id, 'verify-latest', 1, 'lt5', 'good'
+from public.workstations w where w.code = 'MCH-01';
+-- Kept before switching roles, so the manager check below compares ids directly.
+select set_config('verify.other_task', t.id::text, true)
+from public.tasks t where t.name = 'verify-latest';
+
+create function pg_temp.add_capture(task_name text, method text, level text, at timestamptz)
+returns void
+language sql
+as $$
+  with s as (
+    insert into public.capture_sessions (task_id, frame_count, inference_fps, created_at)
+    select t.id, 450, 15, at from public.tasks t where t.name = task_name
+    returning id
+  )
+  insert into public.assessments (session_id, method, part_summary, valid_frame_ratio,
+    high_risk_ratio, score_p90, level, algorithm_version, created_at)
+  select s.id, method, '{}'::jsonb, 1, 0.5, 9, level, 'reba-2d-v1', at from s;
+$$;
+
+select pg_temp.add_capture('하부 용접', 'reba', 'caution', now() + interval '1 minute');
+select pg_temp.add_capture('하부 용접', 'reba', 'high', now() + interval '2 minutes');
+-- A newer non-REBA row must be ignored.
+select pg_temp.add_capture('하부 용접', 'rula', 'low', now() + interval '3 minutes');
+select pg_temp.add_capture('verify-latest', 'reba', 'very-high', now() + interval '1 minute');
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', m.profile_id, 'role', 'authenticated')::text,
+  true
+)
+from public.site_members m
+join public.sites s on s.id = m.site_id
+where s.name = '합성 제1공장'
+limit 1;
+set local role authenticated;
+
+select
+  (select v.level from public.task_latest_assessments v
+   join public.tasks t on t.id = v.task_id where t.name = '하부 용접') = 'high'
+    as picks_latest_reba,
+  not exists (
+    select 1 from public.task_latest_assessments v
+    where v.task_id = current_setting('verify.other_task')::uuid
+  ) and not exists (
+    select 1 from public.task_latest_assessments v
+    where v.task_id not in (select t.id from public.tasks t)
+  ) as other_site_hidden,
+  (select 'security_invoker=true' = any (c.reloptions)
+   from pg_class c where c.oid = 'public.task_latest_assessments'::regclass) as is_security_invoker,
+  has_table_privilege('authenticated', 'public.task_latest_assessments', 'select')
+    and not has_table_privilege('authenticated', 'public.task_latest_assessments', 'insert')
+    and not has_table_privilege('anon', 'public.task_latest_assessments', 'select')
+    as select_only_for_authenticated;
+rollback;

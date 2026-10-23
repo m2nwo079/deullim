@@ -122,6 +122,7 @@ web/ 폴더에서 실행한다. Node는 24.x(web/.nvmrc)이며, 로컬 Node가 �
 - 디자인: docs/design-principles.md, docs/design-tokens.md, docs/components.md
 - 평가와 최적화: docs/assessment-rules.md, docs/optimization-model.md, docs/aihub-label-codes.md
 - 데이터와 인증: docs/data-model.md, docs/auth.md
+- 콘솔 지표: docs/console-metrics.md
 - 배포와 린트: docs/deployment.md, docs/lint-rules.md
 
 ## 브랜치와 커밋 규칙
