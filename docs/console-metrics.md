@@ -3,6 +3,8 @@
 관리자 콘솔 개요(/console)의 수치 정의. 데이터는 관리자 본인의 세션(RLS)으로 읽는다. secret key는 쓰지 않는다.
 계산은 web/src/features/console-overview/metrics.ts의 순수 함수가 한다.
 
+- 사업장을 고르는 화면(개요, 수시 조사, 개선 계획, 보고서 초안) 사이의 링크에는 현재 사업장을 ?site=로 붙인다. ?site=가 없거나 소속 사업장이 아니면 첫 사업장을 쓴다. 사업장 구분이 없는 화면(개선안, QR 관리)으로 가는 링크에는 붙이지 않는다.
+
 ## 단위작업의 현재 위험도
 - 단위작업마다 최신 REBA 평가 1건을 쓴다 (task_latest_assessments 뷰, docs/data-model.md).
   docs/optimization-model.md의 r_t(최신 high_risk_ratio)와 같은 기준이다.
