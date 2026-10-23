@@ -1,0 +1,111 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { getConsoleSession } from "../console-auth/session";
+import {
+  IMPROVEMENTS_PAGE,
+  isUuid,
+  optionText,
+  parseOptionForm,
+  type OptionFieldErrors,
+  type OptionText,
+} from "./option-form";
+
+// Screen messages. Database error text never reaches the screen.
+const FORBIDDEN = "이 계정으로는 개선안을 관리할 수 없어요.";
+const NOT_FOUND = "공정이나 개선안을 찾을 수 없어요. 목록을 새로 고친 뒤 다시 시도해 주세요.";
+const FAILED = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
+
+export type SaveOptionState = {
+  message?: string;
+  errors?: OptionFieldErrors;
+  /** What was typed, so the fields keep it after a failed save. */
+  text?: OptionText;
+};
+
+/**
+ * Creates or updates an option with its effects in one database call (save_improvement_option).
+ * RLS decides which workstations and tasks the manager can write; effects are saved as manual.
+ */
+export async function saveOption(_prev: SaveOptionState, form: FormData): Promise<SaveOptionState> {
+  const session = await getConsoleSession();
+  if (session.access !== "manager") {
+    return { message: FORBIDDEN };
+  }
+  const workstationId = form.get("workstationId");
+  const optionId = form.get("optionId");
+  if (
+    typeof workstationId !== "string" ||
+    !isUuid(workstationId) ||
+    (typeof optionId === "string" && optionId !== "" && !isUuid(optionId))
+  ) {
+    return { message: NOT_FOUND };
+  }
+
+  // Effect fields are read only for tasks of this workstation that the manager can see.
+  const { data: tasks, error: taskError } = await session.supabase
+    .from("tasks")
+    .select("id")
+    .eq("workstation_id", workstationId)
+    .returns<{ id: string }[]>();
+  if (taskError) {
+    return { message: FAILED };
+  }
+  const taskIds = tasks.map((t) => t.id);
+  const text = optionText(form, taskIds);
+  const parsed = parseOptionForm(text, taskIds);
+  if (!parsed.ok) {
+    return { errors: parsed.errors, text };
+  }
+
+  const { values } = parsed;
+  const { error } = await session.supabase.rpc("save_improvement_option", {
+    p_option_id: typeof optionId === "string" && optionId !== "" ? optionId : null,
+    p_workstation_id: workstationId,
+    p_title: values.title,
+    p_description: values.description,
+    p_cost: values.cost,
+    p_effects: values.effects.map((e) => ({
+      task_id: e.taskId,
+      expected_high_risk_ratio: e.ratio,
+    })),
+  });
+  if (error) {
+    // P0002 no_data_found: the option is gone or belongs to another workstation.
+    return { message: error.code === "P0002" ? NOT_FOUND : FAILED, text };
+  }
+
+  const page = `${IMPROVEMENTS_PAGE}/${workstationId}`;
+  revalidatePath(IMPROVEMENTS_PAGE);
+  revalidatePath(page);
+  redirect(page);
+}
+
+export type DeleteOptionResult = { ok: true } | { ok: false; message: string };
+
+/** Deletes an option of the manager's own sites; its effects go with it (cascade). */
+export async function deleteOption(optionId: string): Promise<DeleteOptionResult> {
+  const session = await getConsoleSession();
+  if (session.access !== "manager") {
+    return { ok: false, message: FORBIDDEN };
+  }
+  if (!isUuid(optionId)) {
+    return { ok: false, message: NOT_FOUND };
+  }
+  const { data, error } = await session.supabase
+    .from("improvement_options")
+    .delete()
+    .eq("id", optionId)
+    .select("workstation_id")
+    .returns<{ workstation_id: string }[]>();
+  if (error) {
+    return { ok: false, message: "삭제하지 못했어요. 잠시 후 다시 시도해 주세요." };
+  }
+  if (data.length === 0) {
+    return { ok: false, message: NOT_FOUND };
+  }
+  revalidatePath(IMPROVEMENTS_PAGE);
+  revalidatePath(`${IMPROVEMENTS_PAGE}/${data[0].workstation_id}`);
+  return { ok: true };
+}

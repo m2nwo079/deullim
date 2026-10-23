@@ -2,6 +2,9 @@
 -- Run blocks 1 to 3 on their own. Run blocks 4 to 7 together, from begin to rollback,
 -- because they share one transaction that adds test groups and acts as the manager.
 -- The rollback removes the test groups. Block 8 is a separate transaction for entry token rules.
+-- Rule: each block gathers its results into one row from its last SELECT, because the Supabase
+-- SQL editor shows only the last result when several statements run. Keep intermediate results
+-- with set_config and read them back in that final SELECT.
 
 -- 1. RLS is enabled on every table in public.
 --    Expected: 0 rows.
@@ -277,4 +280,134 @@ select
     and not has_table_privilege('authenticated', 'public.task_latest_assessments', 'insert')
     and not has_table_privilege('anon', 'public.task_latest_assessments', 'select')
     as select_only_for_authenticated;
+rollback;
+
+-- 11. Improvement options (migration 20261025000001). Run this block on its own, from begin to rollback.
+--     A test task and option are added to 가공 1라인 (합성 제2공장) as the owner first,
+--     then the checks run as the manager of 합성 제1공장. Expected: every column is true.
+begin;
+insert into public.tasks (workstation_id, name, daily_hours, load_category, coupling)
+select w.id, 'verify-other-task', 1, 'lt5', 'good' from public.workstations w where w.code = 'MCH-01';
+insert into public.improvement_options (workstation_id, title, cost)
+select w.id, 'verify-other-option', 1 from public.workstations w where w.code = 'MCH-01';
+
+-- Ids kept before switching roles, so the checks below compare them directly.
+select
+  set_config('verify.weld', (select id::text from public.workstations where code = 'WLD-03'), true),
+  set_config('verify.press', (select id::text from public.workstations where code = 'PRS-02'), true),
+  set_config('verify.other_ws', (select id::text from public.workstations where code = 'MCH-01'), true),
+  set_config('verify.weld_task', (select t.id::text from public.tasks t
+    join public.workstations w on w.id = t.workstation_id where w.code = 'WLD-03'
+    order by t.name limit 1), true),
+  set_config('verify.press_task', (select t.id::text from public.tasks t
+    join public.workstations w on w.id = t.workstation_id where w.code = 'PRS-02'
+    order by t.name limit 1), true),
+  set_config('verify.other_task', (select id::text from public.tasks where name = 'verify-other-task'), true),
+  set_config('verify.other_option',
+    (select id::text from public.improvement_options where title = 'verify-other-option'), true);
+
+create function pg_temp.fails(stmt text) returns boolean
+language plpgsql
+as $$
+begin
+  execute stmt;
+  raise sqlstate 'DL001';
+exception
+  when sqlstate 'DL001' then return false;
+  when others then return true;
+end;
+$$;
+
+create function pg_temp.v(name text) returns uuid
+language sql
+as $$ select current_setting('verify.' || name)::uuid $$;
+
+-- Keeps a check result for the final row.
+create function pg_temp.keep(name text, ok boolean) returns void
+language sql
+as $$ select set_config('verify.ok_' || name, coalesce(ok, false)::text, true) $$;
+
+create function pg_temp.ok(name text) returns boolean
+language sql
+as $$ select current_setting('verify.ok_' || name)::boolean $$;
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', m.profile_id, 'role', 'authenticated')::text,
+  true
+)
+from public.site_members m
+join public.sites s on s.id = m.site_id
+where s.name = '합성 제1공장'
+limit 1;
+set local role authenticated;
+
+select set_config('verify.option', public.save_improvement_option(
+  null, pg_temp.v('weld'), 'verify-option', null, 100000,
+  jsonb_build_array(jsonb_build_object('task_id', pg_temp.v('weld_task'), 'expected_high_risk_ratio', 0.1))
+)::text, true);
+
+select
+  pg_temp.keep('saved_with_effect', (select count(*) from public.option_effects
+    where option_id = pg_temp.v('option') and task_id = pg_temp.v('weld_task')
+      and expected_high_risk_ratio = 0.1 and source = 'manual') = 1),
+  pg_temp.keep('other_site_insert_rejected', pg_temp.fails($q$
+    insert into public.improvement_options (workstation_id, title, cost)
+    values (pg_temp.v('other_ws'), 'x', 1) $q$)),
+  pg_temp.keep('move_to_other_site_rejected', pg_temp.fails($q$
+    update public.improvement_options set workstation_id = pg_temp.v('other_ws')
+    where id = pg_temp.v('option') $q$)),
+  pg_temp.keep('move_within_site_rejected', pg_temp.fails($q$
+    update public.improvement_options set workstation_id = pg_temp.v('press')
+    where id = pg_temp.v('option') $q$)),
+  pg_temp.keep('task_move_rejected', pg_temp.fails($q$
+    update public.tasks set workstation_id = pg_temp.v('press')
+    where id = pg_temp.v('weld_task') $q$)),
+  pg_temp.keep('other_site_task_effect_rejected', pg_temp.fails($q$
+    insert into public.option_effects
+    values (pg_temp.v('option'), pg_temp.v('other_task'), 0.1, 'manual') $q$)),
+  pg_temp.keep('other_workstation_effect_rejected', pg_temp.fails($q$
+    insert into public.option_effects
+    values (pg_temp.v('option'), pg_temp.v('press_task'), 0.1, 'manual') $q$)),
+  pg_temp.keep('other_site_save_rejected', pg_temp.fails($q$
+    select public.save_improvement_option(pg_temp.v('other_option'), pg_temp.v('other_ws'),
+      'x', null, 1, '[]') $q$)),
+  pg_temp.keep('bad_effect_save_rejected', pg_temp.fails($q$
+    select public.save_improvement_option(null, pg_temp.v('weld'), 'verify-atomic', null, 1,
+      jsonb_build_array(jsonb_build_object(
+        'task_id', pg_temp.v('press_task'), 'expected_high_risk_ratio', 0.1))) $q$)),
+  pg_temp.keep('anon_cannot_execute', not has_function_privilege('anon',
+    'public.save_improvement_option(uuid,uuid,text,text,bigint,jsonb)', 'execute'));
+
+-- Separate statements, so the checks after them see what they changed.
+select public.save_improvement_option(pg_temp.v('option'), pg_temp.v('weld'), 'verify-option-2', 'note',
+  200000, '[]');
+update public.improvement_options set title = 'changed' where id = pg_temp.v('other_option');
+delete from public.improvement_options where id = pg_temp.v('other_option');
+select
+  pg_temp.keep('effects_replaced',
+    (select title = 'verify-option-2' and description = 'note' and cost = 200000
+     from public.improvement_options where id = pg_temp.v('option'))
+    and not exists (select 1 from public.option_effects where option_id = pg_temp.v('option'))),
+  pg_temp.keep('failed_save_left_nothing',
+    not exists (select 1 from public.improvement_options where title = 'verify-atomic'));
+reset role;
+select pg_temp.keep('other_site_option_untouched',
+  (select title = 'verify-other-option' from public.improvement_options
+   where id = pg_temp.v('other_option')));
+
+select
+  pg_temp.ok('saved_with_effect') as saved_with_effect,
+  pg_temp.ok('effects_replaced') as effects_replaced,
+  pg_temp.ok('failed_save_left_nothing') as failed_save_left_nothing,
+  pg_temp.ok('other_site_insert_rejected') as other_site_insert_rejected,
+  pg_temp.ok('move_to_other_site_rejected') as move_to_other_site_rejected,
+  pg_temp.ok('move_within_site_rejected') as move_within_site_rejected,
+  pg_temp.ok('task_move_rejected') as task_move_rejected,
+  pg_temp.ok('other_site_task_effect_rejected') as other_site_task_effect_rejected,
+  pg_temp.ok('other_workstation_effect_rejected') as other_workstation_effect_rejected,
+  pg_temp.ok('other_site_save_rejected') as other_site_save_rejected,
+  pg_temp.ok('bad_effect_save_rejected') as bad_effect_save_rejected,
+  pg_temp.ok('other_site_option_untouched') as other_site_option_untouched,
+  pg_temp.ok('anon_cannot_execute') as anon_cannot_execute;
 rollback;

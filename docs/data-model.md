@@ -42,7 +42,7 @@ erDiagram
 |---|---|---|
 | sites | id, name, created_at | 사업장 |
 | workstations | id, site_id, parent_group, name, code, headcount | parent_group은 5명 미만 합산의 상위 단위(필수). code는 선택 입력, 같은 사업장 안에서 겹치지 않음 |
-| tasks | id, workstation_id, name, daily_hours, load_category, load_shock, coupling, static_hold, unstable_base, sitting, arm_supported | 단위작업. 하루 작업 시간과 REBA 관리자 입력 항목 (docs/assessment-rules.md) |
+| tasks | id, workstation_id, name, daily_hours, load_category, load_shock, coupling, static_hold, unstable_base, sitting, arm_supported | 단위작업. 하루 작업 시간과 REBA 관리자 입력 항목 (docs/assessment-rules.md). workstation_id는 바꿀 수 없음(트리거) |
 | profiles | id (auth.users.id), role (manager, partner), display_name | 작업자 행은 없음 |
 | site_members | site_id, profile_id | 관리자의 소속 사업장 |
 | partners | id, company_name | 설비 업체 |
@@ -53,8 +53,8 @@ erDiagram
 | assessments | id, session_id, method (reba, rula), part_summary (jsonb), valid_frame_ratio, high_risk_ratio, score_p90, level, algorithm_version, created_at | 서버 재계산 결과 (docs/assessment-rules.md 세션 결과) |
 | pain_reports | id, workstation_id, body_parts (text[]), intensity, created_at, visible_from | 작성자 열 없음 |
 | suggestions | id, workstation_id, body, status, created_at | 작성자 열 없음 |
-| improvement_options | id, workstation_id, title, cost, expected_risk_reduction, duration_days, quote_id | |
-| option_effects | option_id, task_id, expected_high_risk_ratio, source (simulation, manual) | 개선안 적용 후 단위작업별 예상 고위험 비율 (docs/optimization-model.md) |
+| improvement_options | id, workstation_id, title, description, cost, expected_risk_reduction, duration_days, quote_id | description은 500자 이하. workstation_id는 바꿀 수 없음(트리거). expected_risk_reduction, duration_days, quote_id는 현재 쓰지 않음. 감소량은 최신 평가가 바뀌면 달라지므로 저장하지 않고 화면에서 계산한다 |
+| option_effects | option_id, task_id, expected_high_risk_ratio, source (simulation, manual) | 개선안 적용 후 단위작업별 예상 고위험 비율 (docs/optimization-model.md). 단위작업은 개선안과 같은 공정이어야 함(트리거). 개선안 입력 화면은 manual만 쓴다 |
 | improvement_requests | id, workstation_id, status, created_by | created_by는 관리자 profile. 기본값 auth.uid(), 추가 시 본인만 허용 |
 | quotes | id, request_id, partner_id, price, lead_time_days, status | |
 | improvement_plans | id, site_id, budget, solver_version, created_by, created_at | created_by는 기본값 auth.uid(), 추가 시 본인만 허용 |
@@ -107,6 +107,12 @@ erDiagram
   visible_from은 트리거가 채운다. 제한에 걸리면 저장하지 않고 false를 돌려준다.
 - 제한 횟수는 정시 기준 고정 창(date_trunc('hour'))으로 센다. 창의 경계 전후로 최대 두 배까지 연달아 들어올 수 있다.
 - 지난 시간 창의 행은 지우지 않는다(토큰·종류별 시간당 1행).
+
+## DB 함수 (개선안 저장)
+- save_improvement_option: 개선안 추가·수정과 효과 교체를 한 트랜잭션에서 처리한다. 효과는 source = manual로 저장한다.
+- 호출한 사용자의 권한으로 실행한다(security invoker). RLS가 그대로 적용되어, 관리자는 소속 사업장 공정의 개선안만 저장할 수 있다. authenticated만 실행할 수 있다.
+- 수정할 때 그 개선안의 효과를 모두 지우고 다시 넣는다. 시뮬레이션 효과(simulation)를 저장하는 단계에서 이 동작을 다시 정한다.
+- 삭제는 improvement_options 행 삭제 한 번으로 하며, 효과는 cascade로 함께 지워진다.
 
 ## 권한 (RLS 요약)
 | 테이블 | manager | partner | 작업자 (계정 없음) |
