@@ -14,6 +14,7 @@ export type IconName =
   | "check-circle"
   | "check"
   | "clock"
+  | "calendar"
   | "alert"
   | "info"
   | "refresh"
@@ -76,6 +77,12 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   check: <path d="M5 12l5 5 9-10" />,
+  calendar: (
+    <>
+      <rect x="4" y="5" width="16" height="15" rx="2" />
+      <path d="M4 10h16M8 3v4M16 3v4" />
+    </>
+  ),
   clock: (
     <>
       <circle cx="12" cy="12" r="9" />
