@@ -63,7 +63,7 @@ export default async function ImprovementsPage() {
   const workstations = await loadWorkstationOptions(session.supabase);
 
   return (
-    <main className="flex flex-col gap-3 px-3 py-3">
+    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex flex-col gap-1">
           <h1 className="text-title font-bold">개선안</h1>

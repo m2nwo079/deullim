@@ -28,7 +28,7 @@ export default async function NewOptionPage({
   }
 
   return (
-    <main className="flex max-w-80 flex-col gap-3 px-3 py-3">
+    <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
       <div className="flex flex-col gap-1">
         <p className="text-caption text-text-secondary">{workstation.name}</p>
         <h1 className="text-title font-bold">개선안 추가</h1>

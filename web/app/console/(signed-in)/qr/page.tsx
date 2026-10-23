@@ -60,7 +60,7 @@ export default async function QrPage() {
   });
 
   return (
-    <main className="flex flex-col gap-3 px-3 py-3 print:p-0">
+    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3 print:p-0">
       <div className="flex flex-col gap-1 print:hidden">
         <h1 className="text-title font-bold">QR 관리</h1>
         <p className="text-small text-text-secondary">

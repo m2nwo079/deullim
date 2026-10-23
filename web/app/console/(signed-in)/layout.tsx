@@ -37,11 +37,13 @@ export default async function SignedInConsoleLayout({ children }: { children: Re
 
   return (
     <div className="flex min-h-screen flex-col bg-surface">
-      <header className="flex items-center justify-between gap-2 border-b border-border px-3 py-1 print:hidden">
-        <p className="text-title-sm font-bold text-nav">들림 콘솔</p>
-        <div className="flex items-center gap-2">
-          <p className="text-small text-text-secondary">{session.displayName}</p>
-          <SignOutButton />
+      <header className="border-b border-border print:hidden">
+        <div className="mx-auto flex w-full max-w-console items-center justify-between gap-2 px-3 py-1">
+          <p className="text-title-sm font-bold text-nav">들림 콘솔</p>
+          <div className="flex items-center gap-2">
+            <p className="text-small text-text-secondary">{session.displayName}</p>
+            <SignOutButton />
+          </div>
         </div>
       </header>
       {children}
