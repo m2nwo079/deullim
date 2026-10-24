@@ -1069,3 +1069,253 @@ select
   pg_temp.ok('survives_edit') as survives_edit,
   pg_temp.ok('hourly_limit') as hourly_limit;
 rollback;
+
+-- 17. Improvement requests and quotes (migration 20261030000001). Run this block on its own,
+--     from the check below to rollback, after loading the demo data and linking the partner
+--     account (link-accounts.sql). Requests and quotes are made by the owner, then read and
+--     changed as the demo manager and as the partner.
+--     Expected: every column is true.
+begin;
+-- BEGIN GENERATED: site name for block 17
+select set_config('demo.site_name', '시연 공장', true);
+-- END GENERATED: site name for block 17
+do $$
+begin
+  if not exists (select 1 from public.sites where name = current_setting('demo.site_name')) then
+    raise exception 'load demo-data.sql before running block 17';
+  end if;
+  if not exists (select 1 from public.partner_members m join public.partners p on p.id = m.partner_id
+                 where p.company_name = '합성 설비 업체') then
+    raise exception 'link the partner account (link-accounts.sql) before running block 17';
+  end if;
+end;
+$$;
+
+create function pg_temp.v(name text) returns uuid
+language sql
+as $$ select current_setting('verify.' || name)::uuid $$;
+
+create function pg_temp.keep(name text, ok boolean) returns void
+language sql
+as $$ select set_config('verify.ok_' || name, coalesce(ok, false)::text, true) $$;
+
+create function pg_temp.ok(name text) returns boolean
+language sql
+as $$ select current_setting('verify.ok_' || name)::boolean $$;
+
+-- The error code a statement raises, or 'none' when it succeeds.
+create function pg_temp.sqlstate_of(statement text) returns text
+language plpgsql
+as $$
+begin
+  execute statement;
+  return 'none';
+exception when others then
+  return sqlstate;
+end;
+$$;
+
+create function pg_temp.option_id(p_site text, p_title text) returns uuid
+language sql
+as $$
+  select o.id from public.improvement_options o
+  join public.workstations w on w.id = o.workstation_id
+  join public.sites s on s.id = w.site_id
+  where s.name = p_site and o.title = p_title
+$$;
+
+-- Another company and an option of 합성 제2공장, which the demo manager does not manage.
+insert into public.partners (company_name) values ('verify other company');
+insert into public.improvement_options (workstation_id, title, cost)
+select w.id, 'verify other site', 1000
+from public.workstations w join public.sites s on s.id = w.site_id
+where s.name = '합성 제2공장' and w.code = 'MCH-01';
+
+select
+  set_config('verify.manager', (select m.profile_id::text from public.site_members m
+    join public.sites s on s.id = m.site_id
+    join public.profiles p on p.id = m.profile_id
+    where s.name = current_setting('demo.site_name') and p.role = 'manager' limit 1), true),
+  set_config('verify.partner_user', (select m.profile_id::text from public.partner_members m
+    join public.partners p on p.id = m.partner_id
+    where p.company_name = '합성 설비 업체' limit 1), true),
+  set_config('verify.partner', (select id::text from public.partners
+    where company_name = '합성 설비 업체'), true),
+  set_config('verify.other_partner', (select id::text from public.partners
+    where company_name = 'verify other company'), true),
+  set_config('verify.draft_option', pg_temp.option_id(current_setting('demo.site_name'), '리프트 테이블')::text, true),
+  set_config('verify.open_option', pg_temp.option_id(current_setting('demo.site_name'), '공구 밸런서')::text, true),
+  set_config('verify.closed_option', pg_temp.option_id(current_setting('demo.site_name'), '보조 롤러')::text, true),
+  set_config('verify.other_option', pg_temp.option_id('합성 제2공장', 'verify other site')::text, true);
+
+-- A draft, an open and a closed request on the demo site, and an open one on 합성 제2공장.
+insert into public.improvement_requests
+  (workstation_id, option_id, title, status, opened_at, closed_at, created_by)
+select o.workstation_id, o.id, v.title, v.status, v.opened_at, v.closed_at, pg_temp.v('manager')
+from (values
+  (pg_temp.v('draft_option'), 'verify draft', 'draft', null::timestamptz, null::timestamptz),
+  (pg_temp.v('open_option'), 'verify open', 'open', now(), null),
+  (pg_temp.v('closed_option'), 'verify closed', 'closed', now(), now()),
+  (pg_temp.v('other_option'), 'verify other site', 'open', now(), null)
+) as v (option_id, title, status, opened_at, closed_at)
+join public.improvement_options o on o.id = v.option_id;
+
+select
+  set_config('verify.draft', (select id::text from public.improvement_requests where title = 'verify draft'), true),
+  set_config('verify.open', (select id::text from public.improvement_requests where title = 'verify open'), true),
+  set_config('verify.other_request', (select id::text from public.improvement_requests where title = 'verify other site'), true);
+
+-- The other company's quotes on the open request and on 합성 제2공장.
+insert into public.quotes (request_id, partner_id, price, lead_time_days)
+values (pg_temp.v('open'), pg_temp.v('other_partner'), 1500000, 20),
+  (pg_temp.v('other_request'), pg_temp.v('other_partner'), 900000, 10);
+select set_config('verify.other_site_quote', (select id::text from public.quotes
+  where request_id = pg_temp.v('other_request')), true);
+
+-- As the partner.
+select set_config('request.jwt.claims',
+  json_build_object('sub', pg_temp.v('partner_user'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+insert into public.quotes (request_id, partner_id, price, lead_time_days, note)
+values (pg_temp.v('open'), pg_temp.v('partner'), 1200000, 14, 'verify note');
+select set_config('verify.quote', (select id::text from public.quotes
+  where request_id = pg_temp.v('open') and partner_id = pg_temp.v('partner')), true);
+select
+  pg_temp.keep('partner_reads_open_only', (
+    select array_agg(title order by title) = array['verify open', 'verify other site']
+    from public.improvement_requests)),
+  pg_temp.keep('other_quotes_hidden', (
+    select count(*) = 1 and bool_and(partner_id = pg_temp.v('partner')) from public.quotes)),
+  pg_temp.keep('partner_columns_locked',
+    pg_temp.sqlstate_of(format('update public.quotes set status = %L where id = %L',
+      'accepted', pg_temp.v('quote'))) = '42501'
+    and pg_temp.sqlstate_of(format('update public.quotes set request_id = %L where id = %L',
+      pg_temp.v('other_request'), pg_temp.v('quote'))) = '42501'
+    and pg_temp.sqlstate_of(format('update public.quotes set partner_id = %L where id = %L',
+      pg_temp.v('other_partner'), pg_temp.v('quote'))) = '42501'
+    and pg_temp.sqlstate_of(format('select public.open_request(%L)', pg_temp.v('draft'))) = '42501'),
+  pg_temp.keep('partner_no_console_data',
+    (select count(*) = 0 from public.workstations)
+    and (select count(*) = 0 from public.tasks)
+    and (select count(*) = 0 from public.improvement_options)
+    and (select count(*) = 0 from public.assessments)
+    and (select count(*) = 0 from public.task_latest_assessments)
+    and (select count(*) = 0 from public.workstation_pain_summary)
+    and (select count(*) = 0 from public.pain_group_visibility)
+    and (select count(*) = 0 from public.adhoc_surveys)
+    and (select count(*) = 0 from public.improvement_plans)
+    and (select count(*) = 0 from public.sites)
+    and pg_temp.sqlstate_of('select 1 from public.pain_reports') = '42501');
+reset role;
+select set_config('verify.quote_seen_at',
+  (select updated_at::text from public.quotes where id = pg_temp.v('quote')), true);
+
+-- As the manager.
+select set_config('request.jwt.claims',
+  json_build_object('sub', pg_temp.v('manager'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+select
+  pg_temp.keep('manager_writes_own_site_only',
+    pg_temp.sqlstate_of(format(
+      'insert into public.improvement_requests (workstation_id, option_id, title)
+       select workstation_id, id, %L from public.improvement_options where id = %L',
+      'verify', pg_temp.v('other_option'))) = 'none'
+    and not exists (select 1 from public.improvement_requests where option_id = pg_temp.v('other_option')
+                    and title = 'verify')
+    and pg_temp.sqlstate_of(format(
+      'update public.improvement_requests set status = %L where id = %L',
+      'closed', pg_temp.v('open'))) = '42501'
+    and pg_temp.sqlstate_of(format('select public.accept_quote(%L, 900000, now())',
+      pg_temp.v('other_site_quote'))) = '42501'),
+  pg_temp.keep('company_names', (
+    select array_agg(company_name order by company_name) = array['verify other company', '합성 설비 업체']
+    from public.partners));
+reset role;
+
+-- A direct insert with the other site's ids (read by the owner) is refused: the trigger cannot
+-- see the option (23514) or RLS refuses the row (42501), and nothing is added.
+select set_config('verify.other_ws',
+  (select workstation_id::text from public.improvement_options where id = pg_temp.v('other_option')), true);
+select set_config('request.jwt.claims',
+  json_build_object('sub', pg_temp.v('manager'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+select pg_temp.keep('other_site_request_rejected', pg_temp.sqlstate_of(format(
+  'insert into public.improvement_requests (workstation_id, option_id, title) values (%L, %L, %L)',
+  pg_temp.v('other_ws'), pg_temp.v('other_option'), 'verify')) in ('42501', '23514'));
+reset role;
+select pg_temp.keep('other_site_request_rejected', pg_temp.ok('other_site_request_rejected')
+  and not exists (select 1 from public.improvement_requests where title = 'verify'));
+
+-- The partner changes the price after the manager saw it: accepting the old one is refused.
+select set_config('request.jwt.claims',
+  json_build_object('sub', pg_temp.v('partner_user'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+update public.quotes set price = 1100000 where id = pg_temp.v('quote');
+reset role;
+select set_config('request.jwt.claims',
+  json_build_object('sub', pg_temp.v('manager'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+select pg_temp.keep('stale_quote_rejected',
+  pg_temp.sqlstate_of(format('select public.accept_quote(%L, 1200000, %L)',
+    pg_temp.v('quote'), current_setting('verify.quote_seen_at'))) = '40001'
+  and pg_temp.sqlstate_of(format('select public.accept_quote(%L, 1100000, %L)',
+    pg_temp.v('quote'), current_setting('verify.quote_seen_at'))) = '40001');
+select pg_temp.keep('active_request_blocks_delete', pg_temp.sqlstate_of(format(
+  'delete from public.improvement_options where id = %L', pg_temp.v('draft_option'))) = 'none'
+  and exists (select 1 from public.improvement_options where id = pg_temp.v('draft_option')));
+select public.accept_quote(pg_temp.v('quote'), 1100000,
+  (select updated_at from public.quotes where id = pg_temp.v('quote')));
+select pg_temp.keep('accepted', (
+    select status = 'closed' and closed_at is not null
+    from public.improvement_requests where id = pg_temp.v('open'))
+  and (select array_agg(status order by price) = array['accepted', 'rejected']
+       from public.quotes where request_id = pg_temp.v('open'))
+  and (select cost = 1100000 and quote_id = pg_temp.v('quote')
+       from public.improvement_options where id = pg_temp.v('open_option')));
+-- A cost typed by the manager clears the quote link.
+select public.save_improvement_option(pg_temp.v('open_option'),
+  (select workstation_id from public.improvement_options where id = pg_temp.v('open_option')),
+  '공구 밸런서', null, 1000000, '[]');
+select pg_temp.keep('typed_cost_clears_quote', (
+  select cost = 1000000 and quote_id is null
+  from public.improvement_options where id = pg_temp.v('open_option')));
+reset role;
+
+-- After closing, the partner still sees the request it quoted on but cannot change the quote.
+select set_config('request.jwt.claims',
+  json_build_object('sub', pg_temp.v('partner_user'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+with changed as (
+  update public.quotes set price = 1 where id = pg_temp.v('quote') returning 1
+)
+select pg_temp.keep('closed_quote_locked', (select count(*) = 0 from changed)
+  and exists (select 1 from public.improvement_requests where id = pg_temp.v('open')));
+with removed as (
+  delete from public.quotes where id = pg_temp.v('quote') returning 1
+)
+select pg_temp.keep('closed_quote_locked', pg_temp.ok('closed_quote_locked')
+  and (select count(*) = 0 from removed));
+reset role;
+
+select pg_temp.keep('functions_for_authenticated_only', (
+  select bool_and(not has_function_privilege('anon', f, 'execute')
+    and not has_function_privilege('service_role', f, 'execute')
+    and has_function_privilege('authenticated', f, 'execute'))
+  from unnest(array['public.open_request(uuid)', 'public.close_request(uuid)',
+    'public.accept_quote(uuid,bigint,timestamptz)']) as f));
+
+select
+  pg_temp.ok('partner_reads_open_only') as partner_reads_open_only,
+  pg_temp.ok('other_quotes_hidden') as other_quotes_hidden,
+  pg_temp.ok('partner_columns_locked') as partner_columns_locked,
+  pg_temp.ok('partner_no_console_data') as partner_no_console_data,
+  pg_temp.ok('manager_writes_own_site_only') as manager_writes_own_site_only,
+  pg_temp.ok('other_site_request_rejected') as other_site_request_rejected,
+  pg_temp.ok('company_names') as company_names,
+  pg_temp.ok('stale_quote_rejected') as stale_quote_rejected,
+  pg_temp.ok('active_request_blocks_delete') as active_request_blocks_delete,
+  pg_temp.ok('accepted') as accepted,
+  pg_temp.ok('typed_cost_clears_quote') as typed_cost_clears_quote,
+  pg_temp.ok('closed_quote_locked') as closed_quote_locked,
+  pg_temp.ok('functions_for_authenticated_only') as functions_for_authenticated_only;
+rollback;
