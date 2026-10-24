@@ -63,6 +63,23 @@ main ─→ Vercel 운영 배포 (Root Directory: web)
   - 운영 주소에서 /mediapipe/ 아래 WASM과 모델 파일이 받아지는지 (같은 주소에서 제공하므로 외부 CDN은 쓰지 않는다)
   - 시연 전 과정을 녹화한 백업 영상
 
+## 시연 데이터
+- 파일: supabase/demo-data.sql(넣기), supabase/demo-cleanup.sql(지우기), supabase/verify.sql 14번 블록(확인).
+  모든 시연 데이터는 합성 사업장 하나(이름은 tests/fixtures/demo_data_v1.json의 site_name, 지금 "시연 공장")에 넣고, 지울 때는 그 사업장을 지워 아래 표를 모두 cascade로 지운다.
+- 관리자는 합성 제1공장의 manager를 그대로 시연 사업장 멤버로 넣는다. 복사할 manager가 없으면 멈춘다. 이미 넣었으면 멈춘다(다시 넣으려면 먼저 지운다).
+- 내용은 tests/fixtures/demo_data_v1.json(합성 자세 조합, 관리자 입력, 개선안)에서 온다. AI Hub 데이터나 실제 영상 값은 쓰지 않는다.
+  - 평가 값, 공정·단위작업·개선안 INSERT, 수시 조사 기한 대응표, 사업장 이름은 테스트가 생성한다(web/src/core/demo-data.test.ts, web/src/features/adhoc-surveys/demo-due-dates.test.ts).
+  - fixture를 바꾼 뒤 web/에서 `DEMO_SQL_WRITE=1 npx vitest run demo --no-file-parallelism`으로 생성 부분을 다시 쓴다. 평소 테스트는 SQL이 fixture와 다르면 실패한다.
+  - 기한 대응표는 발생일 2026-06-01~2028-02-29 범위다. 이 범위를 벗어난 날에 넣으면 멈춘다.
+- 시각은 넣는 시점(now(), 오늘 Asia/Seoul) 기준이다. 넣은 날이 지날수록 기한 알림, 최근 4주 권고, 이번 주 신고가 달라지므로 발표 당일에 다시 넣는다.
+- 저장 계획은 SQL로 넣지 않는다. 넣은 뒤 콘솔 개선 계획 화면에서 예산 500만 원과 1,000만 원으로 계산해 저장한다.
+- 처음 넣는 순서: 마이그레이션 → seed.sql → seed-tasks.sql → link-accounts.sql → demo-data.sql → verify.sql 14번 블록 → 계획 2건 저장 → 시연 공정 QR 발급.
+- 발표 절차 (2026-11-23 월요일)
+  - 전날: 운영 Supabase 프로젝트에 접속해 일시 정지되지 않았는지 확인한다(무료 플랜은 7일 활동이 없으면 정지). 시연 계정으로 로그인해 본다.
+  - 당일 09:00 이후(KST): demo-cleanup.sql → demo-data.sql → verify.sql 14번 블록 → 계획 2건 저장 → QR 관리에서 시연 공정 QR 재발급·인쇄(지우기로 토큰도 지워진다).
+  - 월요일이라 이번 주는 당일 0시부터다. 1~6시간 전 신고가 이번 주 신고로 보이도록 09:00 이후에 넣는다.
+  - 물류 묶음의 신고는 24시간 뒤 반영이라, 당일 넣은 데이터에서는 이번 주 수가 0이다. 최근 4주 권고에는 25시간 이전 신고가 들어가 영향이 없다.
+
 ## 확인 필요
 - Vercel Hobby의 미리보기 배포 제공 조건
 - GitHub Actions의 비공개 레포 무료 사용량
