@@ -22,6 +22,8 @@ export type IconName =
   | "arrow-right"
   | "search"
   | "more"
+  | "menu"
+  | "close"
   | "lock"
   | "home"
   | "message"
@@ -111,6 +113,8 @@ const PATHS: Record<IconName, ReactNode> = {
     </>
   ),
   more: <path d="M6 12h.01M12 12h.01M18 12h.01" />,
+  menu: <path d="M4 6h16M4 12h16M4 18h16" />,
+  close: <path d="M6 6l12 12M18 6L6 18" />,
   lock: (
     <>
       <rect x="5" y="11" width="14" height="10" rx="2" />
