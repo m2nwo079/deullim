@@ -217,6 +217,13 @@ export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleO
             개선안
           </ButtonLink>
           <ButtonLink
+            href={`/console/requests?site=${site.id}`}
+            variant="secondary"
+            iconBefore="message"
+          >
+            견적 요청
+          </ButtonLink>
+          <ButtonLink
             href={`/console/plans?site=${site.id}`}
             variant="secondary"
             iconBefore="report"

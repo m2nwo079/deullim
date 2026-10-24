@@ -282,6 +282,7 @@ describe("demo data (tests/fixtures/demo_data_v1.json)", () => {
       ["verify.sql", "site name"],
       ["verify.sql", "site name for block 15"],
       ["verify.sql", "site name for block 16"],
+      ["verify.sql", "site name for block 17"],
     ]) {
       expect(generatedSection(file, name, siteNameSql), `${file}: ${name}`).toBe(
         `${siteNameSql}\n`,

@@ -27,6 +27,8 @@ type OptionFormProps = {
   cancelHref: string;
   /** Tasks whose effect came from a simulation capture; they are not edited by hand. */
   simulated?: Record<string, { ratio: number; capturedAt: string | null }>;
+  /** Company of the accepted quote the current cost came from. */
+  quotedBy?: string;
 };
 
 const DATE = new Intl.DateTimeFormat("ko-KR", {
@@ -46,6 +48,7 @@ export function OptionForm({
   initial,
   cancelHref,
   simulated = {},
+  quotedBy,
 }: OptionFormProps) {
   const [state, action, pending] = useActionState<SaveOptionState, FormData>(saveOption, {});
   const [clientErrors, setClientErrors] = useState<OptionFieldErrors | null>(null);
@@ -82,14 +85,21 @@ export function OptionForm({
         defaultValue={text.description}
         error={errors.description}
       />
-      <MoneyField
-        id={FIELDS.cost}
-        name={FIELDS.cost}
-        label="비용 (원)"
-        aria-required
-        defaultValue={text.cost}
-        error={errors.cost}
-      />
+      <div className="flex flex-col gap-1">
+        <MoneyField
+          id={FIELDS.cost}
+          name={FIELDS.cost}
+          label="비용 (원)"
+          aria-required
+          defaultValue={text.cost}
+          error={errors.cost}
+          aria-describedby="cost-basis"
+        />
+        <p id="cost-basis" className="text-small text-text-secondary">
+          부가세 포함 금액으로 입력해 주세요.
+          {quotedBy ? ` 지금 비용은 ${quotedBy} 견적가예요. 바꾸면 견적 연결이 풀려요.` : ""}
+        </p>
+      </div>
 
       <fieldset className="flex flex-col gap-2 border-t border-border pt-2">
         <legend className="text-title-sm font-bold">단위작업별 개선 후 예상 고위험 비율</legend>

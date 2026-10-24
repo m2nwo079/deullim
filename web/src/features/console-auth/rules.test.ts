@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { consoleAccess, safeConsolePath, signInErrorKind, validateLoginFields } from "./rules";
+import {
+  consoleAccess,
+  loginPathFor,
+  partnersAccess,
+  safeConsolePath,
+  safePartnersPath,
+  signInErrorKind,
+  validateLoginFields,
+} from "./rules";
 
 describe("safeConsolePath", () => {
   it.each([
@@ -36,6 +44,47 @@ describe("safeConsolePath", () => {
     "/console/%",
   ])("falls back to /console for %s", (next) => {
     expect(safeConsolePath(next)).toBe("/console");
+  });
+});
+
+describe("safePartnersPath", () => {
+  it.each([
+    ["/partners", "/partners"],
+    ["/partners/requests/abc?x=1", "/partners/requests/abc?x=1"],
+  ])("keeps the partner path %s", (next, expected) => {
+    expect(safePartnersPath(next)).toBe(expected);
+  });
+
+  it.each([
+    "/console",
+    "/partnersX",
+    "/partners/login",
+    "//evil.com/partners",
+    "/partners/../console",
+    "/partners/%2e%2e/console",
+  ])("falls back to /partners for %s", (next) => {
+    expect(safePartnersPath(next)).toBe("/partners");
+  });
+});
+
+describe("loginPathFor", () => {
+  it.each([
+    ["/partners", "/partners/login"],
+    ["/partners/requests/1", "/partners/login"],
+    ["/console/qr", "/console/login"],
+    ["/partnersX", "/console/login"],
+  ])("sends %s to %s", (path, login) => {
+    expect(loginPathFor(path)).toBe(login);
+  });
+});
+
+describe("partnersAccess", () => {
+  it("lets partners in", () => {
+    expect(partnersAccess("partner")).toBe("partner");
+  });
+
+  it.each(["manager", "", null, undefined])("forbids %s", (role) => {
+    expect(partnersAccess(role)).toBe("forbidden");
   });
 });
 

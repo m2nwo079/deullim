@@ -16,6 +16,8 @@ import {
 const FORBIDDEN = "이 계정으로는 개선안을 관리할 수 없어요.";
 const NOT_FOUND = "공정이나 개선안을 찾을 수 없어요. 목록을 새로 고친 뒤 다시 시도해 주세요.";
 const FAILED = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
+const ACTIVE_REQUEST =
+  "진행 중인 견적 요청이 있어 삭제할 수 없어요. 견적 요청을 먼저 마감하거나 초안을 지워 주세요.";
 const SIMULATED = "시연 촬영 효과가 새로 들어왔어요. 새로 고친 뒤 다시 저장해 주세요.";
 
 export type SaveOptionState = {
@@ -96,6 +98,15 @@ export async function deleteOption(optionId: string): Promise<DeleteOptionResult
   }
   if (!isUuid(optionId)) {
     return { ok: false, message: NOT_FOUND };
+  }
+  // RLS also refuses the delete while a request is draft or open; this only picks the message.
+  const { count } = await session.supabase
+    .from("improvement_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("option_id", optionId)
+    .in("status", ["draft", "open"]);
+  if (count) {
+    return { ok: false, message: ACTIVE_REQUEST };
   }
   const { data, error } = await session.supabase
     .from("improvement_options")
