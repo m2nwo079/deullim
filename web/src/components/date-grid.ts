@@ -87,6 +87,14 @@ export function clamp(iso: string, min: string | undefined, max: string | undefi
 }
 
 /**
+ * Day the calendar opens on: the chosen value, otherwise today, kept within min and max.
+ * A future-only field (min = today) opens on today, not on its last selectable day.
+ */
+export function startDay(value: string, today: string, min?: string, max?: string): string {
+  return clamp(value || today, min, max);
+}
+
+/**
  * Next focused day for a grid key (WAI-ARIA APG date picker dialog), kept within min and max.
  * Returns null for keys the grid does not handle.
  */

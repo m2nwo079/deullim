@@ -19,6 +19,7 @@ import {
   addMonths,
   moveFocus,
   parseTyped,
+  startDay,
   WEEKDAY_NAMES,
 } from "./date-grid";
 import { Icon } from "./icons";
@@ -28,8 +29,10 @@ type DateFieldProps = {
   /** Form field name; the submitted value is "YYYY-MM-DD", or empty when the text is not a date. */
   name?: string;
   label: string;
-  /** Latest selectable day, usually today in Seoul from the server. Also marked as today. */
+  /** Latest selectable day. For past dates this is today in Seoul from the server. */
   max: string;
+  /** Today in Seoul, marked in the calendar and opened on when empty. Defaults to max. */
+  today?: string;
   min?: string;
   defaultValue?: string;
   /** Called with "YYYY-MM-DD", or "" when the typed text is not a date. */
@@ -61,6 +64,7 @@ export function DateField({
   name,
   label,
   max,
+  today = max,
   min,
   defaultValue = "",
   onValueChange,
@@ -76,7 +80,7 @@ export function DateField({
   const [value, setValue] = useState(isIsoDate(defaultValue) ? defaultValue : "");
   const [text, setText] = useState(isIsoDate(defaultValue) ? formatShort(defaultValue) : "");
   const [open, setOpen] = useState(false);
-  const [focused, setFocused] = useState(() => clamp(value || max, min, max));
+  const [focused, setFocused] = useState(() => startDay(value, today, min, max));
   const [month, setMonth] = useState(() => monthOf(focused));
   const toggle = useRef<HTMLButtonElement>(null);
   const grid = useRef<HTMLTableElement>(null);
@@ -97,7 +101,7 @@ export function DateField({
   }
 
   function openCalendar() {
-    const start = clamp(value || max, min, max);
+    const start = startDay(value, today, min, max);
     setFocused(start);
     setMonth(monthOf(start));
     focusDay.current = true;
@@ -215,7 +219,7 @@ export function DateField({
         </button>
       </div>
       <p id={hintId} className="text-small text-text-secondary">
-        예: {formatShort(max)} 처럼 입력하거나 달력에서 골라요.
+        예: {formatShort(today)} 처럼 입력하거나 달력에서 골라요.
       </p>
       <FieldError id={errorId} message={error} />
 
@@ -294,7 +298,7 @@ export function DateField({
                           data-date={day}
                           tabIndex={day === focused ? 0 : -1}
                           aria-label={dayLabel(day)}
-                          aria-current={day === max ? "date" : undefined}
+                          aria-current={day === today ? "date" : undefined}
                           aria-disabled={outOfRange(day) || undefined}
                           onClick={() => {
                             if (!outOfRange(day)) {
@@ -308,7 +312,7 @@ export function DateField({
                               : day === value
                                 ? "bg-primary font-medium text-on-primary"
                                 : "hover:bg-surface-muted"
-                          } ${day === max && day !== value ? "border border-border-strong" : ""}`}
+                          } ${day === today && day !== value ? "border border-border-strong" : ""}`}
                         >
                           {Number(day.slice(8))}
                         </button>
