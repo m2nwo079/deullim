@@ -894,3 +894,178 @@ select
   pg_temp.ok('option_other_site_rejected') as option_other_site_rejected,
   pg_temp.ok('effect_across_sites_rejected') as effect_across_sites_rejected;
 rollback;
+
+-- 16. Simulation effects (migration 20261029000001). Run this block on its own, from the check
+--     below to rollback, after loading the demo data. A manager of the demo site issues one-time
+--     tokens, service_role saves a capture, and the manager edits the option afterwards.
+--     Expected: every column is true.
+begin;
+-- BEGIN GENERATED: site name for block 16
+select set_config('demo.site_name', '시연 공장', true);
+-- END GENERATED: site name for block 16
+do $$
+begin
+  if not exists (select 1 from public.sites where name = current_setting('demo.site_name')) then
+    raise exception 'load demo-data.sql before running block 16';
+  end if;
+end;
+$$;
+
+-- An option of 합성 제2공장, which the demo manager does not manage.
+insert into public.improvement_options (workstation_id, title, cost)
+select w.id, 'verify other site', 1000
+from public.workstations w
+join public.sites s on s.id = w.site_id
+where s.name = '합성 제2공장' and w.code = 'MCH-01';
+
+-- Ids are read as the owner; the checks below run as the manager, service_role or anon.
+-- 볼트 체결 (ASM-A) has a manual effect from 공구 밸런서 in the demo data.
+select
+  set_config('verify.manager', (select m.profile_id::text from public.site_members m
+    join public.sites s on s.id = m.site_id
+    join public.profiles p on p.id = m.profile_id
+    where s.name = current_setting('demo.site_name') and p.role = 'manager' limit 1), true),
+  set_config('verify.option', (select o.id::text from public.improvement_options o
+    join public.workstations w on w.id = o.workstation_id
+    join public.sites s on s.id = w.site_id
+    where s.name = current_setting('demo.site_name') and o.title = '공구 밸런서'), true),
+  set_config('verify.workstation', (select w.id::text from public.workstations w
+    join public.sites s on s.id = w.site_id
+    where s.name = current_setting('demo.site_name') and w.code = 'ASM-A'), true),
+  set_config('verify.task', (select t.id::text from public.tasks t
+    join public.workstations w on w.id = t.workstation_id
+    join public.sites s on s.id = w.site_id
+    where s.name = current_setting('demo.site_name') and w.code = 'ASM-A'
+      and t.name = '볼트 체결'), true),
+  set_config('verify.other_option', (select o.id::text from public.improvement_options o
+    where o.title = 'verify other site'), true),
+  set_config('verify.latest_before', (select count(*)::text from public.task_latest_assessments), true),
+  set_config('verify.assessments_before', (select count(*)::text from public.assessments), true);
+
+create function pg_temp.v(name text) returns uuid
+language sql
+as $$ select current_setting('verify.' || name)::uuid $$;
+
+create function pg_temp.keep(name text, ok boolean) returns void
+language sql
+as $$ select set_config('verify.ok_' || name, coalesce(ok, false)::text, true) $$;
+
+create function pg_temp.ok(name text) returns boolean
+language sql
+as $$ select current_setting('verify.ok_' || name)::boolean $$;
+
+-- The error code a statement raises, or 'none' when it succeeds.
+create function pg_temp.sqlstate_of(statement text) returns text
+language plpgsql
+as $$
+begin
+  execute statement;
+  return 'none';
+exception when others then
+  return sqlstate;
+end;
+$$;
+
+-- A 64-character hex hash, different for each n.
+create function pg_temp.hash(n integer) returns text
+language sql
+as $$ select encode(sha256(('verify-simulation-' || n)::bytea), 'hex') $$;
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', pg_temp.v('manager'), 'role', 'authenticated')::text,
+  true
+);
+set local role authenticated;
+select set_config('verify.token', (select token_id::text
+  from public.issue_simulation_token(pg_temp.v('option'), pg_temp.v('task'), pg_temp.hash(1))), true);
+select
+  pg_temp.keep('other_site_rejected', pg_temp.sqlstate_of(format(
+    'select public.issue_simulation_token(%L, %L, %L)',
+    pg_temp.v('other_option'), pg_temp.v('task'), pg_temp.hash(2))) = '42501'),
+  pg_temp.keep('direct_writes_rejected', pg_temp.sqlstate_of(format(
+    'insert into public.simulation_tokens (token_hash, option_id, task_id, created_by)
+     values (%L, %L, %L, %L)',
+    pg_temp.hash(3), pg_temp.v('option'), pg_temp.v('task'), pg_temp.v('manager'))) = '42501'
+    and pg_temp.sqlstate_of(format(
+      'update public.option_effects set source = %L where option_id = %L and task_id = %L',
+      'simulation', pg_temp.v('option'), pg_temp.v('task'))) = '42501'),
+  pg_temp.keep('save_needs_service_role', pg_temp.sqlstate_of(format(
+    'select public.save_simulation_capture(%L, 10, 15, %L, %L, 1, 0.05, 6, %L, %L)',
+    pg_temp.v('token'), '{}', '{}', 'caution', 'reba-2d-v1')) = '42501');
+reset role;
+
+set local role anon;
+select pg_temp.keep('anon_cannot_issue', pg_temp.sqlstate_of(format(
+  'select public.issue_simulation_token(%L, %L, %L)',
+  pg_temp.v('option'), pg_temp.v('task'), pg_temp.hash(4))) = '42501');
+reset role;
+
+-- An expired token, made by the owner.
+insert into public.simulation_tokens (token_hash, option_id, task_id, created_by, expires_at)
+values (pg_temp.hash(5), pg_temp.v('option'), pg_temp.v('task'), pg_temp.v('manager'),
+  now() - interval '1 minute');
+
+set local role service_role;
+select set_config('verify.capture', coalesce(public.save_simulation_capture(
+  pg_temp.v('token'), 150, 15, '{"load_category": "lt5"}', '{"trunk": {"1": 150}}',
+  1, 0.02, 6, 'caution', 'reba-2d-v1')::text, ''), true);
+select pg_temp.keep('used_and_expired_rejected',
+  public.save_simulation_capture(pg_temp.v('token'), 150, 15, '{}', '{}', 1, 0, 1, 'low',
+    'reba-2d-v1') is null
+  and public.save_simulation_capture(
+    (select id from public.simulation_tokens where token_hash = pg_temp.hash(5)),
+    150, 15, '{}', '{}', 1, 0, 1, 'low', 'reba-2d-v1') is null);
+reset role;
+
+select pg_temp.keep('effect_saved', (
+  select e.source = 'simulation' and e.expected_high_risk_ratio = 0.02
+    and e.capture_id::text = current_setting('verify.capture')
+  from public.option_effects e
+  where e.option_id = pg_temp.v('option') and e.task_id = pg_temp.v('task'))
+  and (select used_at is not null from public.simulation_tokens where id = pg_temp.v('token'))
+  and (select task_inputs ->> 'load_category' = 'lt5' from public.simulation_captures
+       where id::text = current_setting('verify.capture')));
+
+-- Not in the latest-assessment view or in assessments.
+select
+  set_config('request.jwt.claims',
+    json_build_object('sub', pg_temp.v('manager'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+select pg_temp.keep('not_an_assessment',
+  (select count(*) from public.task_latest_assessments)::text
+    = current_setting('verify.latest_before')
+  and (select count(*) from public.assessments)::text = current_setting('verify.assessments_before'));
+
+-- Editing the option keeps the simulation effect; a manual value for that task is refused.
+select pg_temp.keep('survives_edit', pg_temp.sqlstate_of(format(
+    'select public.save_improvement_option(%L, %L, %L, null, 600000, %L)',
+    pg_temp.v('option'), pg_temp.v('workstation'), '공구 밸런서', '[]')) = 'none'
+  and (select source = 'simulation' from public.option_effects
+       where option_id = pg_temp.v('option') and task_id = pg_temp.v('task'))
+  and pg_temp.sqlstate_of(format(
+    'select public.save_improvement_option(%L, %L, %L, null, 600000, %L)',
+    pg_temp.v('option'), pg_temp.v('workstation'), '공구 밸런서',
+    json_build_array(json_build_object('task_id', pg_temp.v('task'),
+      'expected_high_risk_ratio', 0.01)))) = '23505');
+
+-- The hourly limit: with the issued and the expired token, 18 more pass and the 21st is refused.
+select pg_temp.keep('hourly_limit', (
+  select count(*) = 18 from generate_series(10, 27) as n
+  where pg_temp.sqlstate_of(format('select public.issue_simulation_token(%L, %L, %L)',
+    pg_temp.v('option'), pg_temp.v('task'), pg_temp.hash(n))) = 'none')
+  and pg_temp.sqlstate_of(format('select public.issue_simulation_token(%L, %L, %L)',
+    pg_temp.v('option'), pg_temp.v('task'), pg_temp.hash(28))) = '54000');
+reset role;
+
+select
+  pg_temp.ok('other_site_rejected') as other_site_rejected,
+  pg_temp.ok('direct_writes_rejected') as direct_writes_rejected,
+  pg_temp.ok('save_needs_service_role') as save_needs_service_role,
+  pg_temp.ok('anon_cannot_issue') as anon_cannot_issue,
+  pg_temp.ok('used_and_expired_rejected') as used_and_expired_rejected,
+  pg_temp.ok('effect_saved') as effect_saved,
+  pg_temp.ok('not_an_assessment') as not_an_assessment,
+  pg_temp.ok('survives_edit') as survives_edit,
+  pg_temp.ok('hourly_limit') as hourly_limit;
+rollback;

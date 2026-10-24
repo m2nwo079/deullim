@@ -16,7 +16,7 @@ returns table (
   assessments bigint, entry_tokens bigint, report_rate_limits bigint, pain_reports bigint,
   suggestions bigint, improvement_options bigint, option_effects bigint,
   improvement_requests bigint, quotes bigint, improvement_plans bigint, plan_items bigint,
-  adhoc_surveys bigint
+  adhoc_surveys bigint, simulation_tokens bigint, simulation_captures bigint
 )
 language sql
 as $$
@@ -52,7 +52,9 @@ as $$
      where r.workstation_id in (select id from ws)),
     (select count(*) from public.improvement_plans where site_id in (select id from site)),
     (select count(*) from public.plan_items where workstation_id in (select id from ws)),
-    (select count(*) from public.adhoc_surveys where workstation_id in (select id from ws))
+    (select count(*) from public.adhoc_surveys where workstation_id in (select id from ws)),
+    (select count(*) from public.simulation_tokens where task_id in (select id from task)),
+    (select count(*) from public.simulation_captures where task_id in (select id from task))
 $$;
 
 select set_config(
@@ -60,7 +62,8 @@ select set_config(
   (select (c.sites + c.site_members + c.workstations + c.tasks + c.capture_sessions
     + c.assessments + c.entry_tokens + c.report_rate_limits + c.pain_reports + c.suggestions
     + c.improvement_options + c.option_effects + c.improvement_requests + c.quotes
-    + c.improvement_plans + c.plan_items + c.adhoc_surveys)::text
+    + c.improvement_plans + c.plan_items + c.adhoc_surveys + c.simulation_tokens
+    + c.simulation_captures)::text
    from pg_temp.demo_counts() c),
   true
 );
