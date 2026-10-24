@@ -735,8 +735,10 @@ select
       and (select sum(value::numeric) from jsonb_each_text(part_summary -> 'trunk'))
         = round(valid_frame_ratio * frame_count))
     from demo_latest)),
-  pg_temp.keep('effects_manual', (
-    select count(*) > 0 and bool_and(e.source = 'manual')
+  -- Three manual values are replaced by simulation captures (demo_extra_v1.json).
+  pg_temp.keep('effects_by_source', (
+    select count(*) filter (where e.source = 'manual') = 10
+      and count(*) filter (where e.source = 'simulation' and e.capture_id is not null) = 3
     from public.option_effects e
     join public.improvement_options o on o.id = e.option_id
     join public.workstations w on w.id = o.workstation_id
@@ -782,7 +784,7 @@ select
   pg_temp.ok('counts') as counts,
   pg_temp.ok('all_four_levels') as all_four_levels,
   pg_temp.ok('levels_match_scores') as levels_match_scores,
-  pg_temp.ok('effects_manual') as effects_manual,
+  pg_temp.ok('effects_by_source') as effects_by_source,
   pg_temp.ok('merged_and_hidden_groups') as merged_and_hidden_groups,
   pg_temp.ok('alert_units') as alert_units,
   pg_temp.ok('surveys') as surveys;
@@ -1181,11 +1183,14 @@ values (pg_temp.v('open'), pg_temp.v('partner'), 1200000, 14, 'verify note');
 select set_config('verify.quote', (select id::text from public.quotes
   where request_id = pg_temp.v('open') and partner_id = pg_temp.v('partner')), true);
 select
+  -- Only this block's requests are counted; the demo data may hold others.
   pg_temp.keep('partner_reads_open_only', (
     select array_agg(title order by title) = array['verify open', 'verify other site']
-    from public.improvement_requests)),
+    from public.improvement_requests where title like 'verify %')),
   pg_temp.keep('other_quotes_hidden', (
-    select count(*) = 1 and bool_and(partner_id = pg_temp.v('partner')) from public.quotes)),
+    select count(*) = 1 and bool_and(partner_id = pg_temp.v('partner')) from public.quotes
+    where request_id in (pg_temp.v('open'), pg_temp.v('other_request')))
+    and (select bool_and(partner_id = pg_temp.v('partner')) from public.quotes)),
   pg_temp.keep('partner_columns_locked',
     pg_temp.sqlstate_of(format('update public.quotes set status = %L where id = %L',
       'accepted', pg_temp.v('quote'))) = '42501'
@@ -1227,8 +1232,10 @@ select
       'closed', pg_temp.v('open'))) = '42501'
     and pg_temp.sqlstate_of(format('select public.accept_quote(%L, 900000, now())',
       pg_temp.v('other_site_quote'))) = '42501'),
+  -- The manager reads exactly the companies that quoted on the manager's own requests.
   pg_temp.keep('company_names', (
-    select array_agg(company_name order by company_name) = array['verify other company', '합성 설비 업체']
+    select count(*) = (select count(distinct partner_id) from public.quotes)
+      and bool_or(company_name = 'verify other company') and bool_or(company_name = '합성 설비 업체')
     from public.partners));
 reset role;
 
@@ -1318,4 +1325,124 @@ select
   pg_temp.ok('typed_cost_clears_quote') as typed_cost_clears_quote,
   pg_temp.ok('closed_quote_locked') as closed_quote_locked,
   pg_temp.ok('functions_for_authenticated_only') as functions_for_authenticated_only;
+rollback;
+
+-- 18. Demo data, second part (simulation captures, companies, requests and quotes). Run this
+--     block on its own, from the check below to rollback, after loading the demo data and
+--     linking the partner account. Expected: every column is true.
+begin;
+-- BEGIN GENERATED: site name for block 18
+select set_config('demo.site_name', '시연 공장', true);
+-- END GENERATED: site name for block 18
+-- BEGIN GENERATED: partner names for block 18
+select set_config('demo.partners', '["가람설비(가상)","누리자동화(가상)","다온기계(가상)"]', true);
+-- END GENERATED: partner names for block 18
+do $$
+begin
+  if not exists (select 1 from public.sites where name = current_setting('demo.site_name')) then
+    raise exception 'load demo-data.sql before running block 18';
+  end if;
+  if not exists (select 1 from public.partner_members m join public.partners p on p.id = m.partner_id
+                 where p.company_name = '합성 설비 업체') then
+    raise exception 'link the partner account (link-accounts.sql) before running block 18';
+  end if;
+end;
+$$;
+
+create function pg_temp.keep(name text, ok boolean) returns void
+language sql
+as $$ select set_config('verify.ok_' || name, coalesce(ok, false)::text, true) $$;
+
+create function pg_temp.ok(name text) returns boolean
+language sql
+as $$ select current_setting('verify.ok_' || name)::boolean $$;
+
+-- The demo site's requests, read by the owner.
+create temporary view demo_requests as
+select r.*, o.title as option_title, o.cost as option_cost, o.quote_id as option_quote_id
+from public.improvement_requests r
+join public.improvement_options o on o.id = r.option_id
+join public.workstations w on w.id = r.workstation_id
+join public.sites s on s.id = w.site_id
+where s.name = current_setting('demo.site_name');
+
+select
+  pg_temp.keep('simulations_scored', (
+    select count(*) = 3
+      and bool_and(e.source = 'simulation' and e.expected_high_risk_ratio = c.high_risk_ratio)
+      and bool_and(c.level = case when c.score_p90 <= 3 then 'low' when c.score_p90 <= 7 then 'caution'
+                                  when c.score_p90 <= 10 then 'high' else 'very-high' end)
+      and bool_and(c.algorithm_version = 'reba-2d-v1' and c.valid_frame_ratio >= 0.5)
+      and bool_and(c.task_inputs = jsonb_build_object(
+        'load_category', t.load_category, 'load_shock', t.load_shock, 'coupling', t.coupling,
+        'static_hold', t.static_hold, 'unstable_base', t.unstable_base, 'sitting', t.sitting,
+        'arm_supported', t.arm_supported))
+      and bool_and(c.high_risk_ratio < (
+        select l.high_risk_ratio from public.assessments l
+        join public.capture_sessions cs on cs.id = l.session_id
+        where cs.task_id = c.task_id order by l.created_at desc limit 1))
+    from public.simulation_captures c
+    join public.option_effects e on e.capture_id = c.id
+    join public.tasks t on t.id = c.task_id
+    join public.workstations w on w.id = t.workstation_id
+    join public.sites s on s.id = w.site_id
+    where s.name = current_setting('demo.site_name'))),
+  pg_temp.keep('requests_by_status', (
+    select count(*) filter (where status = 'draft') = 1
+      and count(*) filter (where status = 'open') = 1
+      and count(*) filter (where status = 'closed') = 2
+    from demo_requests)
+    and (select count(*) = 0 from public.quotes q join demo_requests r on r.id = q.request_id
+         where r.status = 'draft')
+    and (select count(*) = 4 and bool_and(q.status = 'submitted')
+         from public.quotes q join demo_requests r on r.id = q.request_id where r.status = 'open')),
+  pg_temp.keep('accepted_quote_applied', (
+    select count(*) = 1 and bool_and(r.option_cost = q.price and r.option_quote_id = q.id
+      and p.company_name = '합성 설비 업체' and q.updated_at = r.closed_at)
+    from public.quotes q
+    join demo_requests r on r.id = q.request_id
+    join public.partners p on p.id = q.partner_id
+    where q.status = 'accepted')
+    and (select bool_and(q.status = 'rejected') from public.quotes q
+         join demo_requests r on r.id = q.request_id
+         where r.status = 'closed' and q.status <> 'accepted')
+    and (select count(*) = 1 from demo_requests r
+         where r.status = 'closed' and r.option_quote_id is null)),
+  pg_temp.keep('demo_partners', (
+    select count(*) = 3 from public.partners
+    where company_name in (select jsonb_array_elements_text(current_setting('demo.partners')::jsonb)))
+    and (select count(*) = 1 from public.partners where company_name = '합성 설비 업체'));
+
+select
+  set_config('verify.draft', (select id::text from demo_requests where status = 'draft'), true),
+  set_config('verify.open', (select id::text from demo_requests where status = 'open'), true),
+  set_config('verify.closed', (select string_agg(id::text, ',') from demo_requests
+                               where status = 'closed'), true),
+  set_config('request.jwt.claims', json_build_object(
+    'sub', (select m.profile_id from public.partner_members m join public.partners p
+            on p.id = m.partner_id where p.company_name = '합성 설비 업체' limit 1),
+    'role', 'authenticated')::text, true);
+
+-- What the existing partner account sees of the demo site.
+set local role authenticated;
+select pg_temp.keep('partner_view',
+  not exists (select 1 from public.improvement_requests
+              where id = current_setting('verify.draft')::uuid)
+  and exists (select 1 from public.improvement_requests
+              where id = current_setting('verify.open')::uuid)
+  and (select count(*) = 2 from public.improvement_requests
+       where id::text = any (string_to_array(current_setting('verify.closed'), ',')))
+  and (select array_agg(q.status order by q.status) = array['accepted', 'rejected', 'submitted']
+       from public.quotes q
+       where q.request_id = current_setting('verify.open')::uuid
+         or q.request_id::text = any (string_to_array(current_setting('verify.closed'), ',')))
+  and (select count(*) = 0 from public.workstations));
+reset role;
+
+select
+  pg_temp.ok('simulations_scored') as simulations_scored,
+  pg_temp.ok('requests_by_status') as requests_by_status,
+  pg_temp.ok('accepted_quote_applied') as accepted_quote_applied,
+  pg_temp.ok('demo_partners') as demo_partners,
+  pg_temp.ok('partner_view') as partner_view;
 rollback;

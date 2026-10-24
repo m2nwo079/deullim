@@ -1,6 +1,8 @@
 -- Removes the demo site of demo-data.sql and everything under it. Run as one script in the SQL
 -- editor. Every table below the site is deleted by cascade (docs/deployment.md, 시연 데이터);
 -- QR tokens of the demo workstations go too, so issue and print them again after reloading.
+-- The fictional companies are not under the site, so they are deleted by name afterwards;
+-- 합성 설비 업체 (seed.sql) stays.
 -- The last row shows how many rows were removed and that no demo row is left in any table.
 
 begin;
@@ -8,6 +10,9 @@ begin;
 -- BEGIN GENERATED: site name
 select set_config('demo.site_name', '시연 공장', true);
 -- END GENERATED: site name
+-- BEGIN GENERATED: partner names
+select set_config('demo.partners', '["가람설비(가상)","누리자동화(가상)","다온기계(가상)"]', true);
+-- END GENERATED: partner names
 
 -- Rows that belong to the demo site, per table.
 create function pg_temp.demo_counts()
@@ -16,7 +21,7 @@ returns table (
   assessments bigint, entry_tokens bigint, report_rate_limits bigint, pain_reports bigint,
   suggestions bigint, improvement_options bigint, option_effects bigint,
   improvement_requests bigint, quotes bigint, improvement_plans bigint, plan_items bigint,
-  adhoc_surveys bigint, simulation_tokens bigint, simulation_captures bigint
+  adhoc_surveys bigint, simulation_tokens bigint, simulation_captures bigint, partners bigint
 )
 language sql
 as $$
@@ -54,7 +59,9 @@ as $$
     (select count(*) from public.plan_items where workstation_id in (select id from ws)),
     (select count(*) from public.adhoc_surveys where workstation_id in (select id from ws)),
     (select count(*) from public.simulation_tokens where task_id in (select id from task)),
-    (select count(*) from public.simulation_captures where task_id in (select id from task))
+    (select count(*) from public.simulation_captures where task_id in (select id from task)),
+    (select count(*) from public.partners
+     where company_name in (select jsonb_array_elements_text(current_setting('demo.partners')::jsonb)))
 $$;
 
 select set_config(
@@ -63,12 +70,14 @@ select set_config(
     + c.assessments + c.entry_tokens + c.report_rate_limits + c.pain_reports + c.suggestions
     + c.improvement_options + c.option_effects + c.improvement_requests + c.quotes
     + c.improvement_plans + c.plan_items + c.adhoc_surveys + c.simulation_tokens
-    + c.simulation_captures)::text
+    + c.simulation_captures + c.partners)::text
    from pg_temp.demo_counts() c),
   true
 );
 
 delete from public.sites where name = current_setting('demo.site_name');
+delete from public.partners
+where company_name in (select jsonb_array_elements_text(current_setting('demo.partners')::jsonb));
 
 select current_setting('demo.removed')::bigint as removed_rows, c.*
 from pg_temp.demo_counts() c;
