@@ -171,6 +171,13 @@ base는 막대·점·채움 전용이다. 글자는 strong을 쓰고, 배경은 
 | container-console-form | 720px | 입력 폼 화면: 개선안 추가와 수정 (로그인은 별도의 400px 카드) |
 
 - 좌우 여백은 최소 16px(spacing 2)이다. 화면 폭이 최대 폭보다 좁으면 여백만 남기고 화면 폭을 따른다.
+
+| 토큰 | 값 | 쓰는 곳 |
+|---|---|---|
+| screen-sm | 640px | 이보다 좁으면 콘솔 사업장 선택을 서랍 안으로 옮긴다 |
+| screen-lg | 1024px | 이보다 넓으면 ConsoleSidebar를 왼쪽에 고정하고, 좁으면 서랍으로 연다 |
+
+- 두 값은 Tailwind 기본 화면 폭(sm, lg)과 같아 CSS 변수를 따로 두지 않는다. 바꾸게 되면 web/app/globals.css에 --breakpoint-* 로 둔다.
 - 상단 헤더의 안쪽 내용도 container-console에 맞춘다.
 
 ## 5. 다크 모드
