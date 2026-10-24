@@ -23,6 +23,10 @@ export type OptionView = {
   }[];
   /** optionReduction in daily high-risk person-hours (docs/optimization-model.md). */
   reduction: number;
+  /** The accepted quote the cost came from; null when the cost was typed by the manager. */
+  quote: { companyName: string; acceptedAt: string } | null;
+  /** The option's draft or open improvement request, if any. */
+  activeRequestId: string | null;
 };
 export type WorkstationOptions = {
   id: string;
@@ -50,6 +54,8 @@ type OptionRow = {
   title: string;
   description: string | null;
   cost: number;
+  quotes: { updated_at: string; partners: { company_name: string } | null } | null;
+  improvement_requests: { id: string; status: string }[];
   option_effects: {
     task_id: string;
     expected_high_risk_ratio: number;
@@ -95,7 +101,7 @@ export async function loadWorkstationOptions(
     supabase
       .from("improvement_options")
       .select(
-        "id, workstation_id, title, description, cost, option_effects(task_id, expected_high_risk_ratio, source, simulation_captures!capture_id(created_at))",
+        "id, workstation_id, title, description, cost, quotes!quote_id(updated_at, partners(company_name)), improvement_requests!option_id(id, status), option_effects(task_id, expected_high_risk_ratio, source, simulation_captures!capture_id(created_at))",
       )
       .in("workstation_id", ids)
       .order("title")
@@ -151,6 +157,16 @@ export async function loadWorkstationOptions(
           cost: Number(o.cost),
           effects,
           reduction,
+          // Accepting sets the quote's status, so its last update is the acceptance time.
+          quote: o.quotes
+            ? {
+                companyName: o.quotes.partners?.company_name ?? "",
+                acceptedAt: o.quotes.updated_at,
+              }
+            : null,
+          activeRequestId:
+            o.improvement_requests.find((r) => r.status === "draft" || r.status === "open")?.id ??
+            null,
         };
       });
     return {

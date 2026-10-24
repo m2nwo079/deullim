@@ -5,6 +5,8 @@ import { EmptyState } from "../../../../../src/components/empty-state";
 import { InlineAlert } from "../../../../../src/components/inline-alert";
 import { getConsoleSession } from "../../../../../src/features/console-auth/session";
 import { DeleteOptionButton } from "../../../../../src/features/improvement-options/delete-option";
+import { CreateRequestButton } from "../../../../../src/features/requests/request-controls";
+import { REQUESTS_PAGE } from "../../../../../src/features/requests/request-rules";
 import { SimulationQrButton } from "../../../../../src/features/simulation/simulation-qr";
 import {
   loadWorkstationOptions,
@@ -19,6 +21,11 @@ import {
 
 const WON = new Intl.NumberFormat("ko-KR");
 const HOURS = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
+const DATE = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  day: "numeric",
+  timeZone: "Asia/Seoul",
+});
 
 const TASK_COLUMNS: Column<TaskView>[] = [
   { key: "name", header: "단위작업", render: (row) => row.name },
@@ -50,7 +57,22 @@ function optionColumns(workstationId: string, tasks: TaskView[]): Column<OptionV
         </div>
       ),
     },
-    { key: "cost", header: "비용 (원)", numeric: true, render: (row) => WON.format(row.cost) },
+    {
+      key: "cost",
+      header: "비용 (원, 부가세 포함)",
+      numeric: true,
+      render: (row) =>
+        row.quote ? (
+          <span className="flex flex-col">
+            <span>{WON.format(row.cost)}</span>
+            <span className="text-caption text-text-secondary">
+              견적가 · {row.quote.companyName} · {DATE.format(new Date(row.quote.acceptedAt))}
+            </span>
+          </span>
+        ) : (
+          WON.format(row.cost)
+        ),
+    },
     {
       key: "effects",
       header: "효과 입력",
@@ -88,6 +110,13 @@ function optionColumns(workstationId: string, tasks: TaskView[]): Column<OptionV
             title={row.title}
             tasks={tasks.map(({ id, name }) => ({ id, name }))}
           />
+          {row.activeRequestId ? (
+            <ButtonLink href={`${REQUESTS_PAGE}/${row.activeRequestId}`} variant="secondary">
+              요청 보기
+            </ButtonLink>
+          ) : (
+            <CreateRequestButton optionId={row.id} />
+          )}
           <DeleteOptionButton optionId={row.id} title={row.title} />
         </>
       ),

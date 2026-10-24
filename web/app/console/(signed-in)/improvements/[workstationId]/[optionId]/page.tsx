@@ -51,6 +51,7 @@ export default async function EditOptionPage({
               .map((e) => [e.taskId, percentText(e.ratio)]),
           ),
         }}
+        quotedBy={option.quote?.companyName}
         simulated={Object.fromEntries(
           option.effects
             .filter((e) => e.source === "simulation")

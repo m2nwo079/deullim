@@ -49,7 +49,10 @@ export function DeleteOptionButton({ optionId, title }: { optionId: string; titl
           </>
         }
       >
-        <p>“{title}” 개선안과 단위작업별 효과가 함께 지워지고, 되돌릴 수 없어요.</p>
+        <p>
+          “{title}” 개선안과 단위작업별 효과, 마감된 견적 요청과 받은 견적이 함께 지워지고, 되돌릴
+          수 없어요.
+        </p>
         {message ? <InlineAlert tone="error">{message}</InlineAlert> : null}
       </Modal>
     </>
