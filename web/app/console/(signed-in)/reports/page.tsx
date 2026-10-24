@@ -1,4 +1,3 @@
-import { ButtonLink } from "../../../../src/components/button";
 import { EmptyState } from "../../../../src/components/empty-state";
 import { InlineAlert } from "../../../../src/components/inline-alert";
 import { PAGE_MAIN, PageHeader } from "../../../../src/components/page-header";
@@ -6,11 +5,11 @@ import { getConsoleSession } from "../../../../src/features/console-auth/session
 import { formatWon } from "../../../../src/features/improvement-plan/curve";
 import { isUuid } from "../../../../src/features/improvement-options/option-form";
 import { loadReportSource } from "../../../../src/features/report-draft/load-report-source";
+import { PlanSelect } from "../../../../src/features/report-draft/plan-select";
 import { PrintButton } from "../../../../src/features/report-draft/print-button";
 import { buildReportDraft } from "../../../../src/features/report-draft/report-data";
 import { ReportDocument } from "../../../../src/features/report-draft/report-document";
 
-const PAGE = "/console/reports";
 const DATE_TIME = new Intl.DateTimeFormat("ko-KR", {
   month: "long",
   day: "numeric",
@@ -72,20 +71,6 @@ export default async function ReportPage({
       .limit(5)
       .returns<PlanChoice[]>(),
   ]);
-  const siteQuery = `?site=${site.id}`;
-
-  const chip = (href: string, current: boolean, label: string, key?: string) => (
-    <ButtonLink
-      key={key}
-      href={href}
-      variant="secondary"
-      iconBefore={current ? "check" : undefined}
-      aria-current={current ? "page" : undefined}
-    >
-      {label}
-    </ButtonLink>
-  );
-
   return (
     <main className={`${PAGE_MAIN} max-w-console print:block print:max-w-none print:p-0`}>
       {/* Screen-only blocks; "contents" keeps them in the page's spacing. */}
@@ -99,20 +84,14 @@ export default async function ReportPage({
           aria-label="보고서 설정"
           className="flex flex-col gap-2 rounded-surface border border-border bg-surface p-2"
         >
-          <nav aria-label="함께 넣을 개선 계획" className="flex flex-wrap items-center gap-1">
-            <span className="w-full shrink-0 text-small font-medium sm:w-20">
-              함께 넣을 개선 계획
-            </span>
-            {chip(`${PAGE}${siteQuery}`, planId === null, "넣지 않음")}
-            {(plans ?? []).map((plan) =>
-              chip(
-                `${PAGE}${siteQuery}&plan=${plan.id}`,
-                plan.id === planId,
-                `${DATE_TIME.format(new Date(plan.created_at))} · ${formatWon(Number(plan.budget))}`,
-                plan.id,
-              ),
-            )}
-          </nav>
+          <PlanSelect
+            siteId={site.id}
+            planId={planId}
+            plans={(plans ?? []).map((plan) => ({
+              value: plan.id,
+              label: `${DATE_TIME.format(new Date(plan.created_at))} · ${formatWon(Number(plan.budget))}`,
+            }))}
+          />
         </section>
       </div>
 
