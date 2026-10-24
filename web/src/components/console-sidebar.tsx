@@ -13,7 +13,24 @@ type ConsoleSidebarProps = {
   /** Optional blocks at the bottom; the console shows the account in its header instead. */
   status?: { title: string; lines: ReactNode[] };
   user?: { name: string; role: string };
+  /** The title links to the overview; current marks it while the overview is open. */
+  home?: ConsoleHome;
 };
+
+export type ConsoleHome = { href: string; current: boolean };
+
+/** "들림 콘솔" as a link to the overview, in the sidebar and the narrow header. */
+export function ConsoleHomeLink({ href, current }: ConsoleHome) {
+  return (
+    <Link
+      href={href}
+      aria-current={current ? "page" : undefined}
+      className="rounded-control px-2 text-title-sm font-bold text-nav underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+    >
+      들림 콘솔
+    </Link>
+  );
+}
 
 // Every item keeps a 3px left border so the current item's bar does not shift the labels.
 const ITEM =
@@ -58,13 +75,19 @@ function NavEntry({ item }: { item: NavItem }) {
   );
 }
 
-export function ConsoleSidebar({ groups, status, user }: ConsoleSidebarProps) {
+export function ConsoleSidebar({ groups, status, user, home }: ConsoleSidebarProps) {
   return (
     <nav
       aria-label="콘솔 메뉴"
       className="hidden w-30 shrink-0 flex-col gap-3 border-r border-border bg-surface-muted p-2 lg:sticky lg:top-0 lg:flex lg:h-screen lg:overflow-y-auto print:hidden"
     >
-      <p className="px-2 pt-1 text-title-sm font-bold text-nav">들림 콘솔</p>
+      {home ? (
+        <p className="pt-1">
+          <ConsoleHomeLink {...home} />
+        </p>
+      ) : (
+        <p className="px-2 pt-1 text-title-sm font-bold text-nav">들림 콘솔</p>
+      )}
       <NavGroups groups={groups} />
 
       {status ? (
