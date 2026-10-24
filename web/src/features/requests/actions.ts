@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { formText } from "../console-auth/rules";
 import { getConsoleSession } from "../console-auth/session";
+import { withDone } from "../console-shell/done";
+import { withSite } from "../console-shell/nav";
 import { IMPROVEMENTS_PAGE, isUuid } from "../improvement-options/option-form";
 import {
   parseRequestForm,
@@ -78,14 +80,14 @@ export async function createRequest(optionId: string): Promise<ActionResult> {
       .in("status", ["draft", "open"])
       .maybeSingle<{ id: string }>();
     if (active) {
-      redirect(`${REQUESTS_PAGE}/${active.id}`);
+      redirect(withDone(`${REQUESTS_PAGE}/${active.id}`, "request-exists"));
     }
   }
   if (error || !data) {
     return { ok: false, message: messageFor(error?.code) };
   }
   refresh(data.id);
-  redirect(`${REQUESTS_PAGE}/${data.id}`);
+  redirect(withDone(`${REQUESTS_PAGE}/${data.id}`, "request-created"));
 }
 
 export type SaveRequestState = {
@@ -145,6 +147,12 @@ export async function deleteRequest(requestId: string): Promise<ActionResult> {
   if (!isUuid(requestId)) {
     return { ok: false, message: NOT_FOUND };
   }
+  // Read the site first so the list opens on the request's own site after the delete.
+  const { data: owner } = await session.supabase
+    .from("improvement_requests")
+    .select("workstations(site_id)")
+    .eq("id", requestId)
+    .maybeSingle<{ workstations: { site_id: string } }>();
   const { data, error } = await session.supabase
     .from("improvement_requests")
     .delete()
@@ -157,7 +165,7 @@ export async function deleteRequest(requestId: string): Promise<ActionResult> {
     return { ok: false, message: STATE_CHANGED };
   }
   refresh(requestId);
-  redirect(REQUESTS_PAGE);
+  redirect(withDone(withSite(REQUESTS_PAGE, owner?.workstations.site_id), "request-deleted"));
 }
 
 async function callRequestFunction(

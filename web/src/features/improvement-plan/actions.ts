@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { getConsoleSession } from "../console-auth/session";
+import { withDone } from "../console-shell/done";
 import { isUuid, parseCost } from "../improvement-options/option-form";
 import { loadPlanSource } from "./load-plan-source";
 import { computePlanView, type PlanView } from "./plan-input";
@@ -97,5 +98,5 @@ export async function savePlan(
   const changed =
     view.totalCost !== shown.totalCost ||
     Math.abs(view.totalReduction - shown.totalReduction) > 1e-9;
-  redirect(`${PLANS_PAGE}/${data}${changed ? "?changed=1" : ""}`);
+  redirect(withDone(`${PLANS_PAGE}/${data}`, changed ? "plan-saved-recalculated" : "plan-saved"));
 }

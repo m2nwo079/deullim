@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getConsoleSession } from "../console-auth/session";
+import { withDone } from "../console-shell/done";
+import { withSite } from "../console-shell/nav";
 import { isUuid } from "../improvement-options/option-form";
 import {
   completedOnError,
@@ -72,7 +74,7 @@ export async function startSurvey(
 
   revalidatePath("/console");
   revalidatePath(SURVEYS_PAGE);
-  redirect(`${SURVEYS_PAGE}?site=${workstation.site_id}`);
+  redirect(withDone(withSite(SURVEYS_PAGE, workstation.site_id), "survey-started"));
 }
 
 export type CompleteSurveyResult = { ok: true } | { ok: false; message: string };
