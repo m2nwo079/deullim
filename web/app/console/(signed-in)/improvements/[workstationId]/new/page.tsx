@@ -22,7 +22,7 @@ export default async function NewOptionPage({
   if (!isUuid(workstationId)) {
     notFound();
   }
-  const workstation = (await loadWorkstationOptions(session.supabase, workstationId))?.[0];
+  const workstation = (await loadWorkstationOptions(session.supabase, { workstationId }))?.[0];
   if (!workstation) {
     notFound();
   }
@@ -30,7 +30,9 @@ export default async function NewOptionPage({
   return (
     <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
       <div className="flex flex-col gap-1">
-        <p className="text-caption text-text-secondary">{workstation.name}</p>
+        <p className="text-caption text-text-secondary">
+          {workstation.siteName} · {workstation.name}
+        </p>
         <h1 className="text-title font-bold">개선안 추가</h1>
       </div>
       <OptionForm

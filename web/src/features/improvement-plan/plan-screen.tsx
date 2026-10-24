@@ -98,6 +98,7 @@ export function PlanScreen({ siteId }: { siteId: string }) {
       </form>
       {view ? (
         <PlanResult
+          siteId={siteId}
           view={view}
           saving={saving}
           saveError={saveError}
@@ -109,11 +110,13 @@ export function PlanScreen({ siteId }: { siteId: string }) {
 }
 
 function PlanResult({
+  siteId,
   view,
   saving,
   saveError,
   onSave,
 }: {
+  siteId: string;
   view: PlanView;
   saving: boolean;
   saveError: string | null;
@@ -133,7 +136,7 @@ function PlanResult({
                 : "입력한 개선안의 예상 감소량이 모두 0 이하예요. 평가된 단위작업에 효과를 입력해 주세요."
           }
         />
-        <ButtonLink href="/console/improvements" variant="secondary">
+        <ButtonLink href={`/console/improvements?site=${siteId}`} variant="secondary">
           개선안 입력
         </ButtonLink>
       </div>

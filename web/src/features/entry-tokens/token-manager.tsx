@@ -20,7 +20,7 @@ export type TokenRow = {
   expiresOn: string | null;
 };
 
-type Issued = { workstationName: string; matrix: boolean[][] };
+type Issued = { siteName: string; workstationName: string; matrix: boolean[][] };
 type Confirm = { kind: "reissue" | "deactivate"; row: TokenRow } | null;
 
 const STATUS_LABEL: Record<TokenRow["status"], string> = {
@@ -59,7 +59,11 @@ export function TokenManager({ rows }: { rows: TokenRow[] }) {
     startTransition(async () => {
       const result = await issueToken(row.workstationId);
       if (result.ok) {
-        setIssued({ workstationName: result.workstationName, matrix: result.matrix });
+        setIssued({
+          siteName: result.siteName,
+          workstationName: result.workstationName,
+          matrix: result.matrix,
+        });
       } else {
         setError(result.message);
       }
@@ -169,7 +173,10 @@ export function TokenManager({ rows }: { rows: TokenRow[] }) {
             </InlineAlert>
           </div>
           <div className="flex flex-col items-center gap-2 rounded-surface border border-border bg-surface p-4 print:border-0 print:p-6">
-            <p className="text-title font-bold">{issued.workstationName}</p>
+            <div className="flex flex-col items-center">
+              <p className="text-small text-text-secondary">{issued.siteName}</p>
+              <p className="text-title font-bold">{issued.workstationName}</p>
+            </div>
             <QrCode
               matrix={issued.matrix}
               label={`${issued.workstationName} 들림 QR`}

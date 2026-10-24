@@ -23,11 +23,20 @@ export type WorkstationOptions = {
   name: string;
   code: string | null;
   headcount: number;
+  siteId: string;
+  siteName: string;
   tasks: TaskView[];
   options: OptionView[];
 };
 
-type WorkstationRow = { id: string; name: string; code: string | null; headcount: number };
+type WorkstationRow = {
+  id: string;
+  name: string;
+  code: string | null;
+  headcount: number;
+  site_id: string;
+  sites: { name: string };
+};
 type TaskRow = { id: string; workstation_id: string; name: string; daily_hours: number };
 type OptionRow = {
   id: string;
@@ -40,34 +49,48 @@ type OptionRow = {
 
 /**
  * Workstations with their tasks, current ratios and options, read with the manager's own session
- * (RLS). Pass one workstation id to read only that one. Returns null when any read fails.
+ * (RLS). Reads one site's workstations, or one workstation by id (its site comes with it).
+ * Returns null when any read fails.
  */
 export async function loadWorkstationOptions(
   supabase: SupabaseClient,
-  workstationId?: string,
+  scope: { siteId: string } | { workstationId: string },
 ): Promise<WorkstationOptions[] | null> {
-  let workstationQuery = supabase.from("workstations").select("id, name, code, headcount");
-  let taskQuery = supabase.from("tasks").select("id, workstation_id, name, daily_hours");
-  let optionQuery = supabase
-    .from("improvement_options")
-    .select(
-      "id, workstation_id, title, description, cost, option_effects(task_id, expected_high_risk_ratio)",
-    );
-  if (workstationId) {
-    workstationQuery = workstationQuery.eq("id", workstationId);
-    taskQuery = taskQuery.eq("workstation_id", workstationId);
-    optionQuery = optionQuery.eq("workstation_id", workstationId);
+  const workstationQuery = supabase
+    .from("workstations")
+    .select("id, name, code, headcount, site_id, sites(name)");
+  const workstations = await (
+    "siteId" in scope
+      ? workstationQuery.eq("site_id", scope.siteId)
+      : workstationQuery.eq("id", scope.workstationId)
+  )
+    .order("name")
+    .returns<WorkstationRow[]>();
+  if (workstations.error) {
+    return null;
   }
-  const [workstations, tasks, latest, options] = await Promise.all([
-    workstationQuery.order("name").returns<WorkstationRow[]>(),
-    taskQuery.order("name").returns<TaskRow[]>(),
+  const ids = workstations.data.map((w) => w.id);
+  const [tasks, latest, options] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("id, workstation_id, name, daily_hours")
+      .in("workstation_id", ids)
+      .order("name")
+      .returns<TaskRow[]>(),
     supabase
       .from("task_latest_assessments")
       .select("task_id, high_risk_ratio")
       .returns<{ task_id: string; high_risk_ratio: number }[]>(),
-    optionQuery.order("title").returns<OptionRow[]>(),
+    supabase
+      .from("improvement_options")
+      .select(
+        "id, workstation_id, title, description, cost, option_effects(task_id, expected_high_risk_ratio)",
+      )
+      .in("workstation_id", ids)
+      .order("title")
+      .returns<OptionRow[]>(),
   ]);
-  if (workstations.error || tasks.error || latest.error || options.error) {
+  if (tasks.error || latest.error || options.error) {
     return null;
   }
 
@@ -117,6 +140,15 @@ export async function loadWorkstationOptions(
           reduction,
         };
       });
-    return { ...ws, tasks: taskViews, options: optionViews };
+    return {
+      id: ws.id,
+      name: ws.name,
+      code: ws.code,
+      headcount: ws.headcount,
+      siteId: ws.site_id,
+      siteName: ws.sites.name,
+      tasks: taskViews,
+      options: optionViews,
+    };
   });
 }

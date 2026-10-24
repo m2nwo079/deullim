@@ -276,8 +276,15 @@ describe("demo data (tests/fixtures/demo_data_v1.json)", () => {
     expect(generatedSection("demo-data.sql", "structure", structureSql())).toBe(
       `${structureSql()}\n`,
     );
-    for (const file of ["demo-data.sql", "demo-cleanup.sql", "verify.sql"]) {
-      expect(generatedSection(file, "site name", siteNameSql), file).toBe(`${siteNameSql}\n`);
+    for (const [file, name] of [
+      ["demo-data.sql", "site name"],
+      ["demo-cleanup.sql", "site name"],
+      ["verify.sql", "site name"],
+      ["verify.sql", "site name for block 15"],
+    ]) {
+      expect(generatedSection(file, name, siteNameSql), `${file}: ${name}`).toBe(
+        `${siteNameSql}\n`,
+      );
     }
   });
 });

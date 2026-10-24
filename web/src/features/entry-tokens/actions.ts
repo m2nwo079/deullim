@@ -25,7 +25,8 @@ const FAILED = "처리하지 못했어요. 잠시 후 다시 시도해 주세요
 const UNIQUE_VIOLATION = "23505";
 
 type Failure = { ok: false; message: string };
-export type IssueResult = { ok: true; workstationName: string; matrix: boolean[][] } | Failure;
+export type IssueResult =
+  { ok: true; siteName: string; workstationName: string; matrix: boolean[][] } | Failure;
 export type TokenResult = { ok: true } | Failure;
 
 const fail = (message: string): Failure => ({ ok: false, message });
@@ -43,9 +44,9 @@ export async function issueToken(workstationId: string): Promise<IssueResult> {
   // RLS returns only workstations of the manager's own sites.
   const { data: workstation } = await session.supabase
     .from("workstations")
-    .select("id, name")
+    .select("id, name, sites(name)")
     .eq("id", workstationId)
-    .maybeSingle<{ id: string; name: string }>();
+    .maybeSingle<{ id: string; name: string; sites: { name: string } }>();
   if (!workstation) {
     return fail(NOT_FOUND);
   }
@@ -73,6 +74,7 @@ export async function issueToken(workstationId: string): Promise<IssueResult> {
   revalidatePath(PAGE);
   return {
     ok: true,
+    siteName: workstation.sites.name,
     workstationName: workstation.name,
     matrix: qrMatrix(entryUrl(origin, token)),
   };
