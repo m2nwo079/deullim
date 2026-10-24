@@ -5,6 +5,7 @@ describe("doneMessage", () => {
   it("returns the sentence for a code the screen accepts", () => {
     expect(doneMessage("workstation", "option-saved")).toBe("개선안을 저장했어요.");
     expect(doneMessage("requests", "request-deleted")).toBe("요청 초안을 지웠어요.");
+    expect(doneMessage("request", "request-opened")).toContain("요청을 공개했어요.");
     expect(doneMessage("plan", ["plan-saved-recalculated", "plan-saved"])).toBe(
       "계산 이후 데이터가 바뀌어 다시 계산한 결과로 저장했어요.",
     );
