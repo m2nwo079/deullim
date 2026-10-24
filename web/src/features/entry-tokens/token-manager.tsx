@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "../../components/button";
+import { Popover, PopoverDivider, PopoverItem } from "../../components/popover";
 import { DataTable, type Column } from "../../components/data-table";
 import { EmptyState } from "../../components/empty-state";
 import { InlineAlert } from "../../components/inline-alert";
@@ -113,7 +114,8 @@ export function TokenManager({ rows }: { rows: TokenRow[] }) {
         <>
           {row.tokenId === null ? (
             <Button
-              variant="secondary"
+              variant="text"
+              iconBefore="qr"
               loading={pendingKey === `issue-${row.workstationId}`}
               disabled={busy}
               onClick={() => issue(row)}
@@ -123,7 +125,8 @@ export function TokenManager({ rows }: { rows: TokenRow[] }) {
           ) : (
             <>
               <Button
-                variant="secondary"
+                variant="text"
+                iconBefore="refresh"
                 loading={pendingKey === `extend-${row.tokenId}`}
                 disabled={busy}
                 onClick={() => {
@@ -133,20 +136,19 @@ export function TokenManager({ rows }: { rows: TokenRow[] }) {
               >
                 기간 연장
               </Button>
-              <Button
-                variant="secondary"
-                disabled={busy}
-                onClick={() => setConfirm({ kind: "reissue", row })}
-              >
-                재발급
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={busy}
-                onClick={() => setConfirm({ kind: "deactivate", row })}
-              >
-                비활성화
-              </Button>
+              {/* Less frequent and irreversible entries; the confirm dialog sits outside the menu. */}
+              <Popover label={`${row.name} QR 더보기`}>
+                <PopoverItem disabled={busy} onClick={() => setConfirm({ kind: "reissue", row })}>
+                  재발급
+                </PopoverItem>
+                <PopoverDivider />
+                <PopoverItem
+                  disabled={busy}
+                  onClick={() => setConfirm({ kind: "deactivate", row })}
+                >
+                  비활성화
+                </PopoverItem>
+              </Popover>
             </>
           )}
         </>
@@ -239,7 +241,7 @@ export function TokenManager({ rows }: { rows: TokenRow[] }) {
                 }
               }}
             >
-              {confirm?.kind === "reissue" ? "재발급" : "비활성화"}
+              {`‘${confirm?.row.name ?? ""}’ QR ${confirm?.kind === "reissue" ? "재발급" : "비활성화"}`}
             </Button>
           </>
         }

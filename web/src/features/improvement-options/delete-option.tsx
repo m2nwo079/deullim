@@ -6,22 +6,31 @@ import { InlineAlert } from "../../components/inline-alert";
 import { Modal } from "../../components/modal";
 import { deleteOption } from "./actions";
 
-/** Secondary delete button that confirms in a Modal first (docs/components.md, risky actions). */
-export function DeleteOptionButton({ optionId, title }: { optionId: string; title: string }) {
-  const [open, setOpen] = useState(false);
+/**
+ * Confirms deleting an option (docs/components.md, risky actions). Opened from the row's "더보기"
+ * menu, so it lives outside the menu and the caller holds whether it is open.
+ */
+export function DeleteOptionDialog({
+  optionId,
+  title,
+  open,
+  onClose,
+}: {
+  optionId: string;
+  title: string;
+  open: boolean;
+  onClose: () => void;
+}) {
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function close() {
-    setOpen(false);
     setMessage(null);
+    onClose();
   }
 
   return (
     <>
-      <Button variant="secondary" onClick={() => setOpen(true)}>
-        삭제
-      </Button>
       <Modal
         open={open}
         title="개선안을 삭제할까요?"
@@ -44,7 +53,7 @@ export function DeleteOptionButton({ optionId, title }: { optionId: string; titl
                 })
               }
             >
-              삭제
+              {`‘${title}’ 삭제`}
             </Button>
           </>
         }

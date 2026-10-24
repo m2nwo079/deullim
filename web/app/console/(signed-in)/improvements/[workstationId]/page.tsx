@@ -8,10 +8,8 @@ import { TextLink } from "../../../../../src/components/text-link";
 import { getConsoleSession } from "../../../../../src/features/console-auth/session";
 import { doneMessage } from "../../../../../src/features/console-shell/done";
 import { siteRedirect, withSite } from "../../../../../src/features/console-shell/nav";
-import { DeleteOptionButton } from "../../../../../src/features/improvement-options/delete-option";
-import { CreateRequestButton } from "../../../../../src/features/requests/request-controls";
+import { OptionRowActions } from "../../../../../src/features/improvement-options/option-row-actions";
 import { REQUESTS_PAGE } from "../../../../../src/features/requests/request-rules";
-import { SimulationQrButton } from "../../../../../src/features/simulation/simulation-qr";
 import {
   loadWorkstationOptions,
   type OptionView,
@@ -58,7 +56,10 @@ function optionColumns(
       header: "개선안",
       render: (row) => (
         <div className="flex flex-col">
-          <span className="font-medium">{row.title}</span>
+          {/* The name opens the option's edit screen. */}
+          <TextLink href={withSite(`${IMPROVEMENTS_PAGE}/${workstationId}/${row.id}`, siteId)}>
+            {row.title}
+          </TextLink>
           {row.description ? (
             <span className="text-caption text-text-secondary">{row.description}</span>
           ) : null}
@@ -109,24 +110,14 @@ function optionColumns(
       header: "관리",
       action: true,
       render: (row) => (
-        <>
-          <TextLink href={withSite(`${IMPROVEMENTS_PAGE}/${workstationId}/${row.id}`, siteId)}>
-            수정
-          </TextLink>
-          <SimulationQrButton
-            optionId={row.id}
-            title={row.title}
-            tasks={tasks.map(({ id, name }) => ({ id, name }))}
-          />
-          {row.activeRequestId ? (
-            <TextLink href={withSite(`${REQUESTS_PAGE}/${row.activeRequestId}`, siteId)}>
-              요청 보기
-            </TextLink>
-          ) : (
-            <CreateRequestButton optionId={row.id} />
-          )}
-          <DeleteOptionButton optionId={row.id} title={row.title} />
-        </>
+        <OptionRowActions
+          optionId={row.id}
+          title={row.title}
+          tasks={tasks.map(({ id, name }) => ({ id, name }))}
+          requestHref={
+            row.activeRequestId ? withSite(`${REQUESTS_PAGE}/${row.activeRequestId}`, siteId) : null
+          }
+        />
       ),
     },
   ];
