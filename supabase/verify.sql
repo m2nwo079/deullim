@@ -787,3 +787,110 @@ select
   pg_temp.ok('alert_units') as alert_units,
   pg_temp.ok('surveys') as surveys;
 rollback;
+
+-- 15. Site-scoped console lists (fix/site-scoped-lists). Run this block on its own, from the check
+--     below to rollback, after loading the demo data. A manager of both 시연 공장 and 합성 제1공장
+--     reads each site apart, and cannot write to 합성 제2공장 or link an effect across sites.
+--     Expected: every column is true.
+begin;
+-- BEGIN GENERATED: site name for block 15
+select set_config('demo.site_name', '시연 공장', true);
+-- END GENERATED: site name for block 15
+do $$
+begin
+  if not exists (select 1 from public.sites where name = current_setting('demo.site_name')) then
+    raise exception 'load demo-data.sql before running block 15';
+  end if;
+end;
+$$;
+
+-- Ids are read as the owner; the checks below run as the manager.
+select
+  set_config('verify.demo_site',
+    (select id::text from public.sites where name = current_setting('demo.site_name')), true),
+  set_config('verify.synthetic_site',
+    (select id::text from public.sites where name = '합성 제1공장'), true),
+  set_config('verify.manager', (select m.profile_id::text from public.site_members m
+    join public.sites s on s.id = m.site_id
+    join public.profiles p on p.id = m.profile_id
+    where s.name = current_setting('demo.site_name') and p.role = 'manager' limit 1), true),
+  set_config('verify.demo_ws', (select w.id::text from public.workstations w
+    join public.sites s on s.id = w.site_id
+    where s.name = current_setting('demo.site_name') and w.code = 'LOG-01'), true),
+  set_config('verify.other_ws', (select w.id::text from public.workstations w
+    join public.sites s on s.id = w.site_id
+    where s.name = '합성 제2공장' and w.code = 'MCH-01'), true),
+  set_config('verify.demo_option', (select o.id::text from public.improvement_options o
+    join public.workstations w on w.id = o.workstation_id
+    join public.sites s on s.id = w.site_id
+    where s.name = current_setting('demo.site_name') and o.title = '리프트 테이블'), true),
+  set_config('verify.synthetic_task', (select t.id::text from public.tasks t
+    join public.workstations w on w.id = t.workstation_id
+    join public.sites s on s.id = w.site_id
+    where s.name = '합성 제1공장' order by t.name limit 1), true);
+
+create function pg_temp.v(name text) returns uuid
+language sql
+as $$ select current_setting('verify.' || name)::uuid $$;
+
+create function pg_temp.keep(name text, ok boolean) returns void
+language sql
+as $$ select set_config('verify.ok_' || name, coalesce(ok, false)::text, true) $$;
+
+create function pg_temp.ok(name text) returns boolean
+language sql
+as $$ select current_setting('verify.ok_' || name)::boolean $$;
+
+-- The error code a statement raises, or 'none' when it succeeds.
+create function pg_temp.sqlstate_of(statement text) returns text
+language plpgsql
+as $$
+begin
+  execute statement;
+  return 'none';
+exception when others then
+  return sqlstate;
+end;
+$$;
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', pg_temp.v('manager'), 'role', 'authenticated')::text,
+  true
+);
+set local role authenticated;
+select
+  pg_temp.keep('two_sites', (
+    select array_agg(name order by name) = array['시연 공장', '합성 제1공장'] from public.sites)),
+  pg_temp.keep('lists_by_site', (
+    select count(*) = 9 from public.workstations where site_id = pg_temp.v('demo_site'))
+    and (select count(*) = 1 from public.workstations
+         where site_id = pg_temp.v('demo_site') and name = '자재 입고장')
+    and (select count(*) = 1 from public.workstations
+         where site_id = pg_temp.v('synthetic_site') and name = '자재 입고장')
+    and (select count(*) = 10 from public.improvement_options
+         where workstation_id in (select id from public.workstations
+                                  where site_id = pg_temp.v('demo_site')))
+    and not exists (select 1 from public.workstations where id = pg_temp.v('other_ws'))),
+  pg_temp.keep('issue_own_site', pg_temp.sqlstate_of(format(
+    'select public.issue_entry_token(%L, %L)', pg_temp.v('demo_ws'), 'verify-own-site')) = 'none'),
+  pg_temp.keep('issue_other_site_rejected', pg_temp.sqlstate_of(format(
+    'select public.issue_entry_token(%L, %L)', pg_temp.v('other_ws'), 'verify-other-site'))
+    = '42501'),
+  pg_temp.keep('option_other_site_rejected', pg_temp.sqlstate_of(format(
+    'select public.save_improvement_option(null, %L, %L, null, 1000, %L)',
+    pg_temp.v('other_ws'), 'verify', '[]')) = '42501'),
+  pg_temp.keep('effect_across_sites_rejected', pg_temp.sqlstate_of(format(
+    'insert into public.option_effects (option_id, task_id, expected_high_risk_ratio, source)
+     values (%L, %L, 0.1, %L)', pg_temp.v('demo_option'), pg_temp.v('synthetic_task'), 'manual'))
+    = '23514');
+reset role;
+
+select
+  pg_temp.ok('two_sites') as two_sites,
+  pg_temp.ok('lists_by_site') as lists_by_site,
+  pg_temp.ok('issue_own_site') as issue_own_site,
+  pg_temp.ok('issue_other_site_rejected') as issue_other_site_rejected,
+  pg_temp.ok('option_other_site_rejected') as option_other_site_rejected,
+  pg_temp.ok('effect_across_sites_rejected') as effect_across_sites_rejected;
+rollback;
