@@ -1,5 +1,5 @@
-import { ButtonLink } from "../../../../src/components/button";
 import { EmptyState } from "../../../../src/components/empty-state";
+import { PAGE_MAIN, PageHeader } from "../../../../src/components/page-header";
 import { daysUntil } from "../../../../src/lib/entry-token";
 import { getConsoleSession } from "../../../../src/features/console-auth/session";
 import { TokenManager, type TokenRow } from "../../../../src/features/entry-tokens/token-manager";
@@ -9,8 +9,6 @@ const DATE = new Intl.DateTimeFormat("ko-KR", {
   day: "numeric",
   timeZone: "Asia/Seoul",
 });
-
-const PAGE = "/console/qr";
 
 type Site = { id: string; name: string };
 type Workstation = { id: string; name: string; code: string | null };
@@ -38,8 +36,8 @@ export default async function QrPage({
   const site = (sites ?? []).find((s) => s.id === first(params.site)) ?? sites?.[0];
   if (!site) {
     return (
-      <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-        <h1 className="text-title font-bold">QR 관리</h1>
+      <main className={`${PAGE_MAIN} max-w-console`}>
+        <PageHeader title="QR 관리" />
         <EmptyState
           icon="inbox"
           title="연결된 사업장이 없어요"
@@ -93,27 +91,12 @@ export default async function QrPage({
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3 print:p-0">
-      <div className="flex flex-wrap items-end justify-between gap-2 print:hidden">
-        <div className="flex flex-col gap-1">
-          <p className="text-caption text-text-secondary">{site.name}</p>
-          <h1 className="text-title font-bold">QR 관리</h1>
-          <p className="text-small text-text-secondary">
-            공정마다 QR을 하나씩 발급해요. QR은 발급한 직후에만 볼 수 있어요.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(sites ?? [])
-            .filter((s) => s.id !== site.id)
-            .map((other) => (
-              <ButtonLink key={other.id} href={`${PAGE}?site=${other.id}`} variant="secondary">
-                {other.name}
-              </ButtonLink>
-            ))}
-          <ButtonLink href={`/console?site=${site.id}`} variant="secondary">
-            개요
-          </ButtonLink>
-        </div>
+    <main className={`${PAGE_MAIN} max-w-console print:p-0`}>
+      <div className="contents print:hidden">
+        <PageHeader
+          title="QR 관리"
+          info="공정마다 QR을 하나씩 발급해요. QR은 발급한 직후에만 볼 수 있어요."
+        />
       </div>
       <TokenManager key={site.id} rows={rows} />
     </main>

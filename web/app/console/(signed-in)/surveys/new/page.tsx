@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { EmptyState } from "../../../../../src/components/empty-state";
 import { InlineAlert } from "../../../../../src/components/inline-alert";
+import { PAGE_MAIN, PageHeader } from "../../../../../src/components/page-header";
 import { SurveyForm } from "../../../../../src/features/adhoc-surveys/survey-form";
 import { todayKst } from "../../../../../src/features/adhoc-surveys/survey-rules";
 import { getConsoleSession } from "../../../../../src/features/console-auth/session";
+import { withSite } from "../../../../../src/features/console-shell/nav";
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
@@ -38,8 +40,8 @@ export default async function NewSurveyPage({
   const site = (sites ?? []).find((s) => s.id === first(params.site)) ?? sites?.[0];
   if (!site) {
     return (
-      <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
-        <h1 className="text-title font-bold">수시 조사 시작</h1>
+      <main className={`${PAGE_MAIN} max-w-console-form`}>
+        <PageHeader title="수시 조사 시작" />
         <EmptyState
           icon="inbox"
           title="연결된 사업장이 없어요"
@@ -56,8 +58,14 @@ export default async function NewSurveyPage({
     .returns<{ id: string; name: string; parent_group: string }[]>();
   if (error) {
     return (
-      <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
-        <h1 className="text-title font-bold">수시 조사 시작</h1>
+      <main className={`${PAGE_MAIN} max-w-console-form`}>
+        <PageHeader
+          breadcrumb={[
+            { label: "수시 조사", href: withSite("/console/surveys", site.id) },
+            { label: "수시 조사 시작" },
+          ]}
+          title="수시 조사 시작"
+        />
         <InlineAlert tone="error">
           공정을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
         </InlineAlert>
@@ -66,8 +74,14 @@ export default async function NewSurveyPage({
   }
   if (rows.length === 0) {
     return (
-      <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
-        <h1 className="text-title font-bold">수시 조사 시작</h1>
+      <main className={`${PAGE_MAIN} max-w-console-form`}>
+        <PageHeader
+          breadcrumb={[
+            { label: "수시 조사", href: withSite("/console/surveys", site.id) },
+            { label: "수시 조사 시작" },
+          ]}
+          title="수시 조사 시작"
+        />
         <EmptyState
           icon="workstation"
           title="등록된 공정이 없어요"
@@ -89,19 +103,20 @@ export default async function NewSurveyPage({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
-      <div className="flex flex-col gap-1">
-        <p className="text-caption text-text-secondary">
-          {site.name}
-          {group && !workstationId ? ` · ${group} 묶음` : ""}
-        </p>
-        <h1 className="text-title font-bold">수시 조사 시작</h1>
-      </div>
+    <main className={`${PAGE_MAIN} max-w-console-form`}>
+      <PageHeader
+        breadcrumb={[
+          { label: "수시 조사", href: withSite("/console/surveys", site.id) },
+          { label: "수시 조사 시작" },
+        ]}
+        title="수시 조사 시작"
+        info={group && !workstationId ? `${group} 묶음` : undefined}
+      />
       <SurveyForm
         workstations={choices.map((w) => ({ id: w.id, name: w.name }))}
         defaultWorkstationId={workstationId}
         today={todayKst(new Date())}
-        cancelHref={`/console/surveys?site=${site.id}`}
+        cancelHref={withSite("/console/surveys", site.id)}
       />
     </main>
   );

@@ -1,9 +1,12 @@
-import { notFound } from "next/navigation";
-import { ButtonLink } from "../../../../../src/components/button";
+import { notFound, redirect } from "next/navigation";
 import { DataTable, type Column } from "../../../../../src/components/data-table";
 import { addMonths } from "../../../../../src/components/date-grid";
+import { PAGE_MAIN, PageHeader } from "../../../../../src/components/page-header";
+import { TextLink } from "../../../../../src/components/text-link";
 import { todayKst } from "../../../../../src/features/adhoc-surveys/survey-rules";
 import { getConsoleSession } from "../../../../../src/features/console-auth/session";
+import { doneMessage } from "../../../../../src/features/console-shell/done";
+import { siteRedirect, withSite } from "../../../../../src/features/console-shell/nav";
 import {
   IMPROVEMENTS_PAGE,
   isUuid,
@@ -108,7 +111,13 @@ function quoteColumns(request: Request): Column<Quote>[] {
 }
 
 /** One request: draft content and status changes, and the quotes received (compare, accept). */
-export default async function RequestPage({ params }: { params: Promise<{ requestId: string }> }) {
+export default async function RequestPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ requestId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   // Checked here as well as in the layout, because Next.js renders both in parallel.
   const session = await getConsoleSession();
   if (session.access !== "manager") {
@@ -134,35 +143,48 @@ export default async function RequestPage({ params }: { params: Promise<{ reques
   const actions = requestActions(request.status);
   const today = todayKst(new Date());
   const siteId = request.workstations.site_id;
+  // Only a visible request gets here, and the returned address matches, so this runs once.
+  const query = await searchParams;
+  const fixed = siteRedirect(`${REQUESTS_PAGE}/${request.id}`, query, siteId);
+  if (fixed) {
+    redirect(fixed);
+  }
 
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <p className="text-caption text-text-secondary">
-            {request.workstations.sites.name} · {request.workstations.name} ·{" "}
-            {request.improvement_options.title} · 지금 비용{" "}
-            {formatWon(Number(request.improvement_options.cost))}
-          </p>
-          <h1 className="text-title font-bold">{request.title}</h1>
-          <p className="text-small text-text-secondary">
-            {REQUEST_STATUS_LABEL[request.status]}
-            {request.opened_at ? ` · 공개 ${DATE.format(new Date(request.opened_at))}` : ""}
-            {request.closed_at ? ` · 마감 ${DATE.format(new Date(request.closed_at))}` : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {actions.open ? <OpenRequestButton requestId={request.id} /> : null}
-          {actions.remove ? <DeleteRequestButton requestId={request.id} /> : null}
-          {actions.close ? <CloseRequestButton requestId={request.id} /> : null}
-          <ButtonLink href={`${REQUESTS_PAGE}?site=${siteId}`} variant="secondary">
-            요청 목록
-          </ButtonLink>
-          <ButtonLink href={`${IMPROVEMENTS_PAGE}/${request.workstation_id}`} variant="secondary">
-            개선안
-          </ButtonLink>
-        </div>
-      </div>
+    <main className={`${PAGE_MAIN} max-w-console`}>
+      <PageHeader
+        breadcrumb={[
+          { label: "견적 요청", href: withSite(REQUESTS_PAGE, siteId) },
+          { label: request.title },
+        ]}
+        title={request.title}
+        info={
+          <>
+            <p>
+              <TextLink href={withSite(`${IMPROVEMENTS_PAGE}/${request.workstation_id}`, siteId)}>
+                {request.workstations.name}
+              </TextLink>{" "}
+              · {request.improvement_options.title} · 지금 비용{" "}
+              {formatWon(Number(request.improvement_options.cost))}
+            </p>
+            <p>
+              {REQUEST_STATUS_LABEL[request.status]}
+              {request.opened_at ? ` · 공개 ${DATE.format(new Date(request.opened_at))}` : ""}
+              {request.closed_at ? ` · 마감 ${DATE.format(new Date(request.closed_at))}` : ""}
+            </p>
+          </>
+        }
+        actions={
+          actions.open || actions.remove || actions.close ? (
+            <>
+              {actions.open ? <OpenRequestButton requestId={request.id} /> : null}
+              {actions.remove ? <DeleteRequestButton requestId={request.id} /> : null}
+              {actions.close ? <CloseRequestButton requestId={request.id} /> : null}
+            </>
+          ) : undefined
+        }
+        notice={doneMessage("request", query.done)}
+      />
 
       <section aria-labelledby="content-title" className="flex max-w-console-form flex-col gap-2">
         <h2 id="content-title" className="text-title-sm font-bold">

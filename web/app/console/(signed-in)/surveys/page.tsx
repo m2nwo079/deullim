@@ -2,6 +2,8 @@ import { ButtonLink } from "../../../../src/components/button";
 import { DataTable, type Column } from "../../../../src/components/data-table";
 import { EmptyState } from "../../../../src/components/empty-state";
 import { InlineAlert } from "../../../../src/components/inline-alert";
+import { PAGE_MAIN, PageHeader } from "../../../../src/components/page-header";
+import { TextLink } from "../../../../src/components/text-link";
 import { CompleteSurveyButton } from "../../../../src/features/adhoc-surveys/complete-survey";
 import { loadSurveys, type SurveyView } from "../../../../src/features/adhoc-surveys/load-surveys";
 import {
@@ -14,6 +16,8 @@ import {
   type PainAlert,
 } from "../../../../src/features/adhoc-surveys/survey-rules";
 import { getConsoleSession } from "../../../../src/features/console-auth/session";
+import { doneMessage } from "../../../../src/features/console-shell/done";
+import { withSite } from "../../../../src/features/console-shell/nav";
 
 const PAGE = "/console/surveys";
 const DATE = new Intl.DateTimeFormat("ko-KR", {
@@ -127,16 +131,15 @@ function alertColumns(siteId: string, open: SurveyView[]): Column<PainAlert>[] {
             {MONTH_DAY.format(new Date(`${survey.dueDate}T00:00:00Z`))}
           </span>
         ) : (
-          <ButtonLink
+          <TextLink
             href={
               row.merged
                 ? `${PAGE}/new?site=${siteId}&group=${encodeURIComponent(row.parentGroup)}`
                 : `${PAGE}/new?site=${siteId}&workstation=${row.workstationIds[0]}`
             }
-            variant="secondary"
           >
             수시 조사 시작
-          </ButtonLink>
+          </TextLink>
         );
       },
     },
@@ -147,7 +150,7 @@ function alertColumns(siteId: string, open: SurveyView[]): Column<PainAlert>[] {
 export default async function SurveysPage({
   searchParams,
 }: {
-  searchParams: Promise<{ site?: string | string[] }>;
+  searchParams: Promise<{ site?: string | string[]; done?: string | string[] }>;
 }) {
   // Checked here as well as in the layout, because Next.js renders both in parallel.
   const session = await getConsoleSession();
@@ -166,8 +169,8 @@ export default async function SurveysPage({
   const site = (sites ?? []).find((s) => s.id === first(params.site)) ?? sites?.[0];
   if (!site) {
     return (
-      <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-        <h1 className="text-title font-bold">수시 조사</h1>
+      <main className={`${PAGE_MAIN} max-w-console`}>
+        <PageHeader title="수시 조사" />
         <EmptyState
           icon="inbox"
           title="연결된 사업장이 없어요"
@@ -181,28 +184,16 @@ export default async function SurveysPage({
   const data = await loadSurveys(session.supabase, site.id, now);
 
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <p className="text-caption text-text-secondary">{site.name}</p>
-          <h1 className="text-title font-bold">수시 조사</h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(sites ?? [])
-            .filter((s) => s.id !== site.id)
-            .map((other) => (
-              <ButtonLink key={other.id} href={`${PAGE}?site=${other.id}`} variant="secondary">
-                {other.name}
-              </ButtonLink>
-            ))}
-          <ButtonLink href={`/console?site=${site.id}`} variant="secondary">
-            개요
-          </ButtonLink>
-          <ButtonLink href={`${PAGE}/new?site=${site.id}`} iconBefore="survey">
+    <main className={`${PAGE_MAIN} max-w-console`}>
+      <PageHeader
+        title="수시 조사"
+        actions={
+          <ButtonLink href={withSite(`${PAGE}/new`, site.id)} iconBefore="survey">
             수시 조사 시작
           </ButtonLink>
-        </div>
-      </div>
+        }
+        notice={doneMessage("surveys", params.done)}
+      />
 
       {data === null ? (
         <InlineAlert tone="error">

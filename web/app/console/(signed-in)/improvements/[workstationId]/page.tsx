@@ -1,9 +1,13 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ButtonLink } from "../../../../../src/components/button";
 import { DataTable, type Column } from "../../../../../src/components/data-table";
 import { EmptyState } from "../../../../../src/components/empty-state";
 import { InlineAlert } from "../../../../../src/components/inline-alert";
+import { PAGE_MAIN, PageHeader } from "../../../../../src/components/page-header";
+import { TextLink } from "../../../../../src/components/text-link";
 import { getConsoleSession } from "../../../../../src/features/console-auth/session";
+import { doneMessage } from "../../../../../src/features/console-shell/done";
+import { siteRedirect, withSite } from "../../../../../src/features/console-shell/nav";
 import { DeleteOptionButton } from "../../../../../src/features/improvement-options/delete-option";
 import { CreateRequestButton } from "../../../../../src/features/requests/request-controls";
 import { REQUESTS_PAGE } from "../../../../../src/features/requests/request-rules";
@@ -43,7 +47,11 @@ const TASK_COLUMNS: Column<TaskView>[] = [
   },
 ];
 
-function optionColumns(workstationId: string, tasks: TaskView[]): Column<OptionView>[] {
+function optionColumns(
+  workstationId: string,
+  siteId: string,
+  tasks: TaskView[],
+): Column<OptionView>[] {
   return [
     {
       key: "title",
@@ -102,18 +110,18 @@ function optionColumns(workstationId: string, tasks: TaskView[]): Column<OptionV
       action: true,
       render: (row) => (
         <>
-          <ButtonLink href={`${IMPROVEMENTS_PAGE}/${workstationId}/${row.id}`} variant="secondary">
+          <TextLink href={withSite(`${IMPROVEMENTS_PAGE}/${workstationId}/${row.id}`, siteId)}>
             수정
-          </ButtonLink>
+          </TextLink>
           <SimulationQrButton
             optionId={row.id}
             title={row.title}
             tasks={tasks.map(({ id, name }) => ({ id, name }))}
           />
           {row.activeRequestId ? (
-            <ButtonLink href={`${REQUESTS_PAGE}/${row.activeRequestId}`} variant="secondary">
+            <TextLink href={withSite(`${REQUESTS_PAGE}/${row.activeRequestId}`, siteId)}>
               요청 보기
-            </ButtonLink>
+            </TextLink>
           ) : (
             <CreateRequestButton optionId={row.id} />
           )}
@@ -127,8 +135,10 @@ function optionColumns(workstationId: string, tasks: TaskView[]): Column<OptionV
 /** One workstation's tasks with current ratios, and its improvement options. */
 export default async function WorkstationOptionsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ workstationId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   // Checked here as well as in the layout, because Next.js renders both in parallel.
   const session = await getConsoleSession();
@@ -142,7 +152,7 @@ export default async function WorkstationOptionsPage({
   const loaded = await loadWorkstationOptions(session.supabase, { workstationId });
   if (loaded === null) {
     return (
-      <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
+      <main className={`${PAGE_MAIN} max-w-console`}>
         <InlineAlert tone="error">
           개선안을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
         </InlineAlert>
@@ -154,23 +164,30 @@ export default async function WorkstationOptionsPage({
   if (!workstation) {
     notFound();
   }
+  // Only a visible workstation gets here, and the returned address matches, so this runs once.
+  const query = await searchParams;
+  const fixed = siteRedirect(`${IMPROVEMENTS_PAGE}/${workstation.id}`, query, workstation.siteId);
+  if (fixed) {
+    redirect(fixed);
+  }
+  const siteId = workstation.siteId;
 
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <p className="text-caption text-text-secondary">
-            {workstation.siteName} · 개선안 · 인원 {workstation.headcount}명
-          </p>
-          <h1 className="text-title font-bold">{workstation.name}</h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <ButtonLink href={`${IMPROVEMENTS_PAGE}?site=${workstation.siteId}`} variant="secondary">
-            공정 목록
+    <main className={`${PAGE_MAIN} max-w-console`}>
+      <PageHeader
+        breadcrumb={[
+          { label: "공정 · 개선안", href: withSite(IMPROVEMENTS_PAGE, siteId) },
+          { label: workstation.name },
+        ]}
+        title={workstation.name}
+        info={`인원 ${workstation.headcount}명`}
+        actions={
+          <ButtonLink href={withSite(`${IMPROVEMENTS_PAGE}/${workstation.id}/new`, siteId)}>
+            개선안 추가
           </ButtonLink>
-          <ButtonLink href={`${IMPROVEMENTS_PAGE}/${workstation.id}/new`}>개선안 추가</ButtonLink>
-        </div>
-      </div>
+        }
+        notice={doneMessage("workstation", query.done)}
+      />
 
       <section aria-labelledby="tasks-title" className="flex flex-col gap-2">
         <h2 id="tasks-title" className="text-title-sm font-bold">
@@ -201,7 +218,7 @@ export default async function WorkstationOptionsPage({
         ) : (
           <DataTable
             caption="개선안별 비용, 효과를 입력한 단위작업 수, 예상 감소량"
-            columns={optionColumns(workstation.id, workstation.tasks)}
+            columns={optionColumns(workstation.id, siteId, workstation.tasks)}
             rows={workstation.options}
             rowKey={(row) => row.id}
           />
