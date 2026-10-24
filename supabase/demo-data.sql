@@ -1,6 +1,7 @@
 -- Synthetic demo site for presenting the console (docs/deployment.md, 시연 데이터).
--- No real company, person, account or token. Assessments are scores of synthetic postures
--- (tests/fixtures/demo_data_v1.json); nothing comes from AI Hub data or real video.
+-- No real company, person, account or token. Assessments and simulation captures are scores of
+-- synthetic postures (tests/fixtures/demo_data_v1.json, demo_extra_v1.json); nothing comes from
+-- AI Hub data or real video. The equipment companies are fictional and marked "(가상)".
 --
 -- Run after the migrations, seed.sql and link-accounts.sql, as one script in the SQL editor.
 -- To load it again, run demo-cleanup.sql first. Times are relative to now(), so load it on the
@@ -14,6 +15,9 @@ begin;
 -- BEGIN GENERATED: site name
 select set_config('demo.site_name', '시연 공장', true);
 -- END GENERATED: site name
+-- BEGIN GENERATED: partner names
+select set_config('demo.partners', '["가람설비(가상)","누리자동화(가상)","다온기계(가상)"]', true);
+-- END GENERATED: partner names
 
 -- Running this again would add a second demo site. The demo site's managers are copied from
 -- 합성 제1공장, so no email address appears here.
@@ -30,6 +34,15 @@ begin
     where s.name = '합성 제1공장' and p.role = 'manager'
   ) then
     raise exception 'no manager of 합성 제1공장 to copy; run link-accounts.sql first';
+  end if;
+  if exists (
+    select 1 from public.partners
+    where company_name in (select jsonb_array_elements_text(current_setting('demo.partners')::jsonb))
+  ) then
+    raise exception 'demo companies already exist; run demo-cleanup.sql first';
+  end if;
+  if (select count(*) from public.partners where company_name = '합성 설비 업체') <> 1 then
+    raise exception 'expected one 합성 설비 업체 from seed.sql';
   end if;
 end;
 $$;
@@ -178,6 +191,118 @@ join public.workstations w on w.site_id = s.id and w.code = v.code
 join public.improvement_options o on o.workstation_id = w.id and o.title = v.title
 join public.tasks t on t.workstation_id = w.id and t.name = v.task;
 -- END GENERATED: structure
+
+-- BEGIN GENERATED: simulations
+-- Simulation captures as save_simulation_capture would store them, then each becomes its
+-- option's effect for the task, replacing the manual value.
+insert into public.simulation_captures (
+  option_id, task_id, frame_count, inference_fps, task_inputs, part_summary,
+  valid_frame_ratio, high_risk_ratio, score_p90, level, algorithm_version, created_at
+)
+select o.id, t.id, v.frame_count, v.inference_fps, v.task_inputs::jsonb, v.part_summary::jsonb,
+  v.valid_frame_ratio, v.high_risk_ratio, v.score_p90, v.level, v.algorithm_version,
+  now() - make_interval(days => v.days_ago)
+from (values
+  ('WLD-01', '리프트 테이블', '하부 용접', 450, 15, '{"load_category":"5to10","load_shock":true,"coupling":"poor","static_hold":true,"unstable_base":true,"sitting":false,"arm_supported":false}', '{"trunk":{"1":279,"2":3,"3":3,"4":120},"neck":{"1":284,"2":121},"legs":{"1":405},"upper_arm":{"1":282,"2":3,"3":120},"lower_arm":{"1":283,"2":122},"wrist":{"1":405},"wrist_unjudged_ratio":0}', 0.9, 0.29876543209876544, 11, 'very-high', 'reba-2d-v1', 3),
+  ('WLD-02', '작업대 높이 조절', '측면 용접', 450, 15, '{"load_category":"5to10","load_shock":false,"coupling":"fair","static_hold":true,"unstable_base":false,"sitting":false,"arm_supported":false}', '{"trunk":{"1":339,"2":3,"3":3,"4":60},"neck":{"1":344,"2":61},"legs":{"1":405},"upper_arm":{"1":342,"2":3,"3":60},"lower_arm":{"1":343,"2":62},"wrist":{"1":405},"wrist_unjudged_ratio":0}', 0.9, 0.14814814814814814, 9, 'high', 'reba-2d-v1', 2),
+  ('PRS-01', '보조 롤러', '판재 투입', 450, 15, '{"load_category":"gt10","load_shock":true,"coupling":"fair","static_hold":false,"unstable_base":false,"sitting":false,"arm_supported":false}', '{"trunk":{"1":324,"2":3,"3":3,"4":75},"neck":{"1":329,"2":76},"legs":{"1":405},"upper_arm":{"1":327,"2":2,"3":76},"lower_arm":{"1":328,"2":77},"wrist":{"1":405},"wrist_unjudged_ratio":0}', 0.9, 0.18765432098765433, 10, 'high', 'reba-2d-v1', 1)
+) as v (
+  code, option, task, frame_count, inference_fps, task_inputs, part_summary,
+  valid_frame_ratio, high_risk_ratio, score_p90, level, algorithm_version, days_ago
+)
+join public.sites s on s.name = current_setting('demo.site_name')
+join public.workstations w on w.site_id = s.id and w.code = v.code
+join public.improvement_options o on o.workstation_id = w.id and o.title = v.option
+join public.tasks t on t.workstation_id = w.id and t.name = v.task;
+
+insert into public.option_effects as e (
+  option_id, task_id, expected_high_risk_ratio, source, capture_id
+)
+select c.option_id, c.task_id, c.high_risk_ratio, 'simulation', c.id
+from public.simulation_captures c
+join public.tasks t on t.id = c.task_id
+join public.workstations w on w.id = t.workstation_id
+join public.sites s on s.id = w.site_id and s.name = current_setting('demo.site_name')
+on conflict (option_id, task_id) do update
+set expected_high_risk_ratio = excluded.expected_high_risk_ratio,
+  source = 'simulation',
+  capture_id = excluded.capture_id;
+-- END GENERATED: simulations
+
+-- Fictional equipment companies. They have no accounts; their quotes are entered here.
+-- 합성 설비 업체 (seed.sql, with the partner account) quotes too, so its 들림 파트너스 screen
+-- shows an open, an accepted and a rejected quote.
+insert into public.partners (company_name)
+select jsonb_array_elements_text(current_setting('demo.partners')::jsonb);
+
+-- BEGIN GENERATED: requests
+-- Requests in every status. The demo site's first manager is recorded as their author.
+insert into public.improvement_requests (
+  workstation_id, option_id, title, description, desired_by, status, created_by,
+  created_at, opened_at, closed_at
+)
+select w.id, o.id, v.title, v.description,
+  (now() at time zone 'Asia/Seoul')::date + v.desired_in_days,
+  v.status, m.profile_id,
+  now() - make_interval(days => v.created_days_ago),
+  now() - make_interval(days => v.opened_days_ago),
+  now() - make_interval(days => v.closed_days_ago)
+from (values
+  ('PNT-01', '회전 거치대', 'draft', '도장 부스 부품 회전 거치대', '도장할 부품을 돌려 가며 칠할 수 있는 회전 거치대. 설치 공간 2m × 2m, 부품 무게 20kg 이하.', null::integer, 2, null::integer, null::integer),
+  ('WLD-01', '자동 용접 지그', 'open', '차체 하부 자동 용접 지그', '차체 하부를 뒤집어 고정해 위보기 용접을 줄이는 지그. 기존 1라인 작업대 자리에 설치, 설치 중 라인 정지는 주말 이틀 이내.', 30, 6, 5, null::integer),
+  ('PRS-01', '보조 롤러', 'closed', '프레스 판재 투입용 보조 롤러', '판재를 밀어 넣을 때 받쳐 주는 보조 롤러 컨베이어. 길이 3m, 판재 무게 25kg 이하.', null::integer, 20, 18, 6),
+  ('PRS-01', '판재 자동 공급기', 'closed', '프레스 판재 자동 공급기', '판재를 한 장씩 자동으로 공급하는 장치. 예산 검토용.', null::integer, 16, 15, 3)
+) as v (
+  code, option, status, title, description, desired_in_days, created_days_ago,
+  opened_days_ago, closed_days_ago
+)
+join public.sites s on s.name = current_setting('demo.site_name')
+join public.workstations w on w.site_id = s.id and w.code = v.code
+join public.improvement_options o on o.workstation_id = w.id and o.title = v.option
+cross join lateral (
+  select sm.profile_id
+  from public.site_members sm
+  join public.profiles p on p.id = sm.profile_id
+  where sm.site_id = s.id and p.role = 'manager'
+  order by sm.profile_id
+  limit 1
+) as m;
+
+-- Quotes. On a closed request each quote was last changed when the request closed, as
+-- close_request and accept_quote do; on an open one, when it was submitted.
+insert into public.quotes (
+  request_id, partner_id, price, lead_time_days, note, status, created_at, updated_at
+)
+select r.id, p.id, v.price, v.lead_time_days, v.note,
+  case when r.status = 'open' then 'submitted' when v.accepted then 'accepted' else 'rejected' end,
+  now() - make_interval(days => v.submitted_days_ago),
+  coalesce(r.closed_at, now() - make_interval(days => v.submitted_days_ago))
+from (values
+  ('WLD-01', '자동 용접 지그', '가람설비(가상)', 4500000, 30, '설치와 시운전 포함, 무상 보증 1년', false, 4),
+  ('WLD-01', '자동 용접 지그', '누리자동화(가상)', 5200000, 21, '설치 포함', false, 3),
+  ('WLD-01', '자동 용접 지그', '다온기계(가상)', 5800000, 14, null::text, false, 2),
+  ('WLD-01', '자동 용접 지그', '합성 설비 업체', 5000000, 25, '설치 포함, 작업자 교육 1회', false, 1),
+  ('PRS-01', '보조 롤러', '합성 설비 업체', 1100000, 10, '설치 포함', true, 15),
+  ('PRS-01', '보조 롤러', '다온기계(가상)', 1350000, 7, null::text, false, 14),
+  ('PRS-01', '판재 자동 공급기', '가람설비(가상)', 9500000, 60, '기초 공사 별도', false, 12),
+  ('PRS-01', '판재 자동 공급기', '다온기계(가상)', 10200000, 45, null::text, false, 11),
+  ('PRS-01', '판재 자동 공급기', '합성 설비 업체', 9800000, 50, null::text, false, 10)
+) as v (code, option, partner, price, lead_time_days, note, accepted, submitted_days_ago)
+join public.sites s on s.name = current_setting('demo.site_name')
+join public.workstations w on w.site_id = s.id and w.code = v.code
+join public.improvement_options o on o.workstation_id = w.id and o.title = v.option
+join public.improvement_requests r on r.option_id = o.id
+join public.partners p on p.company_name = v.partner;
+-- END GENERATED: requests
+
+-- An accepted quote sets its option's cost, as accept_quote does.
+update public.improvement_options o
+set cost = q.price, quote_id = q.id
+from public.quotes q
+join public.improvement_requests r on r.id = q.request_id
+join public.workstations w on w.id = r.workstation_id
+join public.sites s on s.id = w.site_id
+where q.status = 'accepted' and r.option_id = o.id and s.name = current_setting('demo.site_name');
 
 -- Pain reports. Times count back from now(); visible_from is set by the trigger
 -- (24 hours later for workstations under 5 people).
@@ -914,6 +1039,18 @@ begin
         join public.workstations w on w.id = r.workstation_id where w.site_id = site) <> 32
     or (select count(*) from public.adhoc_surveys a
         join public.workstations w on w.id = a.workstation_id where w.site_id = site) <> 5
+    or (select count(*) from public.option_effects e
+        join public.simulation_captures c on c.id = e.capture_id
+        join public.tasks t on t.id = c.task_id
+        join public.workstations w on w.id = t.workstation_id where w.site_id = site) <> 3
+    or (select count(*) from public.improvement_requests r
+        join public.workstations w on w.id = r.workstation_id where w.site_id = site) <> 4
+    or (select count(*) from public.quotes q
+        join public.improvement_requests r on r.id = q.request_id
+        join public.workstations w on w.id = r.workstation_id where w.site_id = site) <> 9
+    or (select count(*) from public.improvement_options o
+        join public.workstations w on w.id = o.workstation_id
+        where w.site_id = site and o.quote_id is not null) <> 1
   then
     raise exception 'demo data is incomplete (is today outside the due date table?); nothing was saved';
   end if;

@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "description": "Second part of the synthetic demo site (supabase/demo-data.sql): simulation captures scored from synthetic postures, fictional equipment companies, improvement requests and quotes. Adds to demo_data_v1.json; options and tasks are named as there. No real company, person or video.",
+  "partners": ["가람설비(가상)", "누리자동화(가상)", "다온기계(가상)"],
+  "existing_partner": "합성 설비 업체",
+  "simulations": [
+    {
+      "option": "리프트 테이블",
+      "task": "하부 용접",
+      "days_ago": 3,
+      "segments": [
+        { "posture": "deep trunk flexion, looking up", "seconds": 8 },
+        { "posture": "standing upright", "seconds": 19 },
+        { "posture": null, "seconds": 3 }
+      ]
+    },
+    {
+      "option": "작업대 높이 조절",
+      "task": "측면 용접",
+      "days_ago": 2,
+      "segments": [
+        { "posture": "deep trunk flexion, looking up", "seconds": 4 },
+        { "posture": "standing upright", "seconds": 23 },
+        { "posture": null, "seconds": 3 }
+      ]
+    },
+    {
+      "option": "보조 롤러",
+      "task": "판재 투입",
+      "days_ago": 1,
+      "segments": [
+        { "posture": "deep trunk flexion with heavy load", "seconds": 5 },
+        { "posture": "standing upright", "seconds": 22 },
+        { "posture": null, "seconds": 3 }
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "option": "회전 거치대",
+      "status": "draft",
+      "title": "도장 부스 부품 회전 거치대",
+      "description": "도장할 부품을 돌려 가며 칠할 수 있는 회전 거치대. 설치 공간 2m × 2m, 부품 무게 20kg 이하.",
+      "desired_in_days": null,
+      "created_days_ago": 2,
+      "opened_days_ago": null,
+      "closed_days_ago": null,
+      "quotes": []
+    },
+    {
+      "option": "자동 용접 지그",
+      "status": "open",
+      "title": "차체 하부 자동 용접 지그",
+      "description": "차체 하부를 뒤집어 고정해 위보기 용접을 줄이는 지그. 기존 1라인 작업대 자리에 설치, 설치 중 라인 정지는 주말 이틀 이내.",
+      "desired_in_days": 30,
+      "created_days_ago": 6,
+      "opened_days_ago": 5,
+      "closed_days_ago": null,
+      "quotes": [
+        { "partner": "가람설비(가상)", "price": 4500000, "lead_time_days": 30, "note": "설치와 시운전 포함, 무상 보증 1년", "submitted_days_ago": 4 },
+        { "partner": "누리자동화(가상)", "price": 5200000, "lead_time_days": 21, "note": "설치 포함", "submitted_days_ago": 3 },
+        { "partner": "다온기계(가상)", "price": 5800000, "lead_time_days": 14, "note": null, "submitted_days_ago": 2 },
+        { "partner": "합성 설비 업체", "price": 5000000, "lead_time_days": 25, "note": "설치 포함, 작업자 교육 1회", "submitted_days_ago": 1 }
+      ]
+    },
+    {
+      "option": "보조 롤러",
+      "status": "closed",
+      "title": "프레스 판재 투입용 보조 롤러",
+      "description": "판재를 밀어 넣을 때 받쳐 주는 보조 롤러 컨베이어. 길이 3m, 판재 무게 25kg 이하.",
+      "desired_in_days": null,
+      "created_days_ago": 20,
+      "opened_days_ago": 18,
+      "closed_days_ago": 6,
+      "quotes": [
+        { "partner": "합성 설비 업체", "price": 1100000, "lead_time_days": 10, "note": "설치 포함", "submitted_days_ago": 15, "accepted": true },
+        { "partner": "다온기계(가상)", "price": 1350000, "lead_time_days": 7, "note": null, "submitted_days_ago": 14 }
+      ]
+    },
+    {
+      "option": "판재 자동 공급기",
+      "status": "closed",
+      "title": "프레스 판재 자동 공급기",
+      "description": "판재를 한 장씩 자동으로 공급하는 장치. 예산 검토용.",
+      "desired_in_days": null,
+      "created_days_ago": 16,
+      "opened_days_ago": 15,
+      "closed_days_ago": 3,
+      "quotes": [
+        { "partner": "가람설비(가상)", "price": 9500000, "lead_time_days": 60, "note": "기초 공사 별도", "submitted_days_ago": 12 },
+        { "partner": "다온기계(가상)", "price": 10200000, "lead_time_days": 45, "note": null, "submitted_days_ago": 11 },
+        { "partner": "합성 설비 업체", "price": 9800000, "lead_time_days": 50, "note": null, "submitted_days_ago": 10 }
+      ]
+    }
+  ],
+  "expected_plans": [
+    { "budget": 5000000, "total_cost": 4900000, "total_reduction": 27.36 },
+    { "budget": 10000000, "total_cost": 9400000, "total_reduction": 34.52 }
+  ],
+  "presentation_accept": {
+    "option": "자동 용접 지그",
+    "partner": "가람설비(가상)",
+    "expected_plan": { "budget": 10000000, "total_cost": 9900000, "total_reduction": 37.11 }
+  }
+}
