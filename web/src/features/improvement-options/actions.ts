@@ -16,6 +16,7 @@ import {
 const FORBIDDEN = "이 계정으로는 개선안을 관리할 수 없어요.";
 const NOT_FOUND = "공정이나 개선안을 찾을 수 없어요. 목록을 새로 고친 뒤 다시 시도해 주세요.";
 const FAILED = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
+const SIMULATED = "시연 촬영 효과가 새로 들어왔어요. 새로 고친 뒤 다시 저장해 주세요.";
 
 export type SaveOptionState = {
   message?: string;
@@ -73,7 +74,10 @@ export async function saveOption(_prev: SaveOptionState, form: FormData): Promis
   });
   if (error) {
     // P0002 no_data_found: the option is gone or belongs to another workstation.
-    return { message: error.code === "P0002" ? NOT_FOUND : FAILED, text };
+    // 23505 unique_violation: a task got a simulation effect while the form was open.
+    const message =
+      error.code === "P0002" ? NOT_FOUND : error.code === "23505" ? SIMULATED : FAILED;
+    return { message, text };
   }
 
   const page = `${IMPROVEMENTS_PAGE}/${workstationId}`;

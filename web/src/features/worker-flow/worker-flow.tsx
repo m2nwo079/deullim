@@ -306,15 +306,15 @@ export function WorkerFlow() {
   }
 }
 
-function Screen({ children }: { children: React.ReactNode }) {
+export function Screen({ children }: { children: React.ReactNode }) {
   return <main className="flex flex-1 flex-col gap-3 px-3 pt-4 pb-3">{children}</main>;
 }
 
-function Footer({ children }: { children: React.ReactNode }) {
+export function Footer({ children }: { children: React.ReactNode }) {
   return <div className="mt-auto flex flex-col gap-2">{children}</div>;
 }
 
-function Centered({ children }: { children: React.ReactNode }) {
+export function Centered({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex flex-1 items-center justify-center px-3">
       <p aria-live="polite" className="text-body-lg text-text-secondary">

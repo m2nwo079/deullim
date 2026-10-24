@@ -30,16 +30,15 @@ const COLUMNS: Column<PlanItemRow>[] = [
     render: (row) => (
       <div className="flex flex-col">
         <span className="font-medium">{row.optionTitle}</span>
-        {row.manualEstimate || row.optionDeleted ? (
-          <span className="text-caption text-text-secondary">
-            {[
-              row.manualEstimate ? "관리자 추정값" : null,
-              row.optionDeleted ? "지금은 삭제됨" : null,
-            ]
-              .filter((part) => part !== null)
-              .join(" · ")}
-          </span>
-        ) : null}
+        <span className="text-caption text-text-secondary">
+          {[
+            // A planned option always has an effect, so no manual effect means simulation only.
+            row.manualEstimate ? "관리자 추정값" : "시연 촬영값",
+            row.optionDeleted ? "지금은 삭제됨" : null,
+          ]
+            .filter((part) => part !== null)
+            .join(" · ")}
+        </span>
       </div>
     ),
   },

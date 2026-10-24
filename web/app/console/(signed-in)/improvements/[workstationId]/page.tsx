@@ -5,6 +5,7 @@ import { EmptyState } from "../../../../../src/components/empty-state";
 import { InlineAlert } from "../../../../../src/components/inline-alert";
 import { getConsoleSession } from "../../../../../src/features/console-auth/session";
 import { DeleteOptionButton } from "../../../../../src/features/improvement-options/delete-option";
+import { SimulationQrButton } from "../../../../../src/features/simulation/simulation-qr";
 import {
   loadWorkstationOptions,
   type OptionView,
@@ -35,7 +36,7 @@ const TASK_COLUMNS: Column<TaskView>[] = [
   },
 ];
 
-function optionColumns(workstationId: string): Column<OptionView>[] {
+function optionColumns(workstationId: string, tasks: TaskView[]): Column<OptionView>[] {
   return [
     {
       key: "title",
@@ -54,7 +55,10 @@ function optionColumns(workstationId: string): Column<OptionView>[] {
       key: "effects",
       header: "효과 입력",
       numeric: true,
-      render: (row) => `단위작업 ${row.effects.length}개`,
+      render: (row) => {
+        const simulated = row.effects.filter((e) => e.source === "simulation").length;
+        return `단위작업 ${row.effects.length}개${simulated > 0 ? ` (시연 촬영 ${simulated})` : ""}`;
+      },
     },
     {
       key: "reduction",
@@ -79,6 +83,11 @@ function optionColumns(workstationId: string): Column<OptionView>[] {
           <ButtonLink href={`${IMPROVEMENTS_PAGE}/${workstationId}/${row.id}`} variant="secondary">
             수정
           </ButtonLink>
+          <SimulationQrButton
+            optionId={row.id}
+            title={row.title}
+            tasks={tasks.map(({ id, name }) => ({ id, name }))}
+          />
           <DeleteOptionButton optionId={row.id} title={row.title} />
         </>
       ),
@@ -163,7 +172,7 @@ export default async function WorkstationOptionsPage({
         ) : (
           <DataTable
             caption="개선안별 비용, 효과를 입력한 단위작업 수, 예상 감소량"
-            columns={optionColumns(workstation.id)}
+            columns={optionColumns(workstation.id, workstation.tasks)}
             rows={workstation.options}
             rowKey={(row) => row.id}
           />
@@ -171,6 +180,10 @@ export default async function WorkstationOptionsPage({
         <p className="text-caption text-text-secondary">
           예상 감소량(하루 사람 · 시간)은 인원 × 단위작업 하루 시간 × (현재 비율 − 개선 후 비율)을
           더한 값이에요. 평가가 없는 단위작업은 계산에 들어가지 않아요.
+        </p>
+        <p className="text-caption text-text-secondary">
+          시연 촬영 값은 개선 후 자세를 찍어 서버가 계산한 고위험 비율이에요. 자세 변화만 반영되고
+          무게, 손잡이 같은 조건 변화는 반영되지 않아요.
         </p>
       </section>
     </main>

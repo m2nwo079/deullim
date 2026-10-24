@@ -54,7 +54,9 @@ erDiagram
 | pain_reports | id, workstation_id, body_parts (text[]), intensity, created_at, visible_from | 작성자 열 없음 |
 | suggestions | id, workstation_id, body, status, created_at | 작성자 열 없음 |
 | improvement_options | id, workstation_id, title, description, cost, expected_risk_reduction, duration_days, quote_id | description은 500자 이하. workstation_id는 바꿀 수 없음(트리거). expected_risk_reduction, duration_days, quote_id는 현재 쓰지 않음. 감소량은 최신 평가가 바뀌면 달라지므로 저장하지 않고 화면에서 계산한다 |
-| option_effects | option_id, task_id, expected_high_risk_ratio, source (simulation, manual) | 개선안 적용 후 단위작업별 예상 고위험 비율 (docs/optimization-model.md). 단위작업은 개선안과 같은 공정이어야 함(트리거). 개선안 입력 화면은 manual만 쓴다 |
+| option_effects | option_id, task_id, expected_high_risk_ratio, source (simulation, manual), capture_id | 개선안 적용 후 단위작업별 예상 고위험 비율 (docs/optimization-model.md). 단위작업은 개선안과 같은 공정이어야 함(트리거). 단위작업당 효과 하나(기본 키 option_id, task_id). simulation이면 capture_id가 그 시연 촬영을 가리키고, manual이면 null이다. 관리자는 manual만 쓸 수 있고 simulation은 save_simulation_capture만 쓴다 |
+| simulation_tokens | id, token_hash, option_id, task_id, created_by, created_at, expires_at, used_at | 시연 촬영용 일회용 토큰. 원문은 저장하지 않음. 15분 유효, 효과를 한 번 저장하면 used_at이 남고 다시 쓸 수 없다. 발급은 issue_simulation_token만 한다 |
+| simulation_captures | id, option_id, task_id, frame_count, inference_fps, task_inputs (jsonb), part_summary, valid_frame_ratio, high_risk_ratio, score_p90, level, algorithm_version, created_at | 시연 촬영 이력. 서버가 평가와 같은 알고리즘과 품질 기준으로 계산한다. task_inputs는 채점에 쓴 단위작업의 관리자 입력이다. capture_sessions, assessments와 분리해 최신 평가, 개요, 보고서 평가, 통증 집계에 섞이지 않는다. 다시 찍어도 지우지 않는다 |
 | improvement_requests | id, workstation_id, status, created_by | created_by는 관리자 profile. 기본값 auth.uid(), 추가 시 본인만 허용 |
 | quotes | id, request_id, partner_id, price, lead_time_days, status | |
 | improvement_plans | id, site_id, budget, solver_version, total_cost, total_reduction, exposure_before, warnings (jsonb), created_by, created_at | 저장 시점의 계산 결과를 그대로 남긴다. 쓰기는 서버의 save_improvement_plan만 한다. created_by는 저장한 관리자. total_cost, total_reduction은 항목의 합 |
@@ -110,10 +112,15 @@ erDiagram
 - 지난 시간 창의 행은 지우지 않는다(토큰·종류별 시간당 1행).
 
 ## DB 함수 (개선안 저장)
-- save_improvement_option: 개선안 추가·수정과 효과 교체를 한 트랜잭션에서 처리한다. 효과는 source = manual로 저장한다.
+- save_improvement_option: 개선안 추가·수정과 manual 효과 교체를 한 트랜잭션에서 처리한다. 효과는 source = manual로 저장한다.
 - 호출한 사용자의 권한으로 실행한다(security invoker). RLS가 그대로 적용되어, 관리자는 소속 사업장 공정의 개선안만 저장할 수 있다. authenticated만 실행할 수 있다.
-- 수정할 때 그 개선안의 효과를 모두 지우고 다시 넣는다. 시뮬레이션 효과(simulation)를 저장하는 단계에서 이 동작을 다시 정한다.
+- 수정할 때 그 개선안의 manual 효과만 지우고 다시 넣는다. simulation 효과는 남는다. simulation 효과가 있는 단위작업에 manual 값을 보내면 기본 키 충돌(unique_violation)로 저장하지 않는다.
 - 삭제는 improvement_options 행 삭제 한 번으로 하며, 효과는 cascade로 함께 지워진다.
+
+## DB 함수 (시연 촬영)
+- issue_simulation_token: 콘솔이 부른다. security definer로 실행하고, 함수 안에서 호출한 사용자가 개선안 공정의 사업장 manager인지(private.managed_workstation_ids, auth.uid() 기준), 단위작업이 같은 공정인지 확인한다. 관리자당 최근 1시간에 20개까지 발급한다(사용자별 advisory lock으로 동시 요청을 줄 세운다). authenticated만 실행할 수 있다. 관리자에게 simulation_tokens 쓰기 권한이 없어 이 함수를 거치지 않고는 토큰을 만들 수 없다.
+- save_simulation_capture: Route Handler가 service_role로 부른다. 토큰을 잠그고 쓰지 않았고 만료 전인지 확인한 뒤, simulation_captures에 넣고 효과를 그 촬영 값으로 덮어쓰고(source = simulation) 토큰을 쓴 것으로 남긴다. 토큰이 쓰였거나 만료됐으면 아무것도 저장하지 않고 null을 돌려준다. service_role만 실행할 수 있다.
+- 효과를 직접 입력으로 되돌릴 때는 관리자가 그 simulation 효과 행을 지운다. 촬영 이력은 남는다.
 
 ## DB 함수 (개선 계획 저장)
 - save_improvement_plan: 콘솔 Server Action이 세션으로 관리자와 소속 사업장을 확인하고, 세션 권한으로 읽은 데이터로 계획을 다시 계산한 뒤 service_role로 호출한다. 다른 역할은 실행할 수 없다.
@@ -127,7 +134,8 @@ erDiagram
 | sites, workstations, tasks | 소속 사업장만 읽기·쓰기 | 없음 | 직접 접근 없음 |
 | capture_sessions, assessments | 소속 사업장만 읽기 | 없음 | Route Handler가 서버 권한으로 쓰기 |
 | pain_reports, suggestions | 테이블 직접 읽기 없음, 집계 뷰만 | 없음 | Route Handler가 서버 권한으로 쓰기 |
-| improvement_options, option_effects | 소속 사업장만 읽기·쓰기 | 없음 | 없음 |
+| improvement_options, option_effects | 소속 사업장만 읽기·쓰기 (option_effects 쓰기는 manual만, simulation은 지우기만) | 없음 | 없음 |
+| simulation_tokens, simulation_captures | 소속 사업장만 읽기 (token_hash는 못 읽음). 토큰 발급은 issue_simulation_token | 없음 | Route Handler가 서버 권한으로 토큰 확인과 촬영 저장 |
 | improvement_plans, plan_items | 소속 사업장만 읽기 (쓰기는 서버 함수) | 없음 | 없음 |
 | improvement_requests | 소속 사업장만 읽기·쓰기 | 공개된 요청(status = open)만 읽기 | 없음 |
 | quotes | 소속 사업장 요청의 견적 읽기 | 자기 회사 견적만 읽기·쓰기 | 없음 |

@@ -286,6 +286,12 @@ function Limits({ draft }: { draft: ReportDraft }) {
             : "개선 계획의 예상값에 관리자 추정값은 없어요."}
         </li>
       ) : null}
+      {draft.simulationEstimateUsed ? (
+        <li>
+          시연 촬영값은 개선 후 자세를 찍어 계산한 고위험 비율이에요. 자세 변화만 반영되고 무게,
+          손잡이 같은 조건 변화는 반영되지 않아요.
+        </li>
+      ) : null}
     </ul>
   );
 }
@@ -428,7 +434,7 @@ export function ReportDocument({ draft, createdOn }: { draft: ReportDraft; creat
                         head={["작업명", "개선안", "비용", "예상 감소량 (사람 · 시간)"]}
                         rows={draft.plan.items.map((item) => [
                           item.workstationName,
-                          `${item.optionTitle}${item.manualEstimate ? " (관리자 추정값)" : ""}`,
+                          `${item.optionTitle} (${item.manualEstimate ? "관리자 추정값" : "시연 촬영값"})`,
                           formatWon(item.cost),
                           formatHours(item.reduction),
                         ])}
