@@ -24,7 +24,9 @@ const columns = (siteId: string): Column<WorkstationOptions>[] => [
     header: "공정",
     render: (row) => (
       <div className="flex flex-col">
-        <TextLink href={withSite(`${IMPROVEMENTS_PAGE}/${row.id}`, siteId)}>{row.name}</TextLink>
+        <TextLink stretched href={withSite(`${IMPROVEMENTS_PAGE}/${row.id}`, siteId)}>
+          {row.name}
+        </TextLink>
         {row.code ? (
           <span className="font-mono text-caption text-text-secondary">{row.code}</span>
         ) : null}
@@ -100,6 +102,7 @@ export default async function ImprovementsPage({
         />
       ) : (
         <DataTable
+          rowLink
           caption="공정별 단위작업 수, 개선안 수, 가장 큰 예상 감소량"
           columns={columns(site.id)}
           rows={workstations}
