@@ -2,10 +2,15 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import { ConsoleDrawer, ConsoleSidebar, type NavGroup } from "../../components/console-sidebar";
+import {
+  ConsoleDrawer,
+  ConsoleHomeLink,
+  ConsoleSidebar,
+  type NavGroup,
+} from "../../components/console-sidebar";
 import { PageFooter } from "../../components/page-footer";
 import { Select } from "../../components/select";
-import { SECTIONS, sectionOf, siteSwitchTarget, withSite } from "./nav";
+import { CONSOLE_HOME, SECTIONS, sectionOf, siteSwitchTarget, withSite } from "./nav";
 
 type Site = { id: string; name: string };
 
@@ -39,7 +44,10 @@ export function ConsoleShell({ sites, displayName, signOut, children }: ConsoleS
     },
   ];
 
-  const siteSelect = (id: string) =>
+  const home = { href: withSite(CONSOLE_HOME, site?.id), current: current === "overview" };
+
+  // The header puts the label beside the box; the drawer keeps it above.
+  const siteSelect = (id: string, labelPosition: "top" | "side") =>
     sites.length > 1 && site ? (
       <Select
         id={id}
@@ -47,6 +55,7 @@ export function ConsoleShell({ sites, displayName, signOut, children }: ConsoleS
         options={sites.map((s) => ({ value: s.id, label: s.name }))}
         value={site.id}
         onValueChange={(next) => router.push(siteSwitchTarget(pathname, next))}
+        labelPosition={labelPosition}
       />
     ) : site ? (
       <p className="text-body font-medium">{site.name}</p>
@@ -54,19 +63,21 @@ export function ConsoleShell({ sites, displayName, signOut, children }: ConsoleS
 
   return (
     <div className="flex min-h-screen bg-surface">
-      <ConsoleSidebar groups={groups} />
+      <ConsoleSidebar groups={groups} home={home} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-b border-border print:hidden">
           <div className="mx-auto flex w-full max-w-console items-center justify-between gap-2 px-3 py-1">
             <div className="flex items-center gap-1">
               <ConsoleDrawer
                 groups={groups}
-                top={<div className="px-2 sm:hidden">{siteSelect("site-drawer")}</div>}
+                top={<div className="px-2 sm:hidden">{siteSelect("site-drawer", "top")}</div>}
               />
-              <p className="text-title-sm font-bold text-nav lg:hidden">들림 콘솔</p>
+              <span className="lg:hidden">
+                <ConsoleHomeLink {...home} />
+              </span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="hidden w-30 sm:block">{siteSelect("site-header")}</div>
+              <div className="hidden w-40 sm:block">{siteSelect("site-header", "side")}</div>
               <p className="text-small text-text-secondary">{displayName}</p>
               {signOut}
             </div>
