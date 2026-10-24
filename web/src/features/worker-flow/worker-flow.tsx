@@ -307,7 +307,11 @@ export function WorkerFlow() {
 }
 
 export function Screen({ children }: { children: React.ReactNode }) {
-  return <main className="flex flex-1 flex-col gap-3 px-3 pt-4 pb-3">{children}</main>;
+  return (
+    <main className="flex flex-1 flex-col gap-3 px-3 pt-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+      {children}
+    </main>
+  );
 }
 
 export function Footer({ children }: { children: React.ReactNode }) {

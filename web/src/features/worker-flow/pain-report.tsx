@@ -78,7 +78,7 @@ export function PainReportForm({ token, onSent, onRejected, onBack }: PainReport
     <form
       onSubmit={(event) => void handleSubmit(event)}
       noValidate
-      className="flex flex-1 flex-col gap-4 px-3 pt-4 pb-3"
+      className="flex flex-1 flex-col gap-4 px-3 pt-4 pb-[max(24px,env(safe-area-inset-bottom))]"
     >
       <h1 className="sr-only">통증 신고</h1>
       <ChoiceChipGrid
@@ -124,7 +124,7 @@ export function PainReportDone({
   onHome: () => void;
 }) {
   return (
-    <main className="flex flex-1 flex-col gap-2 px-3 pt-4 pb-3">
+    <main className="flex flex-1 flex-col gap-2 px-3 pt-4 pb-[max(24px,env(safe-area-inset-bottom))]">
       <h1 className="sr-only">신고 완료</h1>
       <EmpathyCard title="들려요">
         {bodyPartLabels(bodyParts)} 통증을 관리자에게 전했어요. 같은 공정 신고와 묶여 보여서 누가

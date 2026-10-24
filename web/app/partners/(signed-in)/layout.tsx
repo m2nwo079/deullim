@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Button } from "../../../src/components/button";
 import { InlineAlert } from "../../../src/components/inline-alert";
+import { PageFooter } from "../../../src/components/page-footer";
 import { signOutPartner } from "../../../src/features/console-auth/actions";
 import { getPartnerSession } from "../../../src/features/partners/session";
 
@@ -46,7 +47,8 @@ export default async function SignedInPartnersLayout({ children }: { children: R
           </div>
         </div>
       </header>
-      {children}
+      <div className="flex-1">{children}</div>
+      <PageFooter />
     </div>
   );
 }
