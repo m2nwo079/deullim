@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Button } from "../../../src/components/button";
 import {
-  ConsoleMobileNav,
+  ConsoleDrawer,
   ConsoleSidebar,
   type NavGroup,
 } from "../../../src/components/console-sidebar";
@@ -216,7 +216,7 @@ export default function ConsoleOverviewPreview() {
         user={{ name: "김들림", role: "안전보건관리자" }}
       />
       <main className="flex min-w-0 flex-1 flex-col gap-3 bg-surface px-3 py-2 lg:px-4">
-        <ConsoleMobileNav groups={NAV_GROUPS} />
+        <ConsoleDrawer groups={NAV_GROUPS} />
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
           <div className="flex items-center gap-2">
             <span className="text-body font-medium">제1공장</span>
