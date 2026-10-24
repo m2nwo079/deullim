@@ -41,7 +41,9 @@ const columns = (siteId: string): Column<RequestRow>[] => [
     header: "요청",
     render: (row) => (
       <div className="flex flex-col">
-        <TextLink href={withSite(`${REQUESTS_PAGE}/${row.id}`, siteId)}>{row.title}</TextLink>
+        <TextLink stretched href={withSite(`${REQUESTS_PAGE}/${row.id}`, siteId)}>
+          {row.title}
+        </TextLink>
         <span className="text-caption text-text-secondary">
           {row.workstations.name} · {row.improvement_options.title}
         </span>
@@ -113,6 +115,7 @@ export default async function RequestsPage({
         />
       ) : (
         <DataTable
+          rowLink
           caption="견적 요청의 상태, 받은 견적 수, 희망 기한, 공개일"
           columns={columns(site.id)}
           rows={requests}

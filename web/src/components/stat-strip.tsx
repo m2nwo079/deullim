@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import { Icon, type IconName } from "./icons";
 
-type Stat = { icon: IconName; label: string; value: string; unit?: string; helper: string };
+/** helper may hold a link, e.g. to the workstation it names. */
+type Stat = { icon: IconName; label: string; value: string; unit?: string; helper: ReactNode };
 
 /** Summary numbers inside one border, split by vertical lines instead of separate cards. */
 export function StatStrip({ stats }: { stats: Stat[] }) {

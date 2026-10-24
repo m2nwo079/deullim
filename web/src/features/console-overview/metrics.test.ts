@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildOverview,
+  sortByRisk,
   weekStartKst,
   type GroupVisibility,
   type PainRow,
@@ -158,5 +159,36 @@ describe("weekStartKst", () => {
     ["2026-12-31T16:00:00Z", "2026-12-28"],
   ])("%s starts the week of %s", (now, expected) => {
     expect(weekStartKst(new Date(now))).toBe(expected);
+  });
+});
+
+describe("sortByRisk", () => {
+  const row = (
+    name: string,
+    worstLevel: "low" | "high" | "very-high" | null,
+    ratio: number | null,
+  ) => ({
+    name,
+    worstLevel,
+    highRiskRatio: ratio,
+  });
+
+  it("puts worse levels first, then higher ratios, then names, and unassessed last", () => {
+    const sorted = sortByRisk([
+      row("다", null, null),
+      row("가", "low", 0.1),
+      row("나", "high", 0.2),
+      row("라", "very-high", 0.3),
+      row("마", "high", 0.4),
+      row("바", "high", 0.4),
+      row("사", null, null),
+    ]);
+    expect(sorted.map((w) => w.name)).toEqual(["라", "마", "바", "나", "가", "다", "사"]);
+  });
+
+  it("does not change the input", () => {
+    const input = [row("가", "low", 0.1), row("나", "high", 0.2)];
+    sortByRisk(input);
+    expect(input.map((w) => w.name)).toEqual(["가", "나"]);
   });
 });

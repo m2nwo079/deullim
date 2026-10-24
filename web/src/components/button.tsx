@@ -2,7 +2,11 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Icon, type IconName } from "./icons";
 
-type Variant = "primary" | "secondary";
+/**
+ * text: an action in place drawn as words (opens a dialog, runs here), never a move to another
+ * screen; that is TextLink. Give it an icon so it does not read as a link.
+ */
+type Variant = "primary" | "secondary" | "text";
 
 /** console: 40px. worker: 48px. worker-main: 56px, full width, one per worker screen. */
 type Size = "console" | "worker" | "worker-main";
@@ -14,6 +18,7 @@ const VARIANTS: Record<Variant, string> = {
   primary: "bg-primary text-on-primary hover:bg-primary-hover active:bg-primary-active",
   secondary:
     "border border-border-strong bg-surface text-text hover:bg-surface-muted active:bg-surface-sunken",
+  text: "text-primary underline-offset-4 hover:underline focus-visible:underline active:text-primary-active",
 };
 
 const SIZES: Record<Size, string> = {
@@ -29,7 +34,7 @@ type StyleOptions = { variant: Variant; size: Size; disabled?: boolean; loading?
 
 function buttonClasses({ variant, size, disabled, loading }: StyleOptions): string {
   if (disabled && !loading) {
-    return `${BASE} ${SIZES[size]} ${DISABLED}`;
+    return `${BASE} ${SIZES[size]} ${variant === "text" ? "cursor-not-allowed text-text-disabled" : DISABLED}`;
   }
   return `${BASE} ${SIZES[size]} ${VARIANTS[variant]}${loading ? " cursor-progress" : ""}`;
 }

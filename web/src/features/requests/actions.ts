@@ -97,7 +97,10 @@ export type SaveRequestState = {
   saved?: boolean;
 };
 
-/** Saves the title, description and desired date of a draft (the database refuses other states). */
+/**
+ * Saves the title, description and desired date of a draft (the database refuses other states).
+ * With intent "open" it then opens the request, and moves to its page with a result code.
+ */
 export async function saveRequest(
   _prev: SaveRequestState,
   form: FormData,
@@ -135,7 +138,21 @@ export async function saveRequest(
     return { message: NOT_FOUND, text };
   }
   refresh(requestId);
-  return { saved: true };
+  if (formText(form, "intent") !== "open") {
+    return { saved: true };
+  }
+  // "저장하고 공개": opens only what was just saved, so unsaved edits are never published.
+  // The two steps are not one transaction; if opening fails, the saved draft stays a draft.
+  const opened = await session.supabase.rpc("open_request", { p_request_id: requestId });
+  if (opened.error) {
+    return {
+      saved: true,
+      text,
+      message: `저장했지만 공개하지 못했어요. ${messageFor(opened.error.code)}`,
+    };
+  }
+  refresh(requestId);
+  redirect(withDone(`${REQUESTS_PAGE}/${requestId}`, "request-opened"));
 }
 
 /** Deletes a draft; RLS refuses other states, which then match no row. */
@@ -168,10 +185,7 @@ export async function deleteRequest(requestId: string): Promise<ActionResult> {
   redirect(withDone(withSite(REQUESTS_PAGE, owner?.workstations.site_id), "request-deleted"));
 }
 
-async function callRequestFunction(
-  fn: "open_request" | "close_request",
-  requestId: string,
-): Promise<ActionResult> {
+async function callRequestFunction(fn: "close_request", requestId: string): Promise<ActionResult> {
   const session = await getConsoleSession();
   if (session.access !== "manager") {
     return { ok: false, message: FORBIDDEN };
@@ -185,11 +199,6 @@ async function callRequestFunction(
   }
   refresh(requestId);
   return { ok: true };
-}
-
-/** Makes a draft visible to every partner. */
-export async function openRequest(requestId: string): Promise<ActionResult> {
-  return callRequestFunction("open_request", requestId);
 }
 
 /** Closes an open request without accepting; submitted quotes become rejected. */

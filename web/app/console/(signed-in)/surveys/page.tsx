@@ -37,7 +37,7 @@ const first = (value: string | string[] | undefined) => (Array.isArray(value) ? 
 
 function Note({ note }: { note: string | null }) {
   return note ? (
-    <span className="block max-w-40 wrap-anywhere whitespace-normal text-text-secondary">
+    <span className="block max-w-40 wrap-anywhere whitespace-pre-line text-text-secondary">
       {note}
     </span>
   ) : (

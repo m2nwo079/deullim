@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type FormEvent } from "react";
+import { useState, useTransition, type FormEvent, type ReactNode } from "react";
 import { Button } from "../../components/button";
 import { EmptyState } from "../../components/empty-state";
 import { InlineAlert } from "../../components/inline-alert";
@@ -18,6 +18,7 @@ import {
   ReferenceNotice,
 } from "./plan-parts";
 import type { PlanView } from "./plan-input";
+import { PlanComparison, type SavedPlanChoice } from "./plan-comparison";
 
 const BUDGET_FIELD = "budget";
 const BUDGET_ERROR = "예산을 0원에서 10억 원 사이의 원 단위 숫자로 입력해 주세요.";
@@ -30,11 +31,38 @@ const MESSAGES: Record<Exclude<PlanError, "invalid_budget">, string> = {
 };
 
 /**
+ * Keeps the budget and the compared plan in the address without a new render, so going back from
+ * a saved plan or reloading shows the result again (the page recomputes from ?budget=).
+ */
+function recordInAddress(values: Record<string, string>) {
+  const url = new URL(window.location.href);
+  for (const [key, value] of Object.entries(values)) {
+    url.searchParams.set(key, value);
+  }
+  window.history.replaceState(null, "", url);
+}
+
+/**
  * Budget input, the server-computed plan and its curve. The curve is drawn from the result the
  * server sent; only a new budget asks the server again. Saving recomputes on the server.
  */
-export function PlanScreen({ siteId }: { siteId: string }) {
-  const [view, setView] = useState<PlanView | null>(null);
+export function PlanScreen({
+  siteId,
+  savedPlans,
+  initialBudget,
+  initialView,
+  initialCompare,
+}: {
+  siteId: string;
+  /** Newest first; the comparison starts on the first one. */
+  savedPlans: SavedPlanChoice[];
+  /** From ?budget=, computed by the page on the server. */
+  initialBudget?: string;
+  initialView: PlanView | null;
+  initialCompare?: string;
+}) {
+  const [view, setView] = useState<PlanView | null>(initialView);
+  const [compareId, setCompareId] = useState(initialCompare ?? savedPlans[0]?.id ?? "");
   const [budgetError, setBudgetError] = useState<string | undefined>();
   // Errors of each button, shown right above that button (docs/components.md).
   const [computeError, setComputeError] = useState<string | null>(null);
@@ -57,6 +85,7 @@ export function PlanScreen({ siteId }: { siteId: string }) {
       const result = await computePlan(siteId, text);
       if (result.ok) {
         setView(result.view);
+        recordInAddress({ budget: String(result.view.budget) });
       } else if (result.error === "invalid_budget") {
         setBudgetError(BUDGET_ERROR);
       } else {
@@ -87,12 +116,14 @@ export function PlanScreen({ siteId }: { siteId: string }) {
               id={BUDGET_FIELD}
               name={BUDGET_FIELD}
               label="예산 (원)"
+              defaultValue={initialBudget}
               aria-required
               error={budgetError}
             />
           </div>
           <div className="pt-4">
-            <Button type="submit" loading={computing}>
+            {/* Once a result is shown, saving it is the screen's primary action. */}
+            <Button type="submit" variant={view ? "secondary" : "primary"} loading={computing}>
               계산
             </Button>
           </div>
@@ -105,6 +136,17 @@ export function PlanScreen({ siteId }: { siteId: string }) {
           saving={saving}
           saveError={saveError}
           onSave={() => handleSave(view)}
+          comparison={
+            <PlanComparison
+              plans={savedPlans}
+              current={view}
+              compareId={compareId}
+              onCompareChange={(id) => {
+                setCompareId(id);
+                recordInAddress({ compare: id });
+              }}
+            />
+          }
         />
       ) : null}
     </div>
@@ -117,12 +159,14 @@ function PlanResult({
   saving,
   saveError,
   onSave,
+  comparison,
 }: {
   siteId: string;
   view: PlanView;
   saving: boolean;
   saveError: string | null;
   onSave: () => void;
+  comparison: ReactNode;
 }) {
   if (view.candidateCount === 0) {
     return (
@@ -162,10 +206,11 @@ function PlanResult({
         <PlanItemsTable rows={view.items} />
       </section>
       <BudgetCurve curve={view.curve} budget={view.budget} />
+      {comparison}
       <div className="flex flex-col gap-2">
         {saveError ? <InlineAlert tone="error">{saveError}</InlineAlert> : null}
         <div>
-          <Button variant="secondary" loading={saving} onClick={onSave}>
+          <Button loading={saving} onClick={onSave}>
             이 계획 저장
           </Button>
         </div>

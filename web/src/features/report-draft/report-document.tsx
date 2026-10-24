@@ -43,7 +43,8 @@ const BODY_PART_LABELS: [keyof PainSummaryRow["bodyParts"], string][] = [
   ["leg_foot", "다리 · 발"],
 ];
 
-const CELL = "border border-border px-1 py-1 align-top";
+// pre-line keeps the line breaks of multi-line notes (survey memo) and still folds spaces.
+const CELL = "border border-border px-1 py-1 align-top whitespace-pre-line";
 const HEAD_CELL = "border border-border bg-surface-muted px-1 py-1 text-caption font-medium";
 
 /** Shown once next to a heading whose table has blank cells for the workplace. */

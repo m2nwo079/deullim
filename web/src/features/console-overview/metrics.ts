@@ -180,6 +180,22 @@ const SEOUL_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
+ * Order of the overview's workstation table (docs/console-metrics.md): worst task level, higher
+ * first; then the high-risk posture share, higher first; then the name. Unassessed ones go last.
+ */
+export function sortByRisk<
+  T extends Pick<WorkstationOverview, "name" | "worstLevel" | "highRiskRatio">,
+>(workstations: readonly T[]): T[] {
+  const rank = (w: T) => (w.worstLevel === null ? -1 : LEVEL_ORDER.indexOf(w.worstLevel));
+  return [...workstations].sort(
+    (a, b) =>
+      rank(b) - rank(a) ||
+      (b.highRiskRatio ?? -1) - (a.highRiskRatio ?? -1) ||
+      a.name.localeCompare(b.name, "ko"),
+  );
+}
+
+/**
  * Monday of the current week in Asia/Seoul as YYYY-MM-DD, the same value as the view's
  * date_trunc('week', created_at at time zone 'Asia/Seoul')::date.
  */

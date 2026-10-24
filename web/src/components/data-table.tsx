@@ -38,9 +38,24 @@ type DataTableProps<Row> = {
   rows: Row[];
   rowKey: (row: Row) => string;
   selection?: RowSelection<Row>;
+  /**
+   * Rows that lead to one detail screen: the row's name is a TextLink with stretched, whose press
+   * area covers the row. The row darkens on hover and shows the focus ring when the link has focus.
+   */
+  rowLink?: boolean;
 };
 
-export function DataTable<Row>({ caption, columns, rows, rowKey, selection }: DataTableProps<Row>) {
+const ROW_LINK =
+  "relative hover:bg-surface-muted has-[a[data-row-link]:focus-visible]:outline-2 has-[a[data-row-link]:focus-visible]:-outline-offset-2 has-[a[data-row-link]:focus-visible]:outline-focus-ring";
+
+export function DataTable<Row>({
+  caption,
+  columns,
+  rows,
+  rowKey,
+  selection,
+  rowLink = false,
+}: DataTableProps<Row>) {
   const table = (
     <div
       role="region"
@@ -81,7 +96,7 @@ export function DataTable<Row>({ caption, columns, rows, rowKey, selection }: Da
               // Mouse shortcut only: keyboard users pick the row with its radio, so the row needs
               // no key handler. jsx-a11y reports nothing here (no disable needed).
               onClick={selection ? (event) => pickRow(selection, row, event) : undefined}
-              className={selection ? rowClass(selection, row) : undefined}
+              className={selection ? rowClass(selection, row) : rowLink ? ROW_LINK : undefined}
             >
               {selection ? <RadioCell selection={selection} row={row} /> : null}
               {columns.map((column) => (

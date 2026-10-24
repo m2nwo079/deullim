@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { IconButton } from "./icon-button";
 
 type PopoverProps = {
@@ -12,8 +13,7 @@ type PopoverProps = {
 
 /**
  * Puts a top-layer panel 8px below its anchor, lined up with the anchor's left or right edge.
- * Placed once on open, so it does not follow the page while open (docs/ux-audit.md 3-3, Popover
- * row).
+ * Placed once on open; Popover and Select close on scroll so the panel never drifts from it.
  */
 export function placeBelow(anchor: HTMLElement, panel: HTMLElement, align: "left" | "right") {
   const rect = anchor.getBoundingClientRect();
@@ -35,6 +35,20 @@ export function Popover({ label, children }: PopoverProps) {
   const button = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+
+  // Scrolling the page closes the menu, so it never drifts away from its button.
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const scrolled = (event: Event) => {
+      if (!(event.target instanceof Node) || !panel.current?.contains(event.target)) {
+        panel.current?.hidePopover();
+      }
+    };
+    window.addEventListener("scroll", scrolled, true);
+    return () => window.removeEventListener("scroll", scrolled, true);
+  }, [open]);
 
   return (
     <>
@@ -70,4 +84,35 @@ export function Popover({ label, children }: PopoverProps) {
       </div>
     </>
   );
+}
+
+const ITEM =
+  "flex h-5 w-full items-center gap-1 rounded-control px-2 text-left text-small whitespace-nowrap text-text hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring active:bg-surface-sunken disabled:cursor-not-allowed disabled:text-text-disabled";
+
+/** One menu entry: a button for an action here, or a link (href) for another screen. */
+export function PopoverItem({
+  href,
+  onClick,
+  disabled = false,
+  children,
+}: {
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  children: ReactNode;
+}) {
+  return href ? (
+    <Link href={href} className={ITEM}>
+      {children}
+    </Link>
+  ) : (
+    <button type="button" className={ITEM} disabled={disabled} onClick={onClick}>
+      {children}
+    </button>
+  );
+}
+
+/** Line that sets the last, irreversible entries apart (docs/components.md "위험한 동작"). */
+export function PopoverDivider() {
+  return <hr className="my-1 border-border" />;
 }

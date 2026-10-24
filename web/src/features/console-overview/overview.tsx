@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { DataTable, type Column } from "../../components/data-table";
 import { EmptyState } from "../../components/empty-state";
 import { Icon, IconTile } from "../../components/icons";
@@ -18,7 +17,7 @@ import {
 } from "../adhoc-surveys/survey-rules";
 import { withSite } from "../console-shell/nav";
 import type { OverviewData } from "./load-overview";
-import type { MergedGroupPain, WorkstationOverview } from "./metrics";
+import { sortByRisk, type MergedGroupPain, type WorkstationOverview } from "./metrics";
 
 const DATE = new Intl.DateTimeFormat("ko-KR", {
   month: "long",
@@ -64,7 +63,7 @@ const columns = (siteId: string): Column<Row>[] => [
         <IconTile name="workstation" />
         <div className="flex flex-col">
           <span className="flex items-center gap-1">
-            <TextLink href={withSite(`/console/improvements/${row.id}`, siteId)}>
+            <TextLink stretched href={withSite(`/console/improvements/${row.id}`, siteId)}>
               {row.name}
             </TextLink>
             <span className="rounded-control border border-border px-1 text-caption text-text-secondary">
@@ -153,13 +152,6 @@ function exposureHelper(data: OverviewData): string {
   return `단위작업 ${data.taskCount}개 중 ${data.assessedTaskCount}개 기준`;
 }
 
-function veryHighHelper(names: string[]): string {
-  if (names.length === 0) {
-    return "없음";
-  }
-  return names.length === 1 ? names[0] : `${names[0]} 외 ${names.length - 1}곳`;
-}
-
 function painHelper({ total, workstationCount, groupCount }: OverviewData["weeklyPain"]): string {
   if (total === 0) {
     return "이번 주 신고가 없어요.";
@@ -231,56 +223,21 @@ function OverviewBody({
       reviewByWorkstation.set(id, alert.merged ? `${alert.label} 묶음 검토 권고` : "검토 권고");
     }
   }
-  const rows: Row[] = data.workstations.map((w) => ({
+  const rows: Row[] = sortByRisk(data.workstations).map((w) => ({
     ...w,
     review: reviewByWorkstation.get(w.id) ?? null,
   }));
   const link = (href: string, label: string) => (
-    <Link
-      href={href}
-      className="flex items-center gap-1 font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-    >
+    <TextLink href={href} iconAfter="arrow-right">
       {label}
-      <Icon name="arrow-right" size={16} />
-    </Link>
+    </TextLink>
   );
+  // The worst one is first in the sorted rows; the summary links to it.
+  const veryHigh = rows.find((w) => w.worstLevel === "very-high");
   return (
     <>
-      {/* The summary and its alerts read as one block, 16px apart. */}
+      {/* Alerts that call for action come first, then the summary: one block, 16px apart. */}
       <div className="flex flex-col gap-2">
-        <StatStrip
-          stats={[
-            {
-              icon: "clock",
-              label: "하루 고위험 노출",
-              value: data.exposure === null ? "—" : HOURS.format(data.exposure),
-              unit: "사람 · 시간",
-              helper: exposureHelper(data),
-            },
-            {
-              icon: "alert",
-              label: "매우 높음 공정",
-              value: String(data.veryHighNames.length),
-              helper: veryHighHelper(data.veryHighNames),
-            },
-            {
-              icon: "survey",
-              label: "진행 중 수시 조사",
-              value: String(openSurveys.length),
-              helper:
-                openSurveys.length > 0
-                  ? `가장 빠른 기한 ${dueDay(openSurveys[0].dueDate)}`
-                  : "진행 중인 조사가 없어요.",
-            },
-            {
-              icon: "message",
-              label: "이번 주 통증 신고",
-              value: String(weeklyPain.total),
-              helper: painHelper(weeklyPain),
-            },
-          ]}
-        />
-
         {nearDue.length > 0 ? (
           <InlineAlert tone="deadline" action={link(surveysPage, "수시 조사 보기")}>
             {nearDue[0].workstationName} 수시 조사 기한이 {dueDay(nearDue[0].dueDate)}이에요 (
@@ -305,6 +262,48 @@ function OverviewBody({
             {data.hiddenGroups.join(", ")} 묶음은 그룹 설정을 바꿔야 신고를 볼 수 있어요.
           </InlineAlert>
         ) : null}
+
+        <StatStrip
+          stats={[
+            {
+              icon: "clock",
+              label: "하루 고위험 노출",
+              value: data.exposure === null ? "—" : HOURS.format(data.exposure),
+              unit: "사람 · 시간",
+              helper: exposureHelper(data),
+            },
+            {
+              icon: "alert",
+              label: "매우 높음 공정",
+              value: String(data.veryHighNames.length),
+              helper: veryHigh ? (
+                <>
+                  <TextLink href={withSite(`/console/improvements/${veryHigh.id}`, siteId)}>
+                    {veryHigh.name}
+                  </TextLink>
+                  {data.veryHighNames.length > 1 ? ` 외 ${data.veryHighNames.length - 1}곳` : ""}
+                </>
+              ) : (
+                "없음"
+              ),
+            },
+            {
+              icon: "survey",
+              label: "진행 중 수시 조사",
+              value: String(openSurveys.length),
+              helper:
+                openSurveys.length > 0
+                  ? `가장 빠른 기한 ${dueDay(openSurveys[0].dueDate)}`
+                  : "진행 중인 조사가 없어요.",
+            },
+            {
+              icon: "message",
+              label: "이번 주 통증 신고",
+              value: String(weeklyPain.total),
+              helper: painHelper(weeklyPain),
+            },
+          ]}
+        />
       </div>
 
       <section aria-labelledby="workstations-title" className="flex flex-col gap-2">
@@ -312,6 +311,7 @@ function OverviewBody({
           공정별 현황
         </h2>
         <DataTable
+          rowLink
           caption="공정별 인원, 고위험 자세 비율, 가장 나쁜 작업 단계, 이번 주 통증 신고"
           columns={columns(siteId)}
           rows={rows}

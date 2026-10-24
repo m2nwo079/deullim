@@ -6,6 +6,7 @@ import { TextLink } from "../../../../src/components/text-link";
 import { getConsoleSession } from "../../../../src/features/console-auth/session";
 import { withSite } from "../../../../src/features/console-shell/nav";
 import { formatHours, formatWon } from "../../../../src/features/improvement-plan/curve";
+import { computePlan } from "../../../../src/features/improvement-plan/actions";
 import { PlanScreen } from "../../../../src/features/improvement-plan/plan-screen";
 
 const PAGE = "/console/plans";
@@ -25,7 +26,13 @@ type SavedPlan = {
   budget: number;
   total_cost: number;
   total_reduction: number;
-  plan_items: { count: number }[];
+  plan_items: {
+    option_id: string | null;
+    option_title: string;
+    workstation_name: string;
+    cost: number;
+    reduction: number;
+  }[];
 };
 
 /** The saved time links to the plan, keeping the site. */
@@ -34,7 +41,7 @@ const columns = (siteId: string): Column<SavedPlan>[] => [
     key: "saved",
     header: "저장 시각",
     render: (row) => (
-      <TextLink href={withSite(`${PAGE}/${row.id}`, siteId)}>
+      <TextLink stretched href={withSite(`${PAGE}/${row.id}`, siteId)}>
         {DATE_TIME.format(new Date(row.created_at))}
       </TextLink>
     ),
@@ -52,14 +59,18 @@ const columns = (siteId: string): Column<SavedPlan>[] => [
     numeric: true,
     render: (row) => formatHours(Number(row.total_reduction)),
   },
-  { key: "items", header: "개선안", numeric: true, render: (row) => row.plan_items[0]?.count ?? 0 },
+  { key: "items", header: "개선안", numeric: true, render: (row) => row.plan_items.length },
 ];
 
 /** Improvement plan for one site: compute, review the curve, save, and list saved plans. */
 export default async function PlansPage({
   searchParams,
 }: {
-  searchParams: Promise<{ site?: string | string[] }>;
+  searchParams: Promise<{
+    site?: string | string[];
+    budget?: string | string[];
+    compare?: string | string[];
+  }>;
 }) {
   // Checked here as well as in the layout, because Next.js renders both in parallel.
   const session = await getConsoleSession();
@@ -68,7 +79,7 @@ export default async function PlansPage({
   }
 
   // RLS returns only the sites this manager belongs to, so ?site= cannot reach another site.
-  const [{ site: requested }, { data: sites }] = await Promise.all([
+  const [{ site: requested, budget, compare }, { data: sites }] = await Promise.all([
     searchParams,
     session.supabase.from("sites").select("id, name").order("name").returns<Site[]>(),
   ]);
@@ -88,10 +99,29 @@ export default async function PlansPage({
 
   const { data: plans, error } = await session.supabase
     .from("improvement_plans")
-    .select("id, created_at, budget, total_cost, total_reduction, plan_items(count)")
+    .select(
+      "id, created_at, budget, total_cost, total_reduction, plan_items(option_id, option_title, workstation_name, cost, reduction)",
+    )
     .eq("site_id", site.id)
     .order("created_at", { ascending: false })
     .returns<SavedPlan[]>();
+  // ?budget= is written by the plan screen after a computation; computing it again here keeps
+  // the result after going back from a saved plan or reloading (with today's data).
+  const initialBudget = typeof budget === "string" ? budget : undefined;
+  const initial = initialBudget ? await computePlan(site.id, initialBudget) : null;
+  const savedPlans = (plans ?? []).map((plan) => ({
+    id: plan.id,
+    label: `${DATE_TIME.format(new Date(plan.created_at))} · ${formatWon(Number(plan.budget))}`,
+    totalCost: Number(plan.total_cost),
+    totalReduction: Number(plan.total_reduction),
+    items: plan.plan_items.map((item) => ({
+      optionId: item.option_id,
+      workstationName: item.workstation_name,
+      optionTitle: item.option_title,
+      cost: Number(item.cost),
+      reduction: Number(item.reduction),
+    })),
+  }));
 
   return (
     <main className={`${PAGE_MAIN} max-w-console`}>
@@ -100,7 +130,14 @@ export default async function PlansPage({
         info="투자 판단 참고. 예산을 넣으면 공정마다 개선안을 하나씩 골라 하루 고위험 노출을 가장 많이 줄이는 조합을 계산해요."
       />
 
-      <PlanScreen key={site.id} siteId={site.id} />
+      <PlanScreen
+        key={site.id}
+        siteId={site.id}
+        savedPlans={savedPlans}
+        initialBudget={initialBudget}
+        initialView={initial?.ok ? initial.view : null}
+        initialCompare={typeof compare === "string" ? compare : undefined}
+      />
 
       <section aria-labelledby="saved-plans-title" className="flex flex-col gap-2">
         <h2 id="saved-plans-title" className="text-title-sm font-bold">
@@ -114,6 +151,7 @@ export default async function PlansPage({
           <p className="text-small text-text-secondary">아직 저장한 계획이 없어요.</p>
         ) : (
           <DataTable
+            rowLink
             caption="저장된 계획별 저장 시각, 예산, 총비용, 총 감소량, 개선안 수"
             columns={columns(site.id)}
             rows={plans}

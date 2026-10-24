@@ -36,7 +36,11 @@ const OPEN_COLUMNS = (mine: Map<string, MyQuote>): Column<OpenRequest>[] => [
   {
     key: "title",
     header: "요청",
-    render: (row) => <TextLink href={`${PARTNERS_REQUEST_PAGE}/${row.id}`}>{row.title}</TextLink>,
+    render: (row) => (
+      <TextLink stretched href={`${PARTNERS_REQUEST_PAGE}/${row.id}`}>
+        {row.title}
+      </TextLink>
+    ),
   },
   { key: "desired", header: "희망 기한", render: (row) => day(row.desired_by) },
   { key: "opened", header: "공개일", render: (row) => day(row.opened_at) },
@@ -46,7 +50,11 @@ const OPEN_COLUMNS = (mine: Map<string, MyQuote>): Column<OpenRequest>[] => [
     numeric: true,
     render: (row) => {
       const quote = mine.get(row.id);
-      return quote ? formatWon(Number(quote.price)) : "—";
+      return quote ? (
+        formatWon(Number(quote.price))
+      ) : (
+        <span className="text-text-secondary">아직 없음</span>
+      );
     },
   },
 ];
@@ -56,7 +64,7 @@ const QUOTE_COLUMNS: Column<MyQuote>[] = [
     key: "title",
     header: "요청",
     render: (row) => (
-      <TextLink href={`${PARTNERS_REQUEST_PAGE}/${row.request_id}`}>
+      <TextLink stretched href={`${PARTNERS_REQUEST_PAGE}/${row.request_id}`}>
         {row.improvement_requests.title}
       </TextLink>
     ),
@@ -120,6 +128,7 @@ export default async function PartnersHomePage() {
               />
             ) : (
               <DataTable
+                rowLink
                 caption="공개된 요청의 희망 기한, 공개일, 내 견적 금액"
                 columns={OPEN_COLUMNS(mine)}
                 rows={requests.data}
@@ -135,6 +144,7 @@ export default async function PartnersHomePage() {
               <p className="text-small text-text-secondary">아직 낸 견적이 없어요.</p>
             ) : (
               <DataTable
+                rowLink
                 caption="낸 견적의 금액, 기간, 상태"
                 columns={QUOTE_COLUMNS}
                 rows={quotes.data}

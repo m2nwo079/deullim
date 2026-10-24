@@ -69,7 +69,7 @@ export function SimulationQrButton({
 
   return (
     <>
-      <Button variant="secondary" iconBefore="qr" onClick={() => setOpen(true)}>
+      <Button variant="text" iconBefore="qr" onClick={() => setOpen(true)}>
         시연 촬영
       </Button>
       <Modal

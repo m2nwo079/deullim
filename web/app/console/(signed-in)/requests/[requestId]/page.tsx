@@ -1,5 +1,4 @@
 import { notFound, redirect } from "next/navigation";
-import { DataTable, type Column } from "../../../../../src/components/data-table";
 import { addMonths } from "../../../../../src/components/date-grid";
 import { PAGE_MAIN, PageHeader } from "../../../../../src/components/page-header";
 import { TextLink } from "../../../../../src/components/text-link";
@@ -12,15 +11,9 @@ import {
   isUuid,
 } from "../../../../../src/features/improvement-options/option-form";
 import { formatWon } from "../../../../../src/features/improvement-plan/curve";
-import {
-  AcceptQuoteButton,
-  CloseRequestButton,
-  DeleteRequestButton,
-  OpenRequestButton,
-} from "../../../../../src/features/requests/request-controls";
+import { QuoteTable } from "../../../../../src/features/requests/quote-table";
 import { RequestForm } from "../../../../../src/features/requests/request-form";
 import {
-  QUOTE_STATUS_LABEL,
   REQUEST_STATUS_LABEL,
   requestActions,
   REQUESTS_PAGE,
@@ -68,47 +61,6 @@ type Request = {
   improvement_options: { title: string; cost: number };
   quotes: Quote[];
 };
-
-function quoteColumns(request: Request): Column<Quote>[] {
-  const canAccept = requestActions(request.status).accept;
-  return [
-    { key: "company", header: "업체", render: (row) => row.partners?.company_name ?? "—" },
-    {
-      key: "price",
-      header: "금액 (부가세 포함)",
-      numeric: true,
-      render: (row) => formatWon(Number(row.price)),
-    },
-    { key: "days", header: "기간", numeric: true, render: (row) => `${row.lead_time_days}일` },
-    {
-      key: "note",
-      header: "메모",
-      render: (row) => row.note ?? <span className="text-text-secondary">—</span>,
-    },
-    {
-      key: "updated",
-      header: "제출 · 수정",
-      render: (row) => DATE_TIME.format(new Date(row.updated_at)),
-    },
-    canAccept
-      ? {
-          key: "accept",
-          header: "수락",
-          action: true,
-          render: (row) => (
-            <AcceptQuoteButton
-              requestId={request.id}
-              quoteId={row.id}
-              companyName={row.partners?.company_name ?? "이 업체"}
-              price={Number(row.price)}
-              priceText={formatWon(Number(row.price))}
-              updatedAt={row.updated_at}
-            />
-          ),
-        }
-      : { key: "status", header: "결과", render: (row) => QUOTE_STATUS_LABEL[row.status] },
-  ];
-}
 
 /** One request: draft content and status changes, and the quotes received (compare, accept). */
 export default async function RequestPage({
@@ -174,15 +126,6 @@ export default async function RequestPage({
             </p>
           </>
         }
-        actions={
-          actions.open || actions.remove || actions.close ? (
-            <>
-              {actions.open ? <OpenRequestButton requestId={request.id} /> : null}
-              {actions.remove ? <DeleteRequestButton requestId={request.id} /> : null}
-              {actions.close ? <CloseRequestButton requestId={request.id} /> : null}
-            </>
-          ) : undefined
-        }
         notice={doneMessage("request", query.done)}
       />
 
@@ -223,18 +166,25 @@ export default async function RequestPage({
         <h2 id="quotes-title" className="text-title-sm font-bold">
           받은 견적
         </h2>
-        {request.quotes.length === 0 ? (
+        {request.status === "draft" ? (
           <p className="text-small text-text-secondary">
-            {request.status === "draft"
-              ? "공개하면 설비 업체가 견적을 낼 수 있어요."
-              : "아직 받은 견적이 없어요."}
+            공개하면 설비 업체가 견적을 낼 수 있어요.
           </p>
         ) : (
-          <DataTable
-            caption="업체별 견적 금액(부가세 포함), 기간, 메모, 제출 시각"
-            columns={quoteColumns(request)}
-            rows={request.quotes}
-            rowKey={(row) => row.id}
+          <QuoteTable
+            requestId={request.id}
+            title={request.title}
+            open={actions.accept}
+            quotes={request.quotes.map((quote) => ({
+              id: quote.id,
+              companyName: quote.partners?.company_name ?? "이 업체",
+              price: Number(quote.price),
+              leadTimeDays: quote.lead_time_days,
+              note: quote.note,
+              status: quote.status,
+              updatedAt: quote.updated_at,
+              updatedText: DATE_TIME.format(new Date(quote.updated_at)),
+            }))}
           />
         )}
       </section>

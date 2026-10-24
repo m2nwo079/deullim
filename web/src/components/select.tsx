@@ -18,6 +18,8 @@ type SelectProps = {
   /** Form field name; a hidden input submits the value. */
   name?: string;
   disabled?: boolean;
+  /** side: label left of the box on one line, as in the console header. Default: label above. */
+  labelPosition?: "top" | "side";
 };
 
 /** Typed letters within this time make one search, as in the WAI-ARIA APG example. */
@@ -37,6 +39,7 @@ export function Select({
   onValueChange,
   name,
   disabled = false,
+  labelPosition = "top",
 }: SelectProps) {
   const [own, setOwn] = useState(defaultValue ?? options[0]?.value ?? "");
   const value = controlled ?? own;
@@ -158,8 +161,8 @@ export function Select({
   }, [open, active, listId]);
 
   return (
-    <div className="flex flex-col gap-1">
-      <label id={labelId} htmlFor={id} className="text-small font-medium">
+    <div className={labelPosition === "side" ? "flex items-center gap-1" : "flex flex-col gap-1"}>
+      <label id={labelId} htmlFor={id} className="shrink-0 text-small font-medium">
         {label}
       </label>
       <button
