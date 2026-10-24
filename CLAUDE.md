@@ -124,7 +124,7 @@ web/ 폴더에서 실행한다. Node는 24.x(web/.nvmrc)이며, 로컬 Node가 �
 - 데이터와 인증: docs/data-model.md, docs/auth.md
 - 콘솔 지표: docs/console-metrics.md
 - 배포와 린트: docs/deployment.md, docs/lint-rules.md
-- UX 개선 목록: docs/ux-issues.md
+- UX 진단과 개선 목록: docs/ux-audit.md
 
 ## 브랜치와 커밋 규칙
 @docs/git-workflow.md
