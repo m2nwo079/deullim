@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useId, useRef, useState, type ReactNode } from "react";
+import { IconButton } from "./icon-button";
 import { Icon, type IconName } from "./icons";
 
 export type NavItem = { label: string; icon: IconName; href?: string; current?: boolean };
@@ -11,8 +14,9 @@ type ConsoleSidebarProps = {
   user: { name: string; role: string };
 };
 
+// Every item keeps a 3px left border so the current item's bar does not shift the labels.
 const ITEM =
-  "flex h-5 items-center gap-1 rounded-control px-2 text-small focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+  "flex h-5 items-center gap-1 rounded-r-control border-l-3 px-2 text-small focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
 
 function NavEntry({ item }: { item: NavItem }) {
   const content = (
@@ -26,7 +30,7 @@ function NavEntry({ item }: { item: NavItem }) {
       <Link
         href={item.href}
         aria-current="page"
-        className={`${ITEM} bg-surface font-medium text-nav`}
+        className={`${ITEM} border-nav bg-surface font-bold text-nav`}
       >
         {content}
       </Link>
@@ -36,7 +40,7 @@ function NavEntry({ item }: { item: NavItem }) {
     return (
       <Link
         href={item.href}
-        className={`${ITEM} text-text-secondary transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-sunken active:bg-surface-sunken active:text-text`}
+        className={`${ITEM} border-transparent text-text-secondary transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-sunken active:bg-surface-sunken active:text-text`}
       >
         {content}
       </Link>
@@ -44,7 +48,10 @@ function NavEntry({ item }: { item: NavItem }) {
   }
   // Items without a destination yet are shown but not interactive.
   return (
-    <span aria-disabled="true" className={`${ITEM} cursor-not-allowed text-text-disabled`}>
+    <span
+      aria-disabled="true"
+      className={`${ITEM} cursor-not-allowed border-transparent text-text-disabled`}
+    >
       {content}
     </span>
   );
@@ -54,7 +61,7 @@ export function ConsoleSidebar({ groups, status, user }: ConsoleSidebarProps) {
   return (
     <nav
       aria-label="콘솔 메뉴"
-      className="hidden w-30 shrink-0 flex-col gap-3 border-r border-border bg-surface-muted p-2 md:flex"
+      className="hidden w-30 shrink-0 flex-col gap-3 border-r border-border bg-surface-muted p-2 lg:flex"
     >
       <p className="px-2 pt-1 text-title-sm font-bold text-nav">들림 콘솔</p>
       <NavGroups groups={groups} />
@@ -104,26 +111,63 @@ function NavGroups({ groups }: { groups: NavGroup[] }) {
 }
 
 /**
- * Below 768px the sidebar is hidden and this native disclosure menu sits at the top instead.
- * It needs no client JavaScript and shows the same items and current marker.
+ * Below 1024px the sidebar is hidden and this menu button opens the same items in a left drawer
+ * on the native <dialog>: showModal() traps focus, Esc, a press outside or picking an item closes
+ * it, and focus returns to the menu button.
  */
-export function ConsoleMobileNav({ groups }: { groups: NavGroup[] }) {
-  const current = groups.flatMap((group) => group.items).find((item) => item.current);
+export function ConsoleDrawer({ groups, top }: { groups: NavGroup[]; top?: ReactNode }) {
+  const id = useId();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const menu = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+
   return (
-    <details className="group rounded-control border border-border bg-surface-muted md:hidden">
-      <summary className="flex h-5 cursor-pointer list-none items-center justify-between px-2 text-small font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring [&::-webkit-details-marker]:hidden">
-        <span className="flex items-center gap-1 text-nav">
-          <span className="font-bold">들림 콘솔</span>
-          {current ? <span className="text-text-secondary">{current.label}</span> : null}
-        </span>
-        <span className="flex items-center gap-1 text-text-secondary">
-          메뉴
-          <Icon name="chevron-down" size={16} className="group-open:rotate-180" />
-        </span>
-      </summary>
-      <nav aria-label="콘솔 메뉴" className="flex flex-col gap-2 border-t border-border p-2">
-        <NavGroups groups={groups} />
-      </nav>
-    </details>
+    <div className="lg:hidden">
+      <IconButton
+        ref={menu}
+        icon="menu"
+        label="메뉴 열기"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => {
+          dialog.current?.showModal();
+          setOpen(true);
+        }}
+      />
+      {/* Clicks land on the dialog itself only on the backdrop, because the inner panel fills it;
+          picking a link closes it too. Esc is the native cancel. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
+      <dialog
+        ref={dialog}
+        id={id}
+        aria-label="메뉴"
+        onClose={() => {
+          setOpen(false);
+          menu.current?.focus();
+        }}
+        onClick={(event) => {
+          const target = event.target;
+          if (
+            target === event.currentTarget ||
+            (target instanceof Element && target.closest("a"))
+          ) {
+            dialog.current?.close();
+          }
+        }}
+        className="m-0 h-full max-h-none w-30 max-w-[calc(100%-48px)] bg-surface-muted text-text shadow-lg backdrop:bg-scrim"
+      >
+        <div className="flex h-full flex-col gap-3 p-2">
+          <div className="flex items-center justify-between gap-1">
+            <p className="px-2 text-title-sm font-bold text-nav">들림 콘솔</p>
+            <IconButton icon="close" label="메뉴 닫기" onClick={() => dialog.current?.close()} />
+          </div>
+          {top}
+          <nav aria-label="콘솔 메뉴" className="flex flex-col gap-3">
+            <NavGroups groups={groups} />
+          </nav>
+        </div>
+      </dialog>
+    </div>
   );
 }

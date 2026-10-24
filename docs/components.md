@@ -17,6 +17,25 @@
 
 - 모서리: 컨트롤은 radius-control(8px), 카드와 패널은 radius-surface(12px), 모달과 하단 시트는 radius-surface-lg(16px)
 
+## 간격
+세로 간격은 docs/design-tokens.md의 8px 배수만 쓴다. 한 묶음 안의 간격은 묶음 사이 간격의 절반 이하로 두어, 제목과 라벨이 아래 내용에 붙어 보이게 한다.
+
+| 관계 | 콘솔·파트너 | 작업자·시연 |
+|---|---|---|
+| 라벨 → 입력칸·선택지 | 8px | 16px (라벨이 title-sm) |
+| 입력칸 → 오류·도움말, 도움말끼리 | 8px | 8px |
+| 입력 묶음 → 다음 입력 묶음 | 24px | 32px |
+| Breadcrumb → 제목, 제목 → 제목 아래 설명 | 8px | 8px |
+| 화면 제목 묶음 → 첫 내용 | 32px | 32px |
+| 소제목(h2) → 그 내용 | 16px | 16px |
+| 절과 절 사이 | 48px. 구분선을 두면 선 위아래 각 24px | 32px |
+| 버튼 줄의 위쪽 | 마지막 입력 묶음과 32px. 폼 전체 오류(InlineAlert)는 버튼 줄 바로 위 16px. Modal 안에서는 본문과 24px | 32px. 핵심 버튼은 화면 맨 아래 |
+| 화면 바닥 | 내용 끝에서 64px 뒤에 PageFooter | max(24px, env(safe-area-inset-bottom)), 푸터 없음 |
+
+- fieldset의 legend는 flex 배치에 들어가지 않으므로 gap 대신 legend와 설명 문구의 아래 여백으로 띄운다.
+- PageFooter: 콘솔·파트너 레이아웃과 로그인 화면 맨 아래. 위 구분선, 안쪽 위아래 24px, caption 글자, text-secondary. 내용이 짧아도 화면 맨 아래에 둔다. 서비스 이름과 안내 문구("들림의 결과는 정밀 조사가 필요한 공정을 고르기 위한 참고 자료예요. 최종 유해요인조사와 근로자 참여는 사업장에서 진행해요.")를 두고, 공모전 문구는 page-footer.tsx의 상수에 값이 있을 때만 그 아래에 그린다. 실제 연락처와 이메일은 넣지 않는다. 인쇄할 때는 숨긴다.
+- 작업자·시연 화면(/w, /s)은 푸터를 두지 않는다. 바닥 여백의 env(safe-area-inset-bottom)은 viewport-fit=cover가 아닐 때 0이라 지금은 24px이다.
+
 ## 상태
 모든 컨트롤은 아래 여섯 상태를 정의한다.
 
@@ -34,12 +53,12 @@
 |---|---|---|
 | 기본 | Button | 종류: primary, secondary. 화면당 primary는 하나. 위계는 아래 "버튼 위계"를 따른다. 다른 화면으로 가는 것은 Button 모양이 아니라 TextLink로 둔다 |
 | 기본 | TextLink | 다른 화면으로 가는 글자 링크. 필요하면 화살표 아이콘을 붙인다. 밑줄은 hover와 포커스에서 보인다 |
-| 기본 | Select | 하나를 골라 바로 화면이 바뀌는 선택(사업장, 보고서에 넣을 계획). 라벨을 항상 보이게 둔다. 네이티브 select를 쓴다 |
+| 기본 | Select | 하나를 골라 바로 화면이 바뀌는 선택(사업장, 보고서에 넣을 계획). 라벨을 항상 보이게 둔다. 운영체제마다 모양이 다른 네이티브 select 대신 WAI-ARIA APG 선택 전용 콤보박스로 직접 그린다: 포커스는 버튼에 두고, 방향키·Home/End·글자 입력으로 찾고, Enter·Space로 열고 고르며, Esc는 값을 바꾸지 않고 닫는다. 고른 항목은 체크 표시와 aria-selected. 연 채로 스크롤하거나 바깥을 누르면 닫힌다. 폼 안에서는 숨은 input으로 값을 보낸다 |
 | 기본 | TextArea | 100자를 넘게 받는 입력. 글자 수 한도를 라벨에 적는다. 나머지 규칙은 TextField와 같다 |
 | 기본 | IconButton | 아이콘만 있을 때도 접근성 이름(aria-label)을 반드시 둔다 |
 | 기본 | DateField | 콘솔 날짜 입력. 마우스 화면에서는 직접 입력(2026. 10. 14., 2026-10-14 등)과 들림 달력을 함께 둔다. 달력은 WAI-ARIA APG 날짜 선택 대화상자 방식으로, 입력 칸 아래에 펼친다: 화살표(하루·한 주), Home/End(주의 처음·끝), PageUp/PageDown(한 달), Shift+PageUp/PageDown(한 해), Enter·Space(고르기), Esc(닫고 달력 버튼으로 돌아가기). 날짜는 "2026년 10월 14일 수요일"로 읽고, 오늘은 aria-current="date", 고를 수 없는 날은 aria-disabled. 주는 일요일부터. max(오늘) 이후와 min 이전은 고를 수 없고 초점도 그 밖으로 가지 않는다. Modal 안에서 Esc는 달력만 닫는다. 터치 화면(pointer: coarse)에서는 기기의 기본 날짜 입력을 쓴다. 제출 값은 "YYYY-MM-DD" |
 | 기본 | MoneyField | 원 단위 금액 입력. 입력하는 동안 천 단위 쉼표를 붙이고 커서 위치를 숫자 기준으로 유지한다. 숫자 키패드(inputMode="numeric"). 서버에는 쉼표를 뺀 숫자만 보낸다. 나머지 규칙은 TextField와 같다 |
-| 기본 | TextField, Select, Checkbox, Toggle, SegmentedControl, Tabs | 라벨은 항상 보이게 둔다. placeholder를 라벨 대신 쓰지 않는다. 입력 오류는 브라우저 말풍선 대신 칸 아래 문구로 알리고, aria-invalid와 aria-describedby로 칸에 연결하며, 칸 테두리를 border-text로 바꾼다. 폼 전체에 대한 오류(저장 실패, 중복 등)는 제출 버튼 바로 위에 InlineAlert error(role="alert")로 둔다. 폼 안의 항목 사이는 24px, 한 항목의 라벨·입력·오류·안내 사이는 8px로 둔다. SegmentedControl은 작업자 크기(worker, 48px)와 콘솔 크기(console, 40px, 왼쪽 정렬, TextField와 같은 라벨)가 있고, 배치는 가로(horizontal), 한 줄에 하나(vertical, 긴 문장), 여러 열(grid, 짧은 이름 여러 개)이다 |
+| 기본 | TextField, Select, Checkbox, Toggle, SegmentedControl, Tabs | 라벨은 항상 보이게 둔다. placeholder를 라벨 대신 쓰지 않는다. 입력 오류는 브라우저 말풍선 대신 칸 아래 문구로 알리고, aria-invalid와 aria-describedby로 칸에 연결하며, 칸 테두리를 border-text로 바꾼다. 폼 전체에 대한 오류(저장 실패, 중복 등)는 제출 버튼 바로 위에 InlineAlert error(role="alert")로 둔다. 폼 안의 항목 사이는 24px, 한 항목의 라벨·입력·오류·안내 사이는 8px로 둔다. SegmentedControl은 칸 없는 라디오 목록이다. 작업자 크기(worker, 줄 높이 48px 이상)와 콘솔 크기(console, 40px 이상, TextField와 같은 라벨)가 있고, 배치는 가로(horizontal, 선택지 사이 32px), 한 줄에 하나(vertical, 긴 문장, 줄 사이 8px), 여러 열(grid, 짧은 이름 여러 개, 열 사이 32px)이다 |
 | 피드백 | Toast | motion-base로 나타나고 4초 후 사라진다 (시작값). 중요한 결과는 Toast만으로 알리지 않는다 |
 | 피드백 | InlineAlert | 위험도 색을 쓰지 않고 중립 배경과 아이콘으로 표시한다. 종류(tone): 일반(info, info 아이콘), 주의(caution, alert 아이콘), 기한(deadline, clock 아이콘), 오류(error). 시계 아이콘은 기한에만 쓴다. 오류는 왼쪽 3px 막대와 굵은 글자, alert 아이콘을 모두 text 색으로 표시하고 role="alert"로 바로 알린다. 그 밖의 아이콘(lock 등)은 icon으로 따로 지정한다 |
 | 피드백 | EmpathyCard | "들려요" 응답 전용. empathy-bg, empathy-fg, 대표 모션 |
@@ -54,11 +73,12 @@
 | 덮는 요소 | Popover | 표면 2층. 표의 행 "더보기" 메뉴(IconButton more로 연다)에 쓴다. Esc와 바깥 누름으로 닫고, 닫으면 연 버튼으로 포커스를 돌려준다 |
 | 내비게이션 | ConsoleSidebar | nav 토큰. 콘솔 1단계 화면 사이를 오간다. 넓은 화면에서는 왼쪽 고정, 좁은 화면에서는 서랍(아래 "이동") |
 | 내비게이션 | Breadcrumb | 2단계 이하 화면의 제목 위에 지금까지의 경로 전체를 보여 준다. 마지막 항목은 지금 화면이라 링크가 아니다 |
+| 내비게이션 | PageFooter | 콘솔·파트너 화면의 바닥. 위 "간격" 절을 따른다 |
 | 내비게이션 | WorkerTopBar | 작업장 이름과 뒤로 가기만 둔다. 작업자·시연 화면의 첫 단계에서는 뒤로 가기를 두지 않는다 |
 | 들림 전용 | CameraCaptureView | 아래 별도 규칙 |
 | 들림 전용 | CaptureTimer | 촬영 남은 시간 표시. 촬영 중 화면 위 애니메이션은 최소화 |
 | 들림 전용 | BodyMap | 통증 부위 선택. 부위마다 텍스트 라벨을 둔다. MVP는 ChoiceChipGrid로 구현한다 |
-| 기본 | ChoiceChipGrid | 여러 개를 고르는 칩 격자. 작업자 화면에서 칩 높이 48px, 선택 상태는 테두리와 글자색으로 표시 |
+| 기본 | ChoiceChipGrid | 여러 개를 고르는 칸 없는 체크박스 목록(2열). 작업자 화면에서 줄 높이 48px. 선택 상태는 채운 네모와 체크, 굵은 글자로 표시 |
 | 기본 | Icon | 선(outline) 아이콘. 선 굵기 통일, 크기 16px 또는 20px, 색은 currentColor. 장식용은 aria-hidden, 아이콘만 있는 버튼은 aria-label. 이모지를 쓰지 않는다. 콘솔에서 화면으로 가는 항목은 대상마다 다른 아이콘을 쓴다: 개선안 tool, 개선 계획 report, 보고서 초안 document, 수시 조사 survey, QR 관리 qr. 서랍을 여닫는 버튼은 menu, close |
 | 기본 | IconTile | 회색 32px 타일 안의 아이콘. 공정 유형 표시와 EmptyState(옅은 타일)에 쓴다 |
 | 기본 | FilterTabs | 개수가 붙은 토글 버튼. 선택된 탭도 중립색이며 브랜드 색과 위험도 색을 쓰지 않는다 |
@@ -103,9 +123,9 @@
 | 고르는 것 | 컴포넌트 | 규칙 |
 |---|---|---|
 | 하나, 바로 화면이 바뀜(사업장, 보고서에 넣을 계획) | Select(콘솔), Tabs(같은 화면의 보기 전환) | 링크 버튼 묶음으로 만들지 않는다 |
-| 하나, 폼 안에서 | SegmentedControl | 선택됨은 채운 표시(또는 동그라미)와 굵은 글자, 키보드 초점은 focus-ring으로 서로 다르게 보인다 |
+| 하나, 폼 안에서 | SegmentedControl | 선택지마다 칸(테두리, 배경)을 두지 않고 동그라미와 글자만 둔다. 줄 전체를 누를 수 있다. 선택됨은 채운 동그라미와 굵은 글자, 키보드 초점은 줄 바깥의 focus-ring이다. 비활성은 동그라미와 글자 모두 text-disabled |
 | 표의 행 하나(견적 고르기) | DataTable 선택 열(radio) | 표 전체를 fieldset과 legend로 묶고, 라디오마다 행을 설명하는 접근성 이름(예: 업체 · 금액 · 기간)을 둔다. 행 어디를 눌러도 선택된다. 고를 수 없는 행(제출 상태가 아닌 견적)에는 라디오를 두지 않는다. 처음에는 아무것도 고르지 않는다 |
-| 여러 개 | ChoiceChipGrid(작업자), Checkbox(콘솔) | 선택 상태는 테두리와 글자, 체크 표시로 보인다 |
+| 여러 개 | ChoiceChipGrid(작업자), Checkbox(콘솔) | 하나 고르기와 같은 줄 모양에 네모를 둔다. 선택 상태는 채운 네모와 체크, 굵은 글자로 보인다 |
 | 긴 글(100자 넘게 받는 칸) | TextArea | 글자 수 한도를 라벨에 적는다 |
 | 날짜 | DateField | 과거 날짜(발생일 등)는 max가 오늘, 미래 날짜(희망 기한 등)는 min이 오늘이다. "오늘" 표시는 실제 오늘에만 둔다 |
 

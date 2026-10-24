@@ -21,7 +21,7 @@ type SegmentedControlProps = {
   describedBy?: string;
 };
 
-/** Pick exactly one option. Worker size: at least 48px tall; console size: 40px, like TextField. */
+/** Pick exactly one option, as a radio list. Worker rows: at least 48px tall; console rows: 40px. */
 export function SegmentedControl({
   defaultValue,
   disabled = false,
@@ -39,10 +39,10 @@ export function SegmentedControl({
       size={size}
       layout={
         orientation === "vertical"
-          ? "grid grid-cols-1 gap-1"
+          ? "flex flex-col gap-1"
           : orientation === "grid"
-            ? "grid grid-cols-2 gap-1 sm:grid-cols-3"
-            : "grid auto-cols-fr grid-flow-col gap-1"
+            ? "grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3"
+            : "flex flex-wrap gap-x-4 gap-y-1"
       }
       {...rest}
     />

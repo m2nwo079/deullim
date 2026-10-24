@@ -6,7 +6,7 @@ import { DateField } from "../../components/date-field";
 import { Icon } from "../../components/icons";
 import { InlineAlert } from "../../components/inline-alert";
 import { SegmentedControl } from "../../components/segmented-control";
-import { TextField } from "../../components/text-field";
+import { TextArea } from "../../components/text-area";
 import { startSurvey, type StartSurveyState } from "./actions";
 import {
   dueDateFor,
@@ -164,7 +164,7 @@ export function SurveyForm({
       </div>
 
       <div className="flex flex-col gap-1">
-        <TextField
+        <TextArea
           id="note"
           name="note"
           label="메모 (선택, 500자 이하)"

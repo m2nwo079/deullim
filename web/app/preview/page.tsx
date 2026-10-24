@@ -6,6 +6,8 @@ export const metadata: Metadata = { title: "시안 목록 | 들림" };
 
 const SCREENS = [
   { href: "/preview/console", label: "관리자 콘솔 개요" },
+  { href: "/preview/components", label: "공통 컴포넌트" },
+  { href: "/preview/console-nav", label: "콘솔 이동 (사이드바, 서랍, 경로)" },
   { href: "/preview/worker/result", label: "작업자 촬영 결과" },
   { href: "/preview/worker/pain", label: "작업자 통증 신고" },
   { href: "/preview/worker/done", label: "작업자 신고 완료" },

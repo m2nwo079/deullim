@@ -12,7 +12,7 @@ type ChoiceChipGridProps = {
   loading?: boolean;
 };
 
-/** Pick any number of options. Chips are 48px tall; selection shows as border and text color. */
+/** Pick any number of options, as a two-column checkbox list with 48px rows. */
 export function ChoiceChipGrid({
   defaultSelected = [],
   disabled = false,
@@ -25,7 +25,7 @@ export function ChoiceChipGrid({
       defaultChecked={defaultSelected}
       disabled={disabled}
       loading={loading}
-      layout="grid grid-cols-2 gap-1"
+      layout="grid grid-cols-2 gap-x-4 gap-y-1"
       size="worker"
       {...rest}
     />

@@ -9,6 +9,7 @@ import {
   monthLabel,
   moveFocus,
   parseTyped,
+  startDay,
 } from "./date-grid";
 
 describe("parseTyped", () => {
@@ -96,5 +97,25 @@ describe("moveFocus", () => {
     expect(moveFocus("2026-10-14", "ArrowUp", false, "2026-10-10", max)).toBe("2026-10-10");
     expect(moveFocus("2026-10-14", "Tab", false)).toBeNull();
     expect(clamp("2026-10-30", undefined, max)).toBe(max);
+  });
+});
+
+describe("startDay", () => {
+  const today = "2026-10-24";
+
+  it("opens a past-date field on today or the chosen day", () => {
+    expect(startDay("", today, undefined, today)).toBe(today);
+    expect(startDay("2026-10-14", today, undefined, today)).toBe("2026-10-14");
+  });
+
+  it("opens a future-date field on today, not on its last day", () => {
+    const lastDay = "2028-10-24";
+    expect(startDay("", today, today, lastDay)).toBe(today);
+    expect(startDay("2027-01-05", today, today, lastDay)).toBe("2027-01-05");
+  });
+
+  it("keeps a stale value inside the range", () => {
+    expect(startDay("2026-10-01", today, today, "2028-10-24")).toBe(today);
+    expect(startDay("2030-01-01", today, today, "2028-10-24")).toBe("2028-10-24");
   });
 });
