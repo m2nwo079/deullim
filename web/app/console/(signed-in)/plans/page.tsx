@@ -111,7 +111,7 @@ export default async function PlansPage({
                 {other.name}
               </ButtonLink>
             ))}
-          <ButtonLink href="/console/improvements" variant="secondary">
+          <ButtonLink href={`/console/improvements?site=${site.id}`} variant="secondary">
             개선안
           </ButtonLink>
           <ButtonLink href={`/console?site=${site.id}`} variant="secondary">

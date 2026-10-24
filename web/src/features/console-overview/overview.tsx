@@ -209,7 +209,11 @@ export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleO
           >
             수시 조사
           </ButtonLink>
-          <ButtonLink href="/console/improvements" variant="secondary" iconBefore="tool">
+          <ButtonLink
+            href={`/console/improvements?site=${site.id}`}
+            variant="secondary"
+            iconBefore="tool"
+          >
             개선안
           </ButtonLink>
           <ButtonLink
@@ -226,7 +230,7 @@ export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleO
           >
             보고서 초안
           </ButtonLink>
-          <ButtonLink href="/console/qr" variant="secondary" iconBefore="qr">
+          <ButtonLink href={`/console/qr?site=${site.id}`} variant="secondary" iconBefore="qr">
             QR 관리
           </ButtonLink>
         </div>

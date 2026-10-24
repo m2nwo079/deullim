@@ -11,6 +11,10 @@ import { IMPROVEMENTS_PAGE } from "../../../../src/features/improvement-options/
 
 const HOURS = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
 
+type Site = { id: string; name: string };
+
+const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
+
 const COLUMNS: Column<WorkstationOptions>[] = [
   {
     key: "name",
@@ -53,28 +57,65 @@ const COLUMNS: Column<WorkstationOptions>[] = [
   },
 ];
 
-/** Workstations of the manager's sites with their improvement options (RLS). */
-export default async function ImprovementsPage() {
+/** Workstations of one of the manager's sites with their improvement options (RLS). */
+export default async function ImprovementsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ site?: string | string[] }>;
+}) {
   // Checked here as well as in the layout, because Next.js renders both in parallel.
   const session = await getConsoleSession();
   if (session.access !== "manager") {
     return null;
   }
-  const workstations = await loadWorkstationOptions(session.supabase);
+
+  // RLS returns only the sites this manager belongs to, so ?site= cannot reach another site.
+  const [params, { data: sites }] = await Promise.all([
+    searchParams,
+    session.supabase.from("sites").select("id, name").order("name").returns<Site[]>(),
+  ]);
+  const site = (sites ?? []).find((s) => s.id === first(params.site)) ?? sites?.[0];
+  if (!site) {
+    return (
+      <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
+        <h1 className="text-title font-bold">개선안</h1>
+        <EmptyState
+          icon="inbox"
+          title="연결된 사업장이 없어요"
+          description="사업장에 연결되면 이곳에서 개선안을 입력할 수 있어요."
+        />
+      </main>
+    );
+  }
+  const workstations = await loadWorkstationOptions(session.supabase, { siteId: site.id });
 
   return (
     <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex flex-col gap-1">
+          <p className="text-caption text-text-secondary">{site.name}</p>
           <h1 className="text-title font-bold">개선안</h1>
           <p className="text-small text-text-secondary">
             공정마다 개선안과 비용, 단위작업별 예상 효과를 입력해요. 예상 감소량의 단위는 하루 사람
             · 시간이에요.
           </p>
         </div>
-        <ButtonLink href="/console" variant="secondary">
-          개요
-        </ButtonLink>
+        <div className="flex flex-wrap gap-2">
+          {(sites ?? [])
+            .filter((s) => s.id !== site.id)
+            .map((other) => (
+              <ButtonLink
+                key={other.id}
+                href={`${IMPROVEMENTS_PAGE}?site=${other.id}`}
+                variant="secondary"
+              >
+                {other.name}
+              </ButtonLink>
+            ))}
+          <ButtonLink href={`/console?site=${site.id}`} variant="secondary">
+            개요
+          </ButtonLink>
+        </div>
       </div>
       {workstations === null ? (
         <InlineAlert tone="error">

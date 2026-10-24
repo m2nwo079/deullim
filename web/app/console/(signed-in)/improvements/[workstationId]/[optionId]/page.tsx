@@ -23,7 +23,7 @@ export default async function EditOptionPage({
   if (!isUuid(workstationId) || !isUuid(optionId)) {
     notFound();
   }
-  const workstation = (await loadWorkstationOptions(session.supabase, workstationId))?.[0];
+  const workstation = (await loadWorkstationOptions(session.supabase, { workstationId }))?.[0];
   const option = workstation?.options.find((o) => o.id === optionId);
   if (!workstation || !option) {
     notFound();
@@ -32,7 +32,9 @@ export default async function EditOptionPage({
   return (
     <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
       <div className="flex flex-col gap-1">
-        <p className="text-caption text-text-secondary">{workstation.name}</p>
+        <p className="text-caption text-text-secondary">
+          {workstation.siteName} · {workstation.name}
+        </p>
         <h1 className="text-title font-bold">개선안 수정</h1>
       </div>
       <OptionForm

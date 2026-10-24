@@ -101,7 +101,7 @@ export default async function WorkstationOptionsPage({
   if (!isUuid(workstationId)) {
     notFound();
   }
-  const loaded = await loadWorkstationOptions(session.supabase, workstationId);
+  const loaded = await loadWorkstationOptions(session.supabase, { workstationId });
   if (loaded === null) {
     return (
       <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
@@ -122,12 +122,12 @@ export default async function WorkstationOptionsPage({
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div className="flex flex-col gap-1">
           <p className="text-caption text-text-secondary">
-            개선안 · 인원 {workstation.headcount}명
+            {workstation.siteName} · 개선안 · 인원 {workstation.headcount}명
           </p>
           <h1 className="text-title font-bold">{workstation.name}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
-          <ButtonLink href={IMPROVEMENTS_PAGE} variant="secondary">
+          <ButtonLink href={`${IMPROVEMENTS_PAGE}?site=${workstation.siteId}`} variant="secondary">
             공정 목록
           </ButtonLink>
           <ButtonLink href={`${IMPROVEMENTS_PAGE}/${workstation.id}/new`}>개선안 추가</ButtonLink>
