@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Button } from "../../components/button";
 import { DateField } from "../../components/date-field";
 import { InlineAlert } from "../../components/inline-alert";
+import { TextArea } from "../../components/text-area";
 import { TextField } from "../../components/text-field";
 import { saveRequest, type SaveRequestState } from "./actions";
 import { DESCRIPTION_MAX, TITLE_MAX, type RequestText } from "./request-rules";
@@ -34,7 +35,7 @@ export function RequestForm({ requestId, initial, today, lastDay }: RequestFormP
         error={errors.title}
       />
       <div className="flex flex-col gap-1">
-        <TextField
+        <TextArea
           id="description"
           name="description"
           label={`설명 (선택, ${DESCRIPTION_MAX}자 이하)`}
@@ -52,6 +53,7 @@ export function RequestForm({ requestId, initial, today, lastDay }: RequestFormP
         label="희망 기한 (선택)"
         min={today}
         max={lastDay}
+        today={today}
         defaultValue={text.desiredBy}
         error={errors.desiredBy}
       />
