@@ -1,8 +1,10 @@
-import { ButtonLink } from "../../../../src/components/button";
 import { DataTable, type Column } from "../../../../src/components/data-table";
 import { EmptyState } from "../../../../src/components/empty-state";
 import { InlineAlert } from "../../../../src/components/inline-alert";
+import { PAGE_MAIN, PageHeader } from "../../../../src/components/page-header";
+import { TextLink } from "../../../../src/components/text-link";
 import { getConsoleSession } from "../../../../src/features/console-auth/session";
+import { withSite } from "../../../../src/features/console-shell/nav";
 import { formatHours, formatWon } from "../../../../src/features/improvement-plan/curve";
 import { PlanScreen } from "../../../../src/features/improvement-plan/plan-screen";
 
@@ -26,11 +28,16 @@ type SavedPlan = {
   plan_items: { count: number }[];
 };
 
-const COLUMNS: Column<SavedPlan>[] = [
+/** The saved time links to the plan, keeping the site. */
+const columns = (siteId: string): Column<SavedPlan>[] => [
   {
     key: "saved",
     header: "저장 시각",
-    render: (row) => DATE_TIME.format(new Date(row.created_at)),
+    render: (row) => (
+      <TextLink href={withSite(`${PAGE}/${row.id}`, siteId)}>
+        {DATE_TIME.format(new Date(row.created_at))}
+      </TextLink>
+    ),
   },
   { key: "budget", header: "예산", numeric: true, render: (row) => formatWon(Number(row.budget)) },
   {
@@ -46,16 +53,6 @@ const COLUMNS: Column<SavedPlan>[] = [
     render: (row) => formatHours(Number(row.total_reduction)),
   },
   { key: "items", header: "개선안", numeric: true, render: (row) => row.plan_items[0]?.count ?? 0 },
-  {
-    key: "open",
-    header: "보기",
-    action: true,
-    render: (row) => (
-      <ButtonLink href={`${PAGE}/${row.id}`} variant="secondary">
-        보기
-      </ButtonLink>
-    ),
-  },
 ];
 
 /** Improvement plan for one site: compute, review the curve, save, and list saved plans. */
@@ -78,8 +75,8 @@ export default async function PlansPage({
   const site = (sites ?? []).find((s) => s.id === requested) ?? sites?.[0];
   if (!site) {
     return (
-      <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-        <h1 className="text-title font-bold">개선 계획</h1>
+      <main className={`${PAGE_MAIN} max-w-console`}>
+        <PageHeader title="개선 계획" />
         <EmptyState
           icon="inbox"
           title="연결된 사업장이 없어요"
@@ -97,32 +94,11 @@ export default async function PlansPage({
     .returns<SavedPlan[]>();
 
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <p className="text-caption text-text-secondary">{site.name} · 투자 판단 참고</p>
-          <h1 className="text-title font-bold">개선 계획</h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(sites ?? [])
-            .filter((s) => s.id !== site.id)
-            .map((other) => (
-              <ButtonLink key={other.id} href={`${PAGE}?site=${other.id}`} variant="secondary">
-                {other.name}
-              </ButtonLink>
-            ))}
-          <ButtonLink href={`/console/improvements?site=${site.id}`} variant="secondary">
-            개선안
-          </ButtonLink>
-          <ButtonLink href={`/console?site=${site.id}`} variant="secondary">
-            개요
-          </ButtonLink>
-        </div>
-      </div>
-      <p className="text-small text-text-secondary">
-        예산을 넣으면 공정마다 개선안을 하나씩 골라 하루 고위험 노출을 가장 많이 줄이는 조합을
-        계산해요.
-      </p>
+    <main className={`${PAGE_MAIN} max-w-console`}>
+      <PageHeader
+        title="개선 계획"
+        info="투자 판단 참고. 예산을 넣으면 공정마다 개선안을 하나씩 골라 하루 고위험 노출을 가장 많이 줄이는 조합을 계산해요."
+      />
 
       <PlanScreen key={site.id} siteId={site.id} />
 
@@ -139,7 +115,7 @@ export default async function PlansPage({
         ) : (
           <DataTable
             caption="저장된 계획별 저장 시각, 예산, 총비용, 총 감소량, 개선안 수"
-            columns={COLUMNS}
+            columns={columns(site.id)}
             rows={plans}
             rowKey={(row) => row.id}
           />

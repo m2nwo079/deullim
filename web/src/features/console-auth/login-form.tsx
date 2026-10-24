@@ -72,7 +72,8 @@ export function LoginForm({
         error={fieldErrors.password}
         aria-describedby={describedBy}
       />
-      <div className="flex flex-col gap-2">
+      {/* 32px above the button row: the form's 24px gap plus 8px. */}
+      <div className="mt-1 flex flex-col gap-2">
         {/* Errors about the whole form sit right above the button (docs/components.md). */}
         {serverError ? (
           <InlineAlert id={ERROR_ID} tone="error">

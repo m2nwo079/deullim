@@ -488,7 +488,7 @@ export function ReportDocument({ draft, createdOn }: { draft: ReportDraft; creat
           </tr>
         </tbody>
       </table>
-      <details id={LIMITS_ID} className="mt-3 border-t border-border pt-2 print:hidden">
+      <details id={LIMITS_ID} className="mt-3 border-t border-border pt-3 print:hidden">
         <summary className="cursor-pointer text-small font-medium">들림의 평가 방법과 한계</summary>
         <div className="pt-2">
           <Limits draft={draft} />

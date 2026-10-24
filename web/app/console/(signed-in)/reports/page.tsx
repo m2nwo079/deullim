@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { ButtonLink } from "../../../../src/components/button";
-import { Icon } from "../../../../src/components/icons";
 import { EmptyState } from "../../../../src/components/empty-state";
 import { InlineAlert } from "../../../../src/components/inline-alert";
+import { PAGE_MAIN, PageHeader } from "../../../../src/components/page-header";
 import { getConsoleSession } from "../../../../src/features/console-auth/session";
 import { formatWon } from "../../../../src/features/improvement-plan/curve";
 import { isUuid } from "../../../../src/features/improvement-options/option-form";
@@ -49,8 +48,8 @@ export default async function ReportPage({
   const site = (sites ?? []).find((s) => s.id === first(params.site)) ?? sites?.[0];
   if (!site) {
     return (
-      <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-        <h1 className="text-title font-bold">보고서 초안</h1>
+      <main className={`${PAGE_MAIN} max-w-console`}>
+        <PageHeader title="보고서 초안" />
         <EmptyState
           icon="inbox"
           title="연결된 사업장이 없어요"
@@ -88,38 +87,18 @@ export default async function ReportPage({
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3 print:block print:max-w-none print:p-0">
-      <div className="flex flex-col gap-2 print:hidden">
-        <Link
-          href={`/console?site=${site.id}`}
-          className="flex w-fit items-center gap-1 text-small font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
-        >
-          <Icon name="chevron-down" size={16} className="rotate-90" />
-          개요
-        </Link>
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div className="flex flex-col gap-1">
-            <p className="text-caption text-text-secondary">{site.name}</p>
-            <h1 className="text-title font-bold">보고서 초안</h1>
-          </div>
-          <PrintButton />
-        </div>
-        <p className="text-small text-text-secondary">
-          화면을 열 때마다 지금 데이터로 새로 만들고 저장하지 않아요. 인쇄 창에서 &ldquo;PDF로
-          저장&rdquo;을 고르면 파일로 남길 수 있어요.
-        </p>
+    <main className={`${PAGE_MAIN} max-w-console print:block print:max-w-none print:p-0`}>
+      {/* Screen-only blocks; "contents" keeps them in the page's spacing. */}
+      <div className="contents print:hidden">
+        <PageHeader
+          title="보고서 초안"
+          info="화면을 열 때마다 지금 데이터로 새로 만들고 저장하지 않아요. 인쇄 창에서 “PDF로 저장”을 고르면 파일로 남길 수 있어요."
+          actions={<PrintButton />}
+        />
         <section
           aria-label="보고서 설정"
           className="flex flex-col gap-2 rounded-surface border border-border bg-surface p-2"
         >
-          {(sites ?? []).length > 1 ? (
-            <nav aria-label="사업장" className="flex flex-wrap items-center gap-1">
-              <span className="w-full shrink-0 text-small font-medium sm:w-20">사업장</span>
-              {(sites ?? []).map((s) =>
-                chip(`${PAGE}?site=${s.id}`, s.id === site.id, s.name, s.id),
-              )}
-            </nav>
-          ) : null}
           <nav aria-label="함께 넣을 개선 계획" className="flex flex-wrap items-center gap-1">
             <span className="w-full shrink-0 text-small font-medium sm:w-20">
               함께 넣을 개선 계획

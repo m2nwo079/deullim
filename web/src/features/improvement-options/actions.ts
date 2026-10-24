@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getConsoleSession } from "../console-auth/session";
+import { withDone } from "../console-shell/done";
 import {
   IMPROVEMENTS_PAGE,
   isUuid,
@@ -63,6 +64,7 @@ export async function saveOption(_prev: SaveOptionState, form: FormData): Promis
   }
 
   const { values } = parsed;
+  const isNew = !(typeof optionId === "string" && optionId !== "");
   const { error } = await session.supabase.rpc("save_improvement_option", {
     p_option_id: typeof optionId === "string" && optionId !== "" ? optionId : null,
     p_workstation_id: workstationId,
@@ -85,7 +87,8 @@ export async function saveOption(_prev: SaveOptionState, form: FormData): Promis
   const page = `${IMPROVEMENTS_PAGE}/${workstationId}`;
   revalidatePath(IMPROVEMENTS_PAGE);
   revalidatePath(page);
-  redirect(page);
+  // The workstation page adds its own ?site= and keeps this code.
+  redirect(withDone(page, isNew ? "option-added" : "option-saved"));
 }
 
 export type DeleteOptionResult = { ok: true } | { ok: false; message: string };

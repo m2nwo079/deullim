@@ -1,7 +1,8 @@
-import { ButtonLink } from "../../../src/components/button";
 import { DataTable, type Column } from "../../../src/components/data-table";
 import { EmptyState } from "../../../src/components/empty-state";
 import { InlineAlert } from "../../../src/components/inline-alert";
+import { PAGE_MAIN, PageHeader } from "../../../src/components/page-header";
+import { TextLink } from "../../../src/components/text-link";
 import { formatWon } from "../../../src/features/improvement-plan/curve";
 import { getPartnerSession } from "../../../src/features/partners/session";
 import {
@@ -32,7 +33,11 @@ type MyQuote = {
 };
 
 const OPEN_COLUMNS = (mine: Map<string, MyQuote>): Column<OpenRequest>[] => [
-  { key: "title", header: "요청", render: (row) => row.title },
+  {
+    key: "title",
+    header: "요청",
+    render: (row) => <TextLink href={`${PARTNERS_REQUEST_PAGE}/${row.id}`}>{row.title}</TextLink>,
+  },
   { key: "desired", header: "희망 기한", render: (row) => day(row.desired_by) },
   { key: "opened", header: "공개일", render: (row) => day(row.opened_at) },
   {
@@ -44,20 +49,18 @@ const OPEN_COLUMNS = (mine: Map<string, MyQuote>): Column<OpenRequest>[] => [
       return quote ? formatWon(Number(quote.price)) : "—";
     },
   },
-  {
-    key: "open",
-    header: "보기",
-    action: true,
-    render: (row) => (
-      <ButtonLink href={`${PARTNERS_REQUEST_PAGE}/${row.id}`} variant="secondary">
-        {mine.has(row.id) ? "견적 보기" : "견적 내기"}
-      </ButtonLink>
-    ),
-  },
 ];
 
 const QUOTE_COLUMNS: Column<MyQuote>[] = [
-  { key: "title", header: "요청", render: (row) => row.improvement_requests.title },
+  {
+    key: "title",
+    header: "요청",
+    render: (row) => (
+      <TextLink href={`${PARTNERS_REQUEST_PAGE}/${row.request_id}`}>
+        {row.improvement_requests.title}
+      </TextLink>
+    ),
+  },
   { key: "price", header: "금액", numeric: true, render: (row) => formatWon(Number(row.price)) },
   { key: "days", header: "기간", numeric: true, render: (row) => `${row.lead_time_days}일` },
   {
@@ -65,16 +68,6 @@ const QUOTE_COLUMNS: Column<MyQuote>[] = [
     header: "상태",
     render: (row) =>
       `요청 ${REQUEST_STATUS_LABEL[row.improvement_requests.status]} · ${QUOTE_STATUS_LABEL[row.status]}`,
-  },
-  {
-    key: "open",
-    header: "보기",
-    action: true,
-    render: (row) => (
-      <ButtonLink href={`${PARTNERS_REQUEST_PAGE}/${row.request_id}`} variant="secondary">
-        보기
-      </ButtonLink>
-    ),
   },
 ];
 
@@ -104,13 +97,11 @@ export default async function PartnersHomePage() {
   const mine = new Map((quotes.data ?? []).map((q) => [q.request_id, q]));
 
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-title font-bold">견적 요청</h1>
-        <p className="text-small text-text-secondary">
-          공개된 개선 요청에 견적을 낼 수 있어요. 견적 금액은 부가세 포함 금액으로 적어 주세요.
-        </p>
-      </div>
+    <main className={`${PAGE_MAIN} max-w-console`}>
+      <PageHeader
+        title="견적 요청"
+        info="공개된 개선 요청에 견적을 낼 수 있어요. 견적 금액은 부가세 포함 금액으로 적어 주세요."
+      />
       {failed ? (
         <InlineAlert tone="error">
           목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.

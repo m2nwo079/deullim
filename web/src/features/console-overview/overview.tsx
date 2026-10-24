@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { ButtonLink } from "../../components/button";
 import { DataTable, type Column } from "../../components/data-table";
 import { EmptyState } from "../../components/empty-state";
 import { Icon, IconTile } from "../../components/icons";
 import { InlineAlert } from "../../components/inline-alert";
+import { PAGE_MAIN, PageHeader } from "../../components/page-header";
 import { RiskBadge } from "../../components/risk-badge";
 import { RiskBar } from "../../components/risk-bar";
 import { StatStrip } from "../../components/stat-strip";
+import { TextLink } from "../../components/text-link";
 import {
   ALERT_MIN_REPORTS,
   ALERT_WEEKS,
@@ -15,6 +16,7 @@ import {
   DEADLINE_ALERT_DAYS,
   REASON_LABELS,
 } from "../adhoc-surveys/survey-rules";
+import { withSite } from "../console-shell/nav";
 import type { OverviewData } from "./load-overview";
 import type { MergedGroupPain, WorkstationOverview } from "./metrics";
 
@@ -52,7 +54,8 @@ function workstationNote(row: Row): string[] {
   return parts;
 }
 
-const COLUMNS: Column<Row>[] = [
+/** The name links to the workstation's improvement options, keeping the site. */
+const columns = (siteId: string): Column<Row>[] => [
   {
     key: "name",
     header: "공정",
@@ -61,7 +64,9 @@ const COLUMNS: Column<Row>[] = [
         <IconTile name="workstation" />
         <div className="flex flex-col">
           <span className="flex items-center gap-1">
-            <span className="font-medium">{row.name}</span>
+            <TextLink href={withSite(`/console/improvements/${row.id}`, siteId)}>
+              {row.name}
+            </TextLink>
             <span className="rounded-control border border-border px-1 text-caption text-text-secondary">
               {row.parentGroup}
             </span>
@@ -168,80 +173,24 @@ function painHelper({ total, workstationCount, groupCount }: OverviewData["weekl
 
 type ConsoleOverviewProps = {
   site: { id: string; name: string };
-  otherSites: { id: string; name: string }[];
   data: OverviewData | null;
   renderedAt: Date;
 };
 
 /** Console overview (preview: /preview/console). Metric definitions: docs/console-metrics.md. */
-export function ConsoleOverview({ site, otherSites, data, renderedAt }: ConsoleOverviewProps) {
+export function ConsoleOverview({ site, data, renderedAt }: ConsoleOverviewProps) {
   return (
-    <main className="mx-auto flex w-full max-w-console min-w-0 flex-col gap-3 px-3 py-2">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-body font-medium">{site.name}</span>
-          {otherSites.length > 0 ? (
-            <nav aria-label="사업장 바꾸기" className="flex flex-wrap gap-1">
-              {otherSites.map((other) => (
-                <ButtonLink key={other.id} href={`/console?site=${other.id}`} variant="secondary">
-                  {other.name}
-                </ButtonLink>
-              ))}
-            </nav>
-          ) : null}
-        </div>
-        <p className="flex items-center gap-1 text-small text-text-secondary">
-          <Icon name="refresh" size={16} />
-          기준 시각 오늘 <span className="font-mono tabular-nums">{TIME.format(renderedAt)}</span>
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <p className="text-caption text-text-secondary">{site.name} · 자세 부담 현황</p>
-          <h1 className="text-title font-bold">개요</h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <ButtonLink
-            href={`/console/surveys?site=${site.id}`}
-            variant="secondary"
-            iconBefore="survey"
-          >
-            수시 조사
-          </ButtonLink>
-          <ButtonLink
-            href={`/console/improvements?site=${site.id}`}
-            variant="secondary"
-            iconBefore="tool"
-          >
-            개선안
-          </ButtonLink>
-          <ButtonLink
-            href={`/console/requests?site=${site.id}`}
-            variant="secondary"
-            iconBefore="message"
-          >
-            견적 요청
-          </ButtonLink>
-          <ButtonLink
-            href={`/console/plans?site=${site.id}`}
-            variant="secondary"
-            iconBefore="report"
-          >
-            개선 계획
-          </ButtonLink>
-          <ButtonLink
-            href={`/console/reports?site=${site.id}`}
-            variant="secondary"
-            iconBefore="document"
-          >
-            보고서 초안
-          </ButtonLink>
-          <ButtonLink href={`/console/qr?site=${site.id}`} variant="secondary" iconBefore="qr">
-            QR 관리
-          </ButtonLink>
-        </div>
-      </div>
+    <main className={`${PAGE_MAIN} max-w-console min-w-0`}>
+      <PageHeader
+        title="개요"
+        info={
+          <span className="flex flex-wrap items-center gap-1">
+            {site.name} · 자세 부담 현황 ·
+            <Icon name="refresh" size={16} />
+            기준 시각 오늘 <span className="font-mono tabular-nums">{TIME.format(renderedAt)}</span>
+          </span>
+        }
+      />
 
       {data === null ? (
         <InlineAlert tone="error">
@@ -297,62 +246,66 @@ function OverviewBody({
   );
   return (
     <>
-      <StatStrip
-        stats={[
-          {
-            icon: "clock",
-            label: "하루 고위험 노출",
-            value: data.exposure === null ? "—" : HOURS.format(data.exposure),
-            unit: "사람 · 시간",
-            helper: exposureHelper(data),
-          },
-          {
-            icon: "alert",
-            label: "매우 높음 공정",
-            value: String(data.veryHighNames.length),
-            helper: veryHighHelper(data.veryHighNames),
-          },
-          {
-            icon: "survey",
-            label: "진행 중 수시 조사",
-            value: String(openSurveys.length),
-            helper:
-              openSurveys.length > 0
-                ? `가장 빠른 기한 ${dueDay(openSurveys[0].dueDate)}`
-                : "진행 중인 조사가 없어요.",
-          },
-          {
-            icon: "message",
-            label: "이번 주 통증 신고",
-            value: String(weeklyPain.total),
-            helper: painHelper(weeklyPain),
-          },
-        ]}
-      />
+      {/* The summary and its alerts read as one block, 16px apart. */}
+      <div className="flex flex-col gap-2">
+        <StatStrip
+          stats={[
+            {
+              icon: "clock",
+              label: "하루 고위험 노출",
+              value: data.exposure === null ? "—" : HOURS.format(data.exposure),
+              unit: "사람 · 시간",
+              helper: exposureHelper(data),
+            },
+            {
+              icon: "alert",
+              label: "매우 높음 공정",
+              value: String(data.veryHighNames.length),
+              helper: veryHighHelper(data.veryHighNames),
+            },
+            {
+              icon: "survey",
+              label: "진행 중 수시 조사",
+              value: String(openSurveys.length),
+              helper:
+                openSurveys.length > 0
+                  ? `가장 빠른 기한 ${dueDay(openSurveys[0].dueDate)}`
+                  : "진행 중인 조사가 없어요.",
+            },
+            {
+              icon: "message",
+              label: "이번 주 통증 신고",
+              value: String(weeklyPain.total),
+              helper: painHelper(weeklyPain),
+            },
+          ]}
+        />
 
-      {nearDue.length > 0 ? (
-        <InlineAlert tone="deadline" action={link(surveysPage, "수시 조사 보기")}>
-          {nearDue[0].workstationName} 수시 조사 기한이 {dueDay(nearDue[0].dueDate)}이에요 (
-          {daysLeftLabel(daysLeft(nearDue[0].dueDate, renderedAt))},{" "}
-          {REASON_LABELS[nearDue[0].reason].item} 사유로 시작)
-          {nearDue.length > 1 ? `. 외 ${nearDue.length - 1}건` : ""}.
-        </InlineAlert>
-      ) : null}
+        {nearDue.length > 0 ? (
+          <InlineAlert tone="deadline" action={link(surveysPage, "수시 조사 보기")}>
+            {nearDue[0].workstationName} 수시 조사 기한이 {dueDay(nearDue[0].dueDate)}이에요 (
+            {daysLeftLabel(daysLeft(nearDue[0].dueDate, renderedAt))},{" "}
+            {REASON_LABELS[nearDue[0].reason].item} 사유로 시작)
+            {nearDue.length > 1 ? `. 외 ${nearDue.length - 1}건` : ""}.
+          </InlineAlert>
+        ) : null}
 
-      {alerts.length > 0 ? (
-        <InlineAlert tone="caution" action={link(`${surveysPage}#alerts-title`, "검토하기")}>
-          수시 조사 검토 권고:{" "}
-          {alerts.map((a) => (a.merged ? `${a.label} 묶음` : a.label)).join(", ")}. 최근{" "}
-          {ALERT_WEEKS}주 &lsquo;중간&rsquo; 이상 통증 신고가 {ALERT_MIN_REPORTS}건 이상이에요. 통증
-          신고 누적은 제657조 제2항의 사유가 아니니, 사유에 해당하는 일이 있었는지 확인해 주세요.
-        </InlineAlert>
-      ) : null}
+        {alerts.length > 0 ? (
+          <InlineAlert tone="caution" action={link(`${surveysPage}#alerts-title`, "검토하기")}>
+            수시 조사 검토 권고:{" "}
+            {alerts.map((a) => (a.merged ? `${a.label} 묶음` : a.label)).join(", ")}. 최근{" "}
+            {ALERT_WEEKS}주 &lsquo;중간&rsquo; 이상 통증 신고가 {ALERT_MIN_REPORTS}건 이상이에요.
+            통증 신고 누적은 제657조 제2항의 사유가 아니니, 사유에 해당하는 일이 있었는지 확인해
+            주세요.
+          </InlineAlert>
+        ) : null}
 
-      {data.hiddenGroups.length > 0 ? (
-        <InlineAlert>
-          {data.hiddenGroups.join(", ")} 묶음은 그룹 설정을 바꿔야 신고를 볼 수 있어요.
-        </InlineAlert>
-      ) : null}
+        {data.hiddenGroups.length > 0 ? (
+          <InlineAlert>
+            {data.hiddenGroups.join(", ")} 묶음은 그룹 설정을 바꿔야 신고를 볼 수 있어요.
+          </InlineAlert>
+        ) : null}
+      </div>
 
       <section aria-labelledby="workstations-title" className="flex flex-col gap-2">
         <h2 id="workstations-title" className="text-title-sm font-bold">
@@ -360,7 +313,7 @@ function OverviewBody({
         </h2>
         <DataTable
           caption="공정별 인원, 고위험 자세 비율, 가장 나쁜 작업 단계, 이번 주 통증 신고"
-          columns={COLUMNS}
+          columns={columns(siteId)}
           rows={rows}
           rowKey={(row) => row.id}
         />

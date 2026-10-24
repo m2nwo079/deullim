@@ -1,5 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { PAGE_MAIN, PageHeader } from "../../../../../../src/components/page-header";
 import { getConsoleSession } from "../../../../../../src/features/console-auth/session";
+import { siteRedirect, withSite } from "../../../../../../src/features/console-shell/nav";
 import { loadWorkstationOptions } from "../../../../../../src/features/improvement-options/load-options";
 import { OptionForm } from "../../../../../../src/features/improvement-options/option-editor";
 import {
@@ -11,8 +13,10 @@ import {
 /** Edits one improvement option and its effects. */
 export default async function EditOptionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ workstationId: string; optionId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   // Checked here as well as in the layout, because Next.js renders both in parallel.
   const session = await getConsoleSession();
@@ -28,15 +32,27 @@ export default async function EditOptionPage({
   if (!workstation || !option) {
     notFound();
   }
+  // Read first (RLS hides other sites' workstations), then match ?site= once.
+  const fixed = siteRedirect(
+    `${IMPROVEMENTS_PAGE}/${workstation.id}/${option.id}`,
+    await searchParams,
+    workstation.siteId,
+  );
+  if (fixed) {
+    redirect(fixed);
+  }
+  const workstationPage = `${IMPROVEMENTS_PAGE}/${workstation.id}`;
 
   return (
-    <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
-      <div className="flex flex-col gap-1">
-        <p className="text-caption text-text-secondary">
-          {workstation.siteName} · {workstation.name}
-        </p>
-        <h1 className="text-title font-bold">개선안 수정</h1>
-      </div>
+    <main className={`${PAGE_MAIN} max-w-console-form`}>
+      <PageHeader
+        breadcrumb={[
+          { label: "공정 · 개선안", href: withSite(IMPROVEMENTS_PAGE, workstation.siteId) },
+          { label: workstation.name, href: withSite(workstationPage, workstation.siteId) },
+          { label: "개선안 수정" },
+        ]}
+        title="개선안 수정"
+      />
       <OptionForm
         workstationId={workstation.id}
         optionId={option.id}
@@ -57,7 +73,7 @@ export default async function EditOptionPage({
             .filter((e) => e.source === "simulation")
             .map((e) => [e.taskId, { ratio: e.ratio, capturedAt: e.capturedAt }]),
         )}
-        cancelHref={`${IMPROVEMENTS_PAGE}/${workstation.id}`}
+        cancelHref={withSite(workstationPage, workstation.siteId)}
       />
     </main>
   );

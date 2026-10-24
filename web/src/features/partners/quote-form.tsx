@@ -55,7 +55,8 @@ export function QuoteForm({ requestId, quote }: QuoteFormProps) {
         defaultValue={text?.note ?? quote?.note ?? ""}
         error={errors.note}
       />
-      <div className="flex flex-col gap-2">
+      {/* 32px above the button row: the form's 24px gap plus 8px. */}
+      <div className="mt-1 flex flex-col gap-2">
         {/* Errors about the whole form sit right above the buttons (docs/components.md). */}
         {state.message ? <InlineAlert tone="error">{state.message}</InlineAlert> : null}
         {state.saved ? <InlineAlert icon="check">견적을 저장했어요.</InlineAlert> : null}

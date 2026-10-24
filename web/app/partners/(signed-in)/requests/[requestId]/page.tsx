@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { ButtonLink } from "../../../../../src/components/button";
 import { InlineAlert } from "../../../../../src/components/inline-alert";
+import { PAGE_MAIN, PageHeader } from "../../../../../src/components/page-header";
 import { isUuid } from "../../../../../src/features/improvement-options/option-form";
 import { formatWon } from "../../../../../src/features/improvement-plan/curve";
 import { QuoteForm } from "../../../../../src/features/partners/quote-form";
@@ -74,21 +74,14 @@ export default async function PartnerRequestPage({
   const editable = quote ? quoteEditable(request.status, quote.status) : request.status === "open";
 
   return (
-    <main className="mx-auto flex w-full max-w-console-form flex-col gap-3 px-3 py-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <p className="text-caption text-text-secondary">
-            요청 {REQUEST_STATUS_LABEL[request.status]} · 공개일{" "}
-            {DATE.format(new Date(request.opened_at))}
-          </p>
-          <h1 className="text-title font-bold">{request.title}</h1>
-        </div>
-        <ButtonLink href="/partners" variant="secondary">
-          목록
-        </ButtonLink>
-      </div>
+    <main className={`${PAGE_MAIN} max-w-console-form`}>
+      <PageHeader
+        breadcrumb={[{ label: "견적 요청", href: "/partners" }, { label: request.title }]}
+        title={request.title}
+        info={`요청 ${REQUEST_STATUS_LABEL[request.status]} · 공개일 ${DATE.format(new Date(request.opened_at))}`}
+      />
 
-      <section aria-labelledby="request-title" className="flex flex-col gap-1">
+      <section aria-labelledby="request-title" className="flex flex-col gap-2">
         <h2 id="request-title" className="text-title-sm font-bold">
           요청 내용
         </h2>

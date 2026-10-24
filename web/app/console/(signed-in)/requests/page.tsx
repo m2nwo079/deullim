@@ -1,9 +1,11 @@
-import { ButtonLink } from "../../../../src/components/button";
 import { DataTable, type Column } from "../../../../src/components/data-table";
 import { EmptyState } from "../../../../src/components/empty-state";
 import { InlineAlert } from "../../../../src/components/inline-alert";
+import { PAGE_MAIN, PageHeader } from "../../../../src/components/page-header";
+import { TextLink } from "../../../../src/components/text-link";
 import { getConsoleSession } from "../../../../src/features/console-auth/session";
-import { IMPROVEMENTS_PAGE } from "../../../../src/features/improvement-options/option-form";
+import { doneMessage } from "../../../../src/features/console-shell/done";
+import { withSite } from "../../../../src/features/console-shell/nav";
 import {
   REQUEST_STATUS_LABEL,
   REQUESTS_PAGE,
@@ -32,13 +34,14 @@ type RequestRow = {
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
-const COLUMNS: Column<RequestRow>[] = [
+/** The title links to the request, keeping the site. */
+const columns = (siteId: string): Column<RequestRow>[] => [
   {
     key: "title",
     header: "요청",
     render: (row) => (
       <div className="flex flex-col">
-        <span className="font-medium">{row.title}</span>
+        <TextLink href={withSite(`${REQUESTS_PAGE}/${row.id}`, siteId)}>{row.title}</TextLink>
         <span className="text-caption text-text-secondary">
           {row.workstations.name} · {row.improvement_options.title}
         </span>
@@ -49,23 +52,13 @@ const COLUMNS: Column<RequestRow>[] = [
   { key: "quotes", header: "견적", numeric: true, render: (row) => row.quotes[0]?.count ?? 0 },
   { key: "desired", header: "희망 기한", render: (row) => day(row.desired_by) },
   { key: "opened", header: "공개일", render: (row) => day(row.opened_at) },
-  {
-    key: "open",
-    header: "보기",
-    action: true,
-    render: (row) => (
-      <ButtonLink href={`${REQUESTS_PAGE}/${row.id}`} variant="secondary">
-        보기
-      </ButtonLink>
-    ),
-  },
 ];
 
 /** Improvement requests of one of the manager's sites (RLS), newest first. */
 export default async function RequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ site?: string | string[] }>;
+  searchParams: Promise<{ site?: string | string[]; done?: string | string[] }>;
 }) {
   // Checked here as well as in the layout, because Next.js renders both in parallel.
   const session = await getConsoleSession();
@@ -81,8 +74,8 @@ export default async function RequestsPage({
   const site = (sites ?? []).find((s) => s.id === first(params.site)) ?? sites?.[0];
   if (!site) {
     return (
-      <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-        <h1 className="text-title font-bold">견적 요청</h1>
+      <main className={`${PAGE_MAIN} max-w-console`}>
+        <PageHeader title="견적 요청" />
         <EmptyState
           icon="inbox"
           title="연결된 사업장이 없어요"
@@ -102,36 +95,12 @@ export default async function RequestsPage({
     .returns<RequestRow[]>();
 
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <p className="text-caption text-text-secondary">{site.name}</p>
-          <h1 className="text-title font-bold">견적 요청</h1>
-          <p className="text-small text-text-secondary">
-            개선안마다 설비 업체에 견적을 요청해요. 요청은 개선안 화면의 &quot;견적 요청&quot;에서
-            만들어요.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {(sites ?? [])
-            .filter((s) => s.id !== site.id)
-            .map((other) => (
-              <ButtonLink
-                key={other.id}
-                href={`${REQUESTS_PAGE}?site=${other.id}`}
-                variant="secondary"
-              >
-                {other.name}
-              </ButtonLink>
-            ))}
-          <ButtonLink href={`${IMPROVEMENTS_PAGE}?site=${site.id}`} variant="secondary">
-            개선안
-          </ButtonLink>
-          <ButtonLink href={`/console?site=${site.id}`} variant="secondary">
-            개요
-          </ButtonLink>
-        </div>
-      </div>
+    <main className={`${PAGE_MAIN} max-w-console`}>
+      <PageHeader
+        title="견적 요청"
+        info='개선안마다 설비 업체에 견적을 요청해요. 요청은 공정 · 개선안 화면의 "견적 요청"에서 만들어요.'
+        notice={doneMessage("requests", params.done)}
+      />
       {error ? (
         <InlineAlert tone="error">
           목록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
@@ -145,7 +114,7 @@ export default async function RequestsPage({
       ) : (
         <DataTable
           caption="견적 요청의 상태, 받은 견적 수, 희망 기한, 공개일"
-          columns={COLUMNS}
+          columns={columns(site.id)}
           rows={requests}
           rowKey={(row) => row.id}
         />

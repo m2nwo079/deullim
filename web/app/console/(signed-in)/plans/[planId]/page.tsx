@@ -1,7 +1,8 @@
-import { notFound } from "next/navigation";
-import { ButtonLink } from "../../../../../src/components/button";
-import { InlineAlert } from "../../../../../src/components/inline-alert";
+import { notFound, redirect } from "next/navigation";
+import { PAGE_MAIN, PageHeader } from "../../../../../src/components/page-header";
 import { getConsoleSession } from "../../../../../src/features/console-auth/session";
+import { doneMessage } from "../../../../../src/features/console-shell/done";
+import { siteRedirect, withSite } from "../../../../../src/features/console-shell/nav";
 import { isUuid } from "../../../../../src/features/improvement-options/option-form";
 import type { PlanWarningView } from "../../../../../src/features/improvement-plan/plan-input";
 import {
@@ -48,14 +49,14 @@ export default async function SavedPlanPage({
   searchParams,
 }: {
   params: Promise<{ planId: string }>;
-  searchParams: Promise<{ changed?: string | string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   // Checked here as well as in the layout, because Next.js renders both in parallel.
   const session = await getConsoleSession();
   if (session.access !== "manager") {
     return null;
   }
-  const [{ planId }, { changed }] = await Promise.all([params, searchParams]);
+  const [{ planId }, query] = await Promise.all([params, searchParams]);
   if (!isUuid(planId)) {
     notFound();
   }
@@ -68,6 +69,11 @@ export default async function SavedPlanPage({
     .maybeSingle<SavedPlan>();
   if (!plan) {
     notFound();
+  }
+  // Only a visible plan gets here, and the returned address matches, so this runs once.
+  const fixed = siteRedirect(`/console/plans/${plan.id}`, query, plan.site_id);
+  if (fixed) {
+    redirect(fixed);
   }
 
   const items = [...plan.plan_items]
@@ -82,31 +88,33 @@ export default async function SavedPlanPage({
     }));
 
   return (
-    <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="flex flex-col gap-1">
-          <p className="text-caption text-text-secondary">
-            {plan.sites?.name} · {DATE_TIME.format(new Date(plan.created_at))} 저장 ·{" "}
+    <main className={`${PAGE_MAIN} max-w-console`}>
+      <PageHeader
+        breadcrumb={[
+          { label: "개선 계획", href: withSite("/console/plans", plan.site_id) },
+          { label: "저장된 계획" },
+        ]}
+        title="저장된 개선 계획"
+        info={
+          <>
+            {DATE_TIME.format(new Date(plan.created_at))} 저장 ·{" "}
             <span className="font-mono">{plan.solver_version}</span>
-          </p>
-          <h1 className="text-title font-bold">저장된 개선 계획</h1>
-        </div>
-        <ButtonLink href={`/console/plans?site=${plan.site_id}`} variant="secondary">
-          개선 계획
-        </ButtonLink>
-      </div>
-      {changed ? (
-        <InlineAlert>계산 이후 데이터가 바뀌어 다시 계산한 결과로 저장했어요.</InlineAlert>
-      ) : null}
-      <ReferenceNotice />
-      <PlanSummary
-        budget={Number(plan.budget)}
-        totalCost={Number(plan.total_cost)}
-        totalReduction={Number(plan.total_reduction)}
-        exposureBefore={plan.exposure_before === null ? null : Number(plan.exposure_before)}
-        basis="저장 당시 값"
+          </>
+        }
+        notice={doneMessage("plan", query.done)}
       />
-      <PlanWarnings warnings={plan.warnings} />
+      {/* The notice, summary and warnings read as one block, 16px apart. */}
+      <div className="flex flex-col gap-2">
+        <ReferenceNotice />
+        <PlanSummary
+          budget={Number(plan.budget)}
+          totalCost={Number(plan.total_cost)}
+          totalReduction={Number(plan.total_reduction)}
+          exposureBefore={plan.exposure_before === null ? null : Number(plan.exposure_before)}
+          basis="저장 당시 값"
+        />
+        <PlanWarnings warnings={plan.warnings} />
+      </div>
       <section aria-labelledby="saved-items-title" className="flex flex-col gap-2">
         <h2 id="saved-items-title" className="text-title-sm font-bold">
           선택된 개선안

@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useTransition, type FormEvent } from "react";
-import { Button, ButtonLink } from "../../components/button";
+import { Button } from "../../components/button";
 import { EmptyState } from "../../components/empty-state";
 import { InlineAlert } from "../../components/inline-alert";
 import { MoneyField } from "../../components/money-field";
+import { TextLink } from "../../components/text-link";
+import { withSite } from "../console-shell/nav";
 import { parseCost } from "../improvement-options/option-form";
 import { computePlan, savePlan, type PlanError } from "./actions";
 import { BudgetCurve } from "./budget-curve";
@@ -77,7 +79,7 @@ export function PlanScreen({ siteId }: { siteId: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-2">
+      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-3">
         {computeError ? <InlineAlert tone="error">{computeError}</InlineAlert> : null}
         <div className="flex flex-wrap items-start gap-2">
           <div className="w-full max-w-40">
@@ -136,9 +138,9 @@ function PlanResult({
                 : "입력한 개선안의 예상 감소량이 모두 0 이하예요. 평가된 단위작업에 효과를 입력해 주세요."
           }
         />
-        <ButtonLink href={`/console/improvements?site=${siteId}`} variant="secondary">
+        <TextLink href={withSite("/console/improvements", siteId)} iconAfter="arrow-right">
           개선안 입력
-        </ButtonLink>
+        </TextLink>
       </div>
     );
   }

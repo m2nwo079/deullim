@@ -1,12 +1,13 @@
 "use client";
 
 import { useActionState, useState, type FormEvent } from "react";
-import { Button, ButtonLink } from "../../components/button";
+import { Button } from "../../components/button";
 import { DateField } from "../../components/date-field";
 import { Icon } from "../../components/icons";
 import { InlineAlert } from "../../components/inline-alert";
 import { SegmentedControl } from "../../components/segmented-control";
 import { TextArea } from "../../components/text-area";
+import { TextLink } from "../../components/text-link";
 import { startSurvey, type StartSurveyState } from "./actions";
 import {
   dueDateFor,
@@ -183,16 +184,15 @@ export function SurveyForm({
         )}
       </div>
 
-      <div className="flex flex-col gap-2">
+      {/* 32px above the button row: the form's 24px gap plus 8px. */}
+      <div className="mt-1 flex flex-col gap-2">
         {/* Errors about the whole form sit right above the buttons; InlineAlert error is role="alert". */}
         {state.message ? <InlineAlert tone="error">{state.message}</InlineAlert> : null}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" loading={pending}>
             수시 조사 시작
           </Button>
-          <ButtonLink href={cancelHref} variant="secondary">
-            취소
-          </ButtonLink>
+          <TextLink href={cancelHref}>취소</TextLink>
         </div>
       </div>
     </form>

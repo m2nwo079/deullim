@@ -1,4 +1,5 @@
 import { EmptyState } from "../../../src/components/empty-state";
+import { PAGE_MAIN, PageHeader } from "../../../src/components/page-header";
 import { getConsoleSession } from "../../../src/features/console-auth/session";
 import { loadOverview } from "../../../src/features/console-overview/load-overview";
 import { ConsoleOverview } from "../../../src/features/console-overview/overview";
@@ -25,8 +26,8 @@ export default async function ConsolePage({
   const site = (sites ?? []).find((s) => s.id === requested) ?? sites?.[0];
   if (!site) {
     return (
-      <main className="mx-auto flex w-full max-w-console flex-col gap-3 px-3 py-3">
-        <h1 className="text-title font-bold">개요</h1>
+      <main className={`${PAGE_MAIN} max-w-console`}>
+        <PageHeader title="개요" />
         <EmptyState
           icon="inbox"
           title="연결된 사업장이 없어요"
@@ -38,12 +39,5 @@ export default async function ConsolePage({
 
   const now = new Date();
   const data = await loadOverview(session.supabase, site.id, now);
-  return (
-    <ConsoleOverview
-      site={site}
-      otherSites={(sites ?? []).filter((s) => s.id !== site.id)}
-      data={data}
-      renderedAt={now}
-    />
-  );
+  return <ConsoleOverview site={site} data={data} renderedAt={now} />;
 }
