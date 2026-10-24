@@ -64,9 +64,11 @@ where s.name = '합성 제1공장'
 limit 1;
 set local role authenticated;
 
+-- Only the two synthetic sites, so rows of the demo site (demo-data.sql) do not change the count.
 select s.name as site_name, v.label, v.merged, v.workstation_id, v.week_start, v.report_count
 from public.workstation_pain_summary v
 left join public.sites s on s.id = v.site_id
+where s.name in ('합성 제1공장', '합성 제2공장')
 order by v.label, v.week_start;
 
 -- 5. Same manager: rows from 합성 제2공장 are invisible in tables and the view.
@@ -86,9 +88,11 @@ select has_table_privilege('authenticated', 'public.pain_reports', 'select') as 
 --    - 품질: visible false, reason single_workstation
 --    - 물류: merged true, visible true
 --    - 조립, 도장, 차체: merged false, visible true
-select parent_group, workstation_count, merged, visible, reason
-from public.pain_group_visibility
-order by visible, parent_group;
+select g.parent_group, g.workstation_count, g.merged, g.visible, g.reason
+from public.pain_group_visibility g
+join public.sites s on s.id = g.site_id
+where s.name in ('합성 제1공장', '합성 제2공장')
+order by g.visible, g.parent_group;
 rollback;
 
 -- 8. Entry token rules (migration 20261022000004). Run this block on its own, from begin to rollback.
@@ -238,7 +242,12 @@ language sql
 as $$
   with s as (
     insert into public.capture_sessions (task_id, frame_count, inference_fps, created_at)
-    select t.id, 450, 15, at from public.tasks t where t.name = task_name
+    select t.id, 450, 15, at
+    from public.tasks t
+    join public.workstations w on w.id = t.workstation_id
+    join public.sites site on site.id = w.site_id
+    -- Task names repeat across sites (the demo site has a 하부 용접 too).
+    where t.name = task_name and site.name in ('합성 제1공장', '합성 제2공장')
     returning id
   )
   insert into public.assessments (session_id, method, part_summary, valid_frame_ratio,
@@ -265,7 +274,9 @@ set local role authenticated;
 
 select
   (select v.level from public.task_latest_assessments v
-   join public.tasks t on t.id = v.task_id where t.name = '하부 용접') = 'high'
+   join public.tasks t on t.id = v.task_id
+   join public.workstations w on w.id = t.workstation_id
+   where t.name = '하부 용접' and w.code = 'WLD-03') = 'high'
     as picks_latest_reba,
   not exists (
     select 1 from public.task_latest_assessments v
@@ -282,7 +293,9 @@ select
     as select_only_for_authenticated,
   (select v.algorithm_version = 'reba-2d-v1' and v.valid_frame_ratio = 1 and v.part_summary = '{}'::jsonb
    from public.task_latest_assessments v
-   join public.tasks t on t.id = v.task_id where t.name = '하부 용접') as report_columns_from_latest,
+   join public.tasks t on t.id = v.task_id
+   join public.workstations w on w.id = t.workstation_id
+   where t.name = '하부 용접' and w.code = 'WLD-03') as report_columns_from_latest,
   (select count(*) = 3 from information_schema.columns
    where table_schema = 'public' and table_name = 'task_latest_assessments'
      and column_name in ('valid_frame_ratio', 'algorithm_version', 'part_summary')) as report_columns_present;
@@ -652,4 +665,125 @@ select
   pg_temp.ok('other_site_rejected') as other_site_rejected,
   pg_temp.ok('done_needs_completed_on') as done_needs_completed_on,
   pg_temp.ok('reopen_after_done') as reopen_after_done;
+rollback;
+
+-- 14. Demo data (supabase/demo-data.sql). Run this block on its own, from the check below to
+--     rollback, after loading the demo data. Counts and levels are read as the owner; what the
+--     console shows (groups, screening alert, surveys) is read as a manager of the demo site.
+--     Expected: every column is true.
+begin;
+-- BEGIN GENERATED: site name
+select set_config('demo.site_name', '시연 공장', true);
+-- END GENERATED: site name
+do $$
+begin
+  if not exists (select 1 from public.sites where name = current_setting('demo.site_name')) then
+    raise exception 'load demo-data.sql before running block 14';
+  end if;
+end;
+$$;
+
+select
+  set_config('verify.demo_site',
+    (select id::text from public.sites where name = current_setting('demo.site_name')), true),
+  set_config('verify.demo_manager', (select m.profile_id::text from public.site_members m
+    join public.sites s on s.id = m.site_id
+    join public.profiles p on p.id = m.profile_id
+    where s.name = current_setting('demo.site_name') and p.role = 'manager' limit 1), true);
+
+create function pg_temp.v(name text) returns uuid
+language sql
+as $$ select current_setting('verify.' || name)::uuid $$;
+
+create function pg_temp.keep(name text, ok boolean) returns void
+language sql
+as $$ select set_config('verify.ok_' || name, coalesce(ok, false)::text, true) $$;
+
+create function pg_temp.ok(name text) returns boolean
+language sql
+as $$ select current_setting('verify.ok_' || name)::boolean $$;
+
+-- Latest assessments of the demo site with their session's frame count.
+create temporary view demo_latest as
+select a.*, c.frame_count
+from public.assessments a
+join public.capture_sessions c on c.id = a.session_id
+join public.tasks t on t.id = c.task_id
+join public.workstations w on w.id = t.workstation_id
+where w.site_id = pg_temp.v('demo_site');
+
+select
+  pg_temp.keep('manager_linked', current_setting('verify.demo_manager', true) <> ''),
+  pg_temp.keep('counts', (select count(*) = 9 from public.workstations where site_id = pg_temp.v('demo_site'))
+    and (select count(*) = 15 from public.tasks t join public.workstations w on w.id = t.workstation_id
+         where w.site_id = pg_temp.v('demo_site'))
+    and (select count(*) = 12 from demo_latest)
+    and (select count(*) = 10 from public.improvement_options o
+         join public.workstations w on w.id = o.workstation_id where w.site_id = pg_temp.v('demo_site'))),
+  pg_temp.keep('all_four_levels', (
+    select count(*) filter (where level = 'very-high') = 2
+      and count(*) filter (where level = 'high') = 3
+      and count(*) filter (where level = 'caution') = 4
+      and count(*) filter (where level = 'low') = 3
+    from demo_latest)),
+  pg_temp.keep('levels_match_scores', (
+    select bool_and(
+      level = case when score_p90 <= 3 then 'low' when score_p90 <= 7 then 'caution'
+                   when score_p90 <= 10 then 'high' else 'very-high' end
+      and algorithm_version = 'reba-2d-v1'
+      and (score_p90 >= 8) = (high_risk_ratio > 0.1)
+      and (select sum(value::numeric) from jsonb_each_text(part_summary -> 'trunk'))
+        = round(valid_frame_ratio * frame_count))
+    from demo_latest)),
+  pg_temp.keep('effects_manual', (
+    select count(*) > 0 and bool_and(e.source = 'manual')
+    from public.option_effects e
+    join public.improvement_options o on o.id = e.option_id
+    join public.workstations w on w.id = o.workstation_id
+    where w.site_id = pg_temp.v('demo_site')));
+
+select set_config(
+  'request.jwt.claims',
+  json_build_object('sub', pg_temp.v('demo_manager'), 'role', 'authenticated')::text,
+  true
+);
+set local role authenticated;
+select
+  pg_temp.keep('merged_and_hidden_groups', (
+    select bool_or(parent_group = '물류' and merged and visible)
+      and bool_or(parent_group = '검사' and not visible and reason = 'single_workstation')
+    from public.pain_group_visibility where site_id = pg_temp.v('demo_site'))
+    and not exists (select 1 from public.workstation_pain_summary
+                    where site_id = pg_temp.v('demo_site') and parent_group = '검사')),
+  pg_temp.keep('alert_units', (
+    select array_agg(label order by label) = array['물류', '용접 1라인']
+    from (
+      select label
+      from public.workstation_pain_summary
+      where site_id = pg_temp.v('demo_site')
+        and week_start >= date_trunc('week', now() at time zone 'Asia/Seoul')::date - 21
+      group by label
+      having sum(moderate_count + severe_count + very_severe_count) >= 3
+    ) as units)),
+  pg_temp.keep('surveys', (
+    select count(*) = 5
+      and count(*) filter (where status = 'open') = 3
+      and count(*) filter (where status = 'open'
+        and due_date between (now() at time zone 'Asia/Seoul')::date
+          and (now() at time zone 'Asia/Seoul')::date + 7) = 1
+      and count(distinct trigger_reason) = 3
+    from public.adhoc_surveys a
+    join public.workstations w on w.id = a.workstation_id
+    where w.site_id = pg_temp.v('demo_site')));
+reset role;
+
+select
+  pg_temp.ok('manager_linked') as manager_linked,
+  pg_temp.ok('counts') as counts,
+  pg_temp.ok('all_four_levels') as all_four_levels,
+  pg_temp.ok('levels_match_scores') as levels_match_scores,
+  pg_temp.ok('effects_manual') as effects_manual,
+  pg_temp.ok('merged_and_hidden_groups') as merged_and_hidden_groups,
+  pg_temp.ok('alert_units') as alert_units,
+  pg_temp.ok('surveys') as surveys;
 rollback;
