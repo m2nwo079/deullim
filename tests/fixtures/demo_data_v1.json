@@ -1,0 +1,639 @@
+{
+  "version": 1,
+  "description": "Synthetic demo site for presenting the console (supabase/demo-data.sql). Sessions are built from postures of reba_postures_v1.json held for whole seconds; nothing comes from AI Hub data or real video. web/src/core/demo-data.test.ts scores them with the real code and writes the generated parts of the SQL files.",
+  "site_name": "시연 공장",
+  "posture_fixture": "reba_postures_v1.json",
+  "fps": 15,
+  "workstations": [
+    {
+      "code": "WLD-01",
+      "parent_group": "차체",
+      "name": "용접 1라인",
+      "headcount": 8
+    },
+    {
+      "code": "WLD-02",
+      "parent_group": "차체",
+      "name": "용접 2라인",
+      "headcount": 6
+    },
+    {
+      "code": "PRS-01",
+      "parent_group": "차체",
+      "name": "프레스 1라인",
+      "headcount": 10
+    },
+    {
+      "code": "PNT-01",
+      "parent_group": "도장",
+      "name": "도장 부스",
+      "headcount": 7
+    },
+    {
+      "code": "ASM-A",
+      "parent_group": "조립",
+      "name": "조립 A라인",
+      "headcount": 12
+    },
+    {
+      "code": "ASM-B",
+      "parent_group": "조립",
+      "name": "조립 B라인",
+      "headcount": 9
+    },
+    {
+      "code": "LOG-01",
+      "parent_group": "물류",
+      "name": "자재 입고장",
+      "headcount": 3
+    },
+    {
+      "code": "LOG-02",
+      "parent_group": "물류",
+      "name": "출하장",
+      "headcount": 6
+    },
+    {
+      "code": "QC-01",
+      "parent_group": "검사",
+      "name": "외관 검사대",
+      "headcount": 3
+    }
+  ],
+  "tasks": [
+    {
+      "code": "WLD-01",
+      "name": "하부 용접",
+      "daily_hours": 4,
+      "inputs": {
+        "load_category": "5to10",
+        "load_shock": true,
+        "coupling": "poor",
+        "static_hold": true,
+        "unstable_base": true,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": {
+        "days_ago": 3,
+        "segments": [
+          {
+            "posture": "deep trunk flexion, looking up",
+            "seconds": 14
+          },
+          {
+            "posture": "standing upright",
+            "seconds": 13
+          },
+          {
+            "posture": null,
+            "seconds": 3
+          }
+        ]
+      },
+      "expected_level": "very-high"
+    },
+    {
+      "code": "WLD-01",
+      "name": "지그 교체",
+      "daily_hours": 2,
+      "inputs": {
+        "load_category": "gt10",
+        "load_shock": false,
+        "coupling": "poor",
+        "static_hold": false,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": {
+        "days_ago": 5,
+        "segments": [
+          {
+            "posture": "deep trunk flexion with heavy load",
+            "seconds": 8
+          },
+          {
+            "posture": "standing upright",
+            "seconds": 19
+          },
+          {
+            "posture": null,
+            "seconds": 3
+          }
+        ]
+      },
+      "expected_level": "high"
+    },
+    {
+      "code": "WLD-02",
+      "name": "측면 용접",
+      "daily_hours": 5,
+      "inputs": {
+        "load_category": "5to10",
+        "load_shock": false,
+        "coupling": "fair",
+        "static_hold": true,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": {
+        "days_ago": 6,
+        "segments": [
+          {
+            "posture": "deep trunk flexion, looking up",
+            "seconds": 9
+          },
+          {
+            "posture": "standing upright",
+            "seconds": 18
+          },
+          {
+            "posture": null,
+            "seconds": 3
+          }
+        ]
+      },
+      "expected_level": "high"
+    },
+    {
+      "code": "PRS-01",
+      "name": "판재 투입",
+      "daily_hours": 6,
+      "inputs": {
+        "load_category": "gt10",
+        "load_shock": true,
+        "coupling": "fair",
+        "static_hold": false,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": {
+        "days_ago": 4,
+        "segments": [
+          {
+            "posture": "deep trunk flexion with heavy load",
+            "seconds": 9
+          },
+          {
+            "posture": "standing upright",
+            "seconds": 18
+          },
+          {
+            "posture": null,
+            "seconds": 3
+          }
+        ]
+      },
+      "expected_level": "high"
+    },
+    {
+      "code": "PRS-01",
+      "name": "금형 점검",
+      "daily_hours": 1,
+      "inputs": {
+        "load_category": "lt5",
+        "load_shock": false,
+        "coupling": "good",
+        "static_hold": false,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": null,
+      "expected_level": null
+    },
+    {
+      "code": "PNT-01",
+      "name": "스프레이 도장",
+      "daily_hours": 5,
+      "inputs": {
+        "load_category": "5to10",
+        "load_shock": false,
+        "coupling": "fair",
+        "static_hold": true,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": {
+        "days_ago": 9,
+        "segments": [
+          {
+            "posture": "deep trunk flexion with heavy load",
+            "seconds": 2
+          },
+          {
+            "posture": "arms raised above the shoulder",
+            "seconds": 12
+          },
+          {
+            "posture": "standing upright",
+            "seconds": 13
+          },
+          {
+            "posture": null,
+            "seconds": 3
+          }
+        ]
+      },
+      "expected_level": "caution"
+    },
+    {
+      "code": "PNT-01",
+      "name": "부품 거치",
+      "daily_hours": 2,
+      "inputs": {
+        "load_category": "5to10",
+        "load_shock": false,
+        "coupling": "fair",
+        "static_hold": false,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": {
+        "days_ago": 9,
+        "segments": [
+          {
+            "posture": "deep trunk flexion, looking up",
+            "seconds": 2
+          },
+          {
+            "posture": "standing on one leg",
+            "seconds": 10
+          },
+          {
+            "posture": "standing upright",
+            "seconds": 15
+          },
+          {
+            "posture": null,
+            "seconds": 3
+          }
+        ]
+      },
+      "expected_level": "caution"
+    },
+    {
+      "code": "ASM-A",
+      "name": "볼트 체결",
+      "daily_hours": 6,
+      "inputs": {
+        "load_category": "5to10",
+        "load_shock": false,
+        "coupling": "fair",
+        "static_hold": true,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": {
+        "days_ago": 12,
+        "segments": [
+          {
+            "posture": "deep trunk flexion with heavy load",
+            "seconds": 1
+          },
+          {
+            "posture": "arms raised above the shoulder",
+            "seconds": 9
+          },
+          {
+            "posture": "standing upright",
+            "seconds": 17
+          },
+          {
+            "posture": null,
+            "seconds": 3
+          }
+        ]
+      },
+      "expected_level": "caution"
+    },
+    {
+      "code": "ASM-A",
+      "name": "하네스 연결",
+      "daily_hours": 2,
+      "inputs": {
+        "load_category": "lt5",
+        "load_shock": false,
+        "coupling": "good",
+        "static_hold": false,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": {
+        "days_ago": 12,
+        "segments": [
+          {
+            "posture": "standing upright",
+            "seconds": 27
+          },
+          {
+            "posture": null,
+            "seconds": 3
+          }
+        ]
+      },
+      "expected_level": "low"
+    },
+    {
+      "code": "ASM-B",
+      "name": "검사 표시",
+      "daily_hours": 7,
+      "inputs": {
+        "load_category": "lt5",
+        "load_shock": false,
+        "coupling": "good",
+        "static_hold": false,
+        "unstable_base": false,
+        "sitting": true,
+        "arm_supported": true
+      },
+      "session": {
+        "days_ago": 15,
+        "segments": [
+          {
+            "posture": "deep squat",
+            "seconds": 8
+          },
+          {
+            "posture": "standing upright",
+            "seconds": 20
+          },
+          {
+            "posture": null,
+            "seconds": 2
+          }
+        ]
+      },
+      "expected_level": "low"
+    },
+    {
+      "code": "LOG-01",
+      "name": "박스 하역",
+      "daily_hours": 3,
+      "inputs": {
+        "load_category": "gt10",
+        "load_shock": true,
+        "coupling": "poor",
+        "static_hold": false,
+        "unstable_base": true,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": {
+        "days_ago": 2,
+        "segments": [
+          {
+            "posture": "deep trunk flexion with heavy load",
+            "seconds": 12
+          },
+          {
+            "posture": "deep squat",
+            "seconds": 15
+          },
+          {
+            "posture": null,
+            "seconds": 3
+          }
+        ]
+      },
+      "expected_level": "very-high"
+    },
+    {
+      "code": "LOG-02",
+      "name": "팔레트 적재",
+      "daily_hours": 4,
+      "inputs": {
+        "load_category": "5to10",
+        "load_shock": false,
+        "coupling": "fair",
+        "static_hold": false,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": {
+        "days_ago": 7,
+        "segments": [
+          {
+            "posture": "deep trunk flexion with heavy load",
+            "seconds": 2
+          },
+          {
+            "posture": "standing on one leg",
+            "seconds": 9
+          },
+          {
+            "posture": "standing upright",
+            "seconds": 16
+          },
+          {
+            "posture": null,
+            "seconds": 3
+          }
+        ]
+      },
+      "expected_level": "caution"
+    },
+    {
+      "code": "LOG-02",
+      "name": "랩핑",
+      "daily_hours": 2,
+      "inputs": {
+        "load_category": "lt5",
+        "load_shock": false,
+        "coupling": "good",
+        "static_hold": false,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": null,
+      "expected_level": null
+    },
+    {
+      "code": "QC-01",
+      "name": "외관 검사",
+      "daily_hours": 6,
+      "inputs": {
+        "load_category": "lt5",
+        "load_shock": false,
+        "coupling": "good",
+        "static_hold": false,
+        "unstable_base": false,
+        "sitting": true,
+        "arm_supported": true
+      },
+      "session": {
+        "days_ago": 18,
+        "segments": [
+          {
+            "posture": "standing upright",
+            "seconds": 28
+          },
+          {
+            "posture": null,
+            "seconds": 2
+          }
+        ]
+      },
+      "expected_level": "low"
+    },
+    {
+      "code": "QC-01",
+      "name": "불량 분리",
+      "daily_hours": 2,
+      "inputs": {
+        "load_category": "lt5",
+        "load_shock": false,
+        "coupling": "good",
+        "static_hold": false,
+        "unstable_base": false,
+        "sitting": false,
+        "arm_supported": false
+      },
+      "session": null,
+      "expected_level": null
+    }
+  ],
+  "options": [
+    {
+      "code": "WLD-01",
+      "title": "리프트 테이블",
+      "description": "용접물을 허리 높이로 올려 숙임을 줄여요.",
+      "cost": 1500000,
+      "effects": [
+        {
+          "task": "하부 용접",
+          "expected_high_risk_ratio": 0.3
+        },
+        {
+          "task": "지그 교체",
+          "expected_high_risk_ratio": 0.15
+        }
+      ]
+    },
+    {
+      "code": "WLD-01",
+      "title": "자동 용접 지그",
+      "description": "용접물을 회전시켜 아래쪽 용접을 앞쪽에서 해요.",
+      "cost": 6000000,
+      "effects": [
+        {
+          "task": "하부 용접",
+          "expected_high_risk_ratio": 0.1
+        },
+        {
+          "task": "지그 교체",
+          "expected_high_risk_ratio": 0.1
+        }
+      ]
+    },
+    {
+      "code": "WLD-02",
+      "title": "작업대 높이 조절",
+      "description": null,
+      "cost": 800000,
+      "effects": [
+        {
+          "task": "측면 용접",
+          "expected_high_risk_ratio": 0.15
+        }
+      ]
+    },
+    {
+      "code": "PRS-01",
+      "title": "보조 롤러",
+      "description": "판재를 밀어 넣을 때 드는 힘을 줄여요.",
+      "cost": 1200000,
+      "effects": [
+        {
+          "task": "판재 투입",
+          "expected_high_risk_ratio": 0.2
+        }
+      ]
+    },
+    {
+      "code": "PRS-01",
+      "title": "판재 자동 공급기",
+      "description": null,
+      "cost": 9000000,
+      "effects": [
+        {
+          "task": "판재 투입",
+          "expected_high_risk_ratio": 0.05
+        }
+      ]
+    },
+    {
+      "code": "PNT-01",
+      "title": "회전 거치대",
+      "description": null,
+      "cost": 2000000,
+      "effects": [
+        {
+          "task": "스프레이 도장",
+          "expected_high_risk_ratio": 0.02
+        },
+        {
+          "task": "부품 거치",
+          "expected_high_risk_ratio": 0.03
+        }
+      ]
+    },
+    {
+      "code": "ASM-A",
+      "title": "공구 밸런서",
+      "description": "공구 무게를 줄로 받쳐 팔 부담을 줄여요.",
+      "cost": 600000,
+      "effects": [
+        {
+          "task": "볼트 체결",
+          "expected_high_risk_ratio": 0.01
+        }
+      ]
+    },
+    {
+      "code": "ASM-A",
+      "title": "높이 조절 컨베이어",
+      "description": null,
+      "cost": 4500000,
+      "effects": [
+        {
+          "task": "볼트 체결",
+          "expected_high_risk_ratio": 0.0
+        }
+      ]
+    },
+    {
+      "code": "LOG-01",
+      "title": "전동 리프터",
+      "description": "상자를 바닥에서 들어 올리지 않게 해요.",
+      "cost": 3000000,
+      "effects": [
+        {
+          "task": "박스 하역",
+          "expected_high_risk_ratio": 0.1
+        }
+      ]
+    },
+    {
+      "code": "LOG-02",
+      "title": "팔레트 회전대",
+      "description": null,
+      "cost": 900000,
+      "effects": [
+        {
+          "task": "팔레트 적재",
+          "expected_high_risk_ratio": 0.02
+        }
+      ]
+    }
+  ]
+}
