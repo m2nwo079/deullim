@@ -10,8 +10,9 @@ export type NavGroup = { title?: string; items: NavItem[] };
 
 type ConsoleSidebarProps = {
   groups: NavGroup[];
-  status: { title: string; lines: ReactNode[] };
-  user: { name: string; role: string };
+  /** Optional blocks at the bottom; the console shows the account in its header instead. */
+  status?: { title: string; lines: ReactNode[] };
+  user?: { name: string; role: string };
 };
 
 // Every item keeps a 3px left border so the current item's bar does not shift the labels.
@@ -61,30 +62,34 @@ export function ConsoleSidebar({ groups, status, user }: ConsoleSidebarProps) {
   return (
     <nav
       aria-label="콘솔 메뉴"
-      className="hidden w-30 shrink-0 flex-col gap-3 border-r border-border bg-surface-muted p-2 lg:flex"
+      className="hidden w-30 shrink-0 flex-col gap-3 border-r border-border bg-surface-muted p-2 lg:sticky lg:top-0 lg:flex lg:h-screen lg:overflow-y-auto print:hidden"
     >
       <p className="px-2 pt-1 text-title-sm font-bold text-nav">들림 콘솔</p>
       <NavGroups groups={groups} />
 
-      <section
-        aria-label={status.title}
-        className="mt-auto flex flex-col gap-1 border-t border-border px-2 pt-2"
-      >
-        <p className="flex items-center gap-1 text-small font-medium text-text-secondary">
-          <Icon name="check-circle" size={16} />
-          {status.title}
-        </p>
-        {status.lines.map((line, index) => (
-          <p key={index} className="text-caption text-text-secondary">
-            {line}
+      {status ? (
+        <section
+          aria-label={status.title}
+          className="mt-auto flex flex-col gap-1 border-t border-border px-2 pt-2"
+        >
+          <p className="flex items-center gap-1 text-small font-medium text-text-secondary">
+            <Icon name="check-circle" size={16} />
+            {status.title}
           </p>
-        ))}
-      </section>
+          {status.lines.map((line, index) => (
+            <p key={index} className="text-caption text-text-secondary">
+              {line}
+            </p>
+          ))}
+        </section>
+      ) : null}
 
-      <div className="flex flex-col border-t border-border px-2 pt-2">
-        <p className="text-small font-medium">{user.name}</p>
-        <p className="text-caption text-text-secondary">{user.role}</p>
-      </div>
+      {user ? (
+        <div className="flex flex-col border-t border-border px-2 pt-2">
+          <p className="text-small font-medium">{user.name}</p>
+          <p className="text-caption text-text-secondary">{user.role}</p>
+        </div>
+      ) : null}
     </nav>
   );
 }
