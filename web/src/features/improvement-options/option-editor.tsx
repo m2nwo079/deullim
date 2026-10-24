@@ -5,6 +5,7 @@ import { Button, ButtonLink } from "../../components/button";
 import { InlineAlert } from "../../components/inline-alert";
 import { MoneyField } from "../../components/money-field";
 import { TextField } from "../../components/text-field";
+import { RevertSimulationButton } from "../simulation/revert-simulation";
 import { saveOption, type SaveOptionState } from "./actions";
 import type { TaskView } from "./load-options";
 import {
@@ -24,7 +25,15 @@ type OptionFormProps = {
   tasks: TaskView[];
   initial: OptionText;
   cancelHref: string;
+  /** Tasks whose effect came from a simulation capture; they are not edited by hand. */
+  simulated?: Record<string, { ratio: number; capturedAt: string | null }>;
 };
+
+const DATE = new Intl.DateTimeFormat("ko-KR", {
+  month: "long",
+  day: "numeric",
+  timeZone: "Asia/Seoul",
+});
 
 /**
  * Option name, description, cost and one "expected ratio after" field per task, shown next to the
@@ -36,6 +45,7 @@ export function OptionForm({
   tasks,
   initial,
   cancelHref,
+  simulated = {},
 }: OptionFormProps) {
   const [state, action, pending] = useActionState<SaveOptionState, FormData>(saveOption, {});
   const [clientErrors, setClientErrors] = useState<OptionFieldErrors | null>(null);
@@ -94,6 +104,25 @@ export function OptionForm({
           tasks.map((task) => {
             const field = effectField(task.id);
             const noteId = `${field}-note`;
+            const simulation = simulated[task.id];
+            if (simulation && optionId) {
+              return (
+                <div key={task.id} className="flex flex-col gap-1 border-b border-border pb-2">
+                  <p className="text-body font-medium">{task.name} · 개선 후</p>
+                  <p className="text-small text-text-secondary tabular-nums">
+                    시연 촬영 {percentText(simulation.ratio)}%
+                    {simulation.capturedAt
+                      ? ` · ${DATE.format(new Date(simulation.capturedAt))}`
+                      : ""}{" "}
+                    · 현재{" "}
+                    {task.highRiskRatio === null
+                      ? "평가 전"
+                      : `${percentText(task.highRiskRatio)}%`}
+                  </p>
+                  <RevertSimulationButton optionId={optionId} taskId={task.id} />
+                </div>
+              );
+            }
             return (
               <div key={task.id} className="flex flex-col gap-1 border-b border-border pb-2">
                 <p id={noteId} className="text-small text-text-secondary tabular-nums">

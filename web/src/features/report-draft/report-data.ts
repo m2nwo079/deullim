@@ -120,6 +120,8 @@ export type ReportDraft = {
   surveys: (Omit<ReportSource["surveys"][number], "workstationId"> & { workstationName: string })[];
   plan: ReportSource["plan"];
   manualEstimateUsed: boolean;
+  /** A planned option without manual effects has simulation effects only. */
+  simulationEstimateUsed: boolean;
 };
 
 const LOAD: Record<TaskInputs["loadCategory"], string> = {
@@ -290,5 +292,6 @@ export function buildReportDraft(source: ReportSource, now: Date): ReportDraft {
       ),
     plan,
     manualEstimateUsed: plan?.items.some((item) => item.manualEstimate) ?? false,
+    simulationEstimateUsed: plan?.items.some((item) => !item.manualEstimate) ?? false,
   };
 }

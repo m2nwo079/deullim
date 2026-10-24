@@ -74,3 +74,8 @@ export function entryOrigin(env: OriginEnv): string {
 export function entryUrl(origin: string, token: string): string {
   return `${origin}/w#${token}`;
 }
+
+/** Simulation capture URL for a one-time token, kept in the fragment like the worker entry. */
+export function simulationUrl(origin: string, token: string): string {
+  return `${origin}/s#${token}`;
+}

@@ -14,7 +14,13 @@ export type OptionView = {
   title: string;
   description: string | null;
   cost: number;
-  effects: { taskId: string; ratio: number }[];
+  /** capturedAt is set for a simulation effect: when its capture was taken. */
+  effects: {
+    taskId: string;
+    ratio: number;
+    source: "manual" | "simulation";
+    capturedAt: string | null;
+  }[];
   /** optionReduction in daily high-risk person-hours (docs/optimization-model.md). */
   reduction: number;
 };
@@ -44,7 +50,12 @@ type OptionRow = {
   title: string;
   description: string | null;
   cost: number;
-  option_effects: { task_id: string; expected_high_risk_ratio: number }[];
+  option_effects: {
+    task_id: string;
+    expected_high_risk_ratio: number;
+    source: "manual" | "simulation";
+    simulation_captures: { created_at: string } | null;
+  }[];
 };
 
 /**
@@ -84,7 +95,7 @@ export async function loadWorkstationOptions(
     supabase
       .from("improvement_options")
       .select(
-        "id, workstation_id, title, description, cost, option_effects(task_id, expected_high_risk_ratio)",
+        "id, workstation_id, title, description, cost, option_effects(task_id, expected_high_risk_ratio, source, simulation_captures!capture_id(created_at))",
       )
       .in("workstation_id", ids)
       .order("title")
@@ -121,6 +132,8 @@ export async function loadWorkstationOptions(
         const effects = o.option_effects.map((e) => ({
           taskId: e.task_id,
           ratio: Number(e.expected_high_risk_ratio),
+          source: e.source,
+          capturedAt: e.simulation_captures?.created_at ?? null,
         }));
         const reduction = optionReduction(optimizerWorkstation, {
           id: o.id,
@@ -128,7 +141,7 @@ export async function loadWorkstationOptions(
           effects: effects.map((e) => ({
             taskId: e.taskId,
             expectedHighRiskRatio: e.ratio,
-            source: "manual",
+            source: e.source,
           })),
         });
         return {

@@ -45,8 +45,17 @@ export default async function EditOptionPage({
           title: option.title,
           description: option.description ?? "",
           cost: String(option.cost),
-          effects: Object.fromEntries(option.effects.map((e) => [e.taskId, percentText(e.ratio)])),
+          effects: Object.fromEntries(
+            option.effects
+              .filter((e) => e.source === "manual")
+              .map((e) => [e.taskId, percentText(e.ratio)]),
+          ),
         }}
+        simulated={Object.fromEntries(
+          option.effects
+            .filter((e) => e.source === "simulation")
+            .map((e) => [e.taskId, { ratio: e.ratio, capturedAt: e.capturedAt }]),
+        )}
         cancelHref={`${IMPROVEMENTS_PAGE}/${workstation.id}`}
       />
     </main>
