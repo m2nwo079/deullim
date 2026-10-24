@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Button } from "../../../src/components/button";
 import { InlineAlert } from "../../../src/components/inline-alert";
-import { PageFooter } from "../../../src/components/page-footer";
 import { signOut } from "../../../src/features/console-auth/actions";
 import { getConsoleSession } from "../../../src/features/console-auth/session";
+import { ConsoleShell } from "../../../src/features/console-shell/console-shell";
 
 export const metadata: Metadata = {
   title: "들림 콘솔",
@@ -36,19 +36,16 @@ export default async function SignedInConsoleLayout({ children }: { children: Re
     );
   }
 
+  // RLS returns only the sites this manager belongs to.
+  const { data: sites } = await session.supabase
+    .from("sites")
+    .select("id, name")
+    .order("name")
+    .returns<{ id: string; name: string }[]>();
+
   return (
-    <div className="flex min-h-screen flex-col bg-surface">
-      <header className="border-b border-border print:hidden">
-        <div className="mx-auto flex w-full max-w-console items-center justify-between gap-2 px-3 py-1">
-          <p className="text-title-sm font-bold text-nav">들림 콘솔</p>
-          <div className="flex items-center gap-2">
-            <p className="text-small text-text-secondary">{session.displayName}</p>
-            <SignOutButton />
-          </div>
-        </div>
-      </header>
-      <div className="flex-1">{children}</div>
-      <PageFooter />
-    </div>
+    <ConsoleShell sites={sites ?? []} displayName={session.displayName} signOut={<SignOutButton />}>
+      {children}
+    </ConsoleShell>
   );
 }
