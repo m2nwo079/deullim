@@ -6,36 +6,53 @@ export function formText(formData: FormData, name: string): string {
   return typeof value === "string" ? value : "";
 }
 export const CONSOLE_LOGIN = "/console/login";
+export const PARTNERS_HOME = "/partners";
+export const PARTNERS_LOGIN = "/partners/login";
 
 const BASE = "http://localhost";
 
 /**
- * Returns the path to open after sign-in. Only same-site paths under /console are kept;
- * anything else (other origins, protocol-relative or backslash tricks, encoded or plain
- * dot segments, the login page itself) falls back to /console.
+ * Returns the path to open after sign-in. Only same-site paths under home are kept; anything
+ * else (other origins, protocol-relative or backslash tricks, encoded or plain dot segments,
+ * the login page itself) falls back to home.
  */
-export function safeConsolePath(next: string | null | undefined): string {
+function safePathUnder(next: string | null | undefined, home: string, login: string): string {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) {
-    return CONSOLE_HOME;
+    return home;
   }
   let decoded: string;
   try {
     decoded = decodeURIComponent(next);
   } catch {
-    return CONSOLE_HOME;
+    return home;
   }
   if (decoded.startsWith("//") || decoded.includes("\\") || /(^|\/)\.\.?(\/|$)/.test(decoded)) {
-    return CONSOLE_HOME;
+    return home;
   }
 
   const url = new URL(next, BASE);
   const path = url.pathname;
-  const underConsole = path === CONSOLE_HOME || path.startsWith(`${CONSOLE_HOME}/`);
-  const isLogin = path === CONSOLE_LOGIN || path.startsWith(`${CONSOLE_LOGIN}/`);
-  if (url.origin !== BASE || !underConsole || isLogin) {
-    return CONSOLE_HOME;
+  const underHome = path === home || path.startsWith(`${home}/`);
+  const isLogin = path === login || path.startsWith(`${login}/`);
+  if (url.origin !== BASE || !underHome || isLogin) {
+    return home;
   }
   return `${path}${url.search}${url.hash}`;
+}
+
+export function safeConsolePath(next: string | null | undefined): string {
+  return safePathUnder(next, CONSOLE_HOME, CONSOLE_LOGIN);
+}
+
+export function safePartnersPath(next: string | null | undefined): string {
+  return safePathUnder(next, PARTNERS_HOME, PARTNERS_LOGIN);
+}
+
+/** The sign-in page for a protected path: partner pages have their own. */
+export function loginPathFor(pathname: string): string {
+  return pathname === PARTNERS_HOME || pathname.startsWith(`${PARTNERS_HOME}/`)
+    ? PARTNERS_LOGIN
+    : CONSOLE_LOGIN;
 }
 
 export type ConsoleAccess = "manager" | "forbidden";
@@ -43,6 +60,13 @@ export type ConsoleAccess = "manager" | "forbidden";
 /** Only manager profiles may enter the console. A missing profile is forbidden too. */
 export function consoleAccess(role: string | null | undefined): ConsoleAccess {
   return role === "manager" ? "manager" : "forbidden";
+}
+
+export type PartnersAccess = "partner" | "forbidden";
+
+/** Only partner profiles may enter 들림 파트너스; managers are turned away too. */
+export function partnersAccess(role: string | null | undefined): PartnersAccess {
+  return role === "partner" ? "partner" : "forbidden";
 }
 
 export type SignInError = "credentials" | "unavailable" | "forbidden";

@@ -4,7 +4,7 @@ import { useActionState, useState, type FormEvent } from "react";
 import { Button } from "../../components/button";
 import { InlineAlert } from "../../components/inline-alert";
 import { TextField } from "../../components/text-field";
-import { signIn, type SignInState } from "./actions";
+import { signIn, signInPartner, type SignInState } from "./actions";
 import { formText, validateLoginFields, type LoginFieldErrors, type SignInError } from "./rules";
 
 const MESSAGES: Record<SignInError, string> = {
@@ -13,14 +13,26 @@ const MESSAGES: Record<SignInError, string> = {
   forbidden: "이 계정으로는 들림 콘솔에 들어올 수 없어요. 안전보건관리자 계정으로 로그인해 주세요.",
 };
 
+const PARTNER_FORBIDDEN =
+  "이 계정으로는 들림 파트너스에 들어올 수 없어요. 설비 업체 계정으로 로그인해 주세요.";
+
 const ERROR_ID = "login-error";
 
 /**
  * Email and password form. Browser validation bubbles are off (noValidate); messages appear
  * under each field instead. After a failed sign-in the email stays and the password is cleared.
  */
-export function LoginForm({ next }: { next: string }) {
-  const [state, action, pending] = useActionState<SignInState, FormData>(signIn, {});
+export function LoginForm({
+  next,
+  area = "console",
+}: {
+  next: string;
+  area?: "console" | "partners";
+}) {
+  const [state, action, pending] = useActionState<SignInState, FormData>(
+    area === "partners" ? signInPartner : signIn,
+    {},
+  );
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({});
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -64,7 +76,9 @@ export function LoginForm({ next }: { next: string }) {
         {/* Errors about the whole form sit right above the button (docs/components.md). */}
         {serverError ? (
           <InlineAlert id={ERROR_ID} tone="error">
-            {MESSAGES[serverError]}
+            {area === "partners" && serverError === "forbidden"
+              ? PARTNER_FORBIDDEN
+              : MESSAGES[serverError]}
           </InlineAlert>
         ) : null}
         <Button type="submit" loading={pending}>
