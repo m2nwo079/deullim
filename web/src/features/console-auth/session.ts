@@ -2,7 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "../../lib/supabase/server";
-import { CONSOLE_LOGIN, consoleAccess } from "./rules";
+import { consoleAccess, LOGIN, PARTNERS_HOME } from "./rules";
 
 /**
  * Reads the signed-in user and their console access once per request.
@@ -14,7 +14,7 @@ export const getConsoleSession = cache(async () => {
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims.sub;
   if (!userId) {
-    redirect(CONSOLE_LOGIN);
+    redirect(LOGIN);
   }
 
   const { data: profile } = await supabase
@@ -22,6 +22,10 @@ export const getConsoleSession = cache(async () => {
     .select("role, display_name")
     .eq("id", userId)
     .maybeSingle<{ role: string; display_name: string }>();
+  // A partner who opens a console address goes to their own area instead of a dead end.
+  if (profile?.role === "partner") {
+    redirect(PARTNERS_HOME);
+  }
 
   return {
     supabase,

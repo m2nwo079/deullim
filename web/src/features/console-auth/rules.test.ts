@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   consoleAccess,
-  loginPathFor,
   partnersAccess,
   safeConsolePath,
   safePartnersPath,
+  signedInPath,
   signInErrorKind,
   validateLoginFields,
 } from "./rules";
@@ -67,14 +67,32 @@ describe("safePartnersPath", () => {
   });
 });
 
-describe("loginPathFor", () => {
+describe("signedInPath", () => {
   it.each([
-    ["/partners", "/partners/login"],
-    ["/partners/requests/1", "/partners/login"],
-    ["/console/qr", "/console/login"],
-    ["/partnersX", "/console/login"],
-  ])("sends %s to %s", (path, login) => {
-    expect(loginPathFor(path)).toBe(login);
+    ["manager", "/console/plans?site=s1", "/console/plans?site=s1"],
+    ["manager", "/partners/requests/1", "/console"],
+    ["manager", "https://evil.com/console", "/console"],
+    ["manager", "", "/console"],
+    ["manager", null, "/console"],
+    ["partner", "/partners/requests/1", "/partners/requests/1"],
+    ["partner", "/console/plans", "/partners"],
+    ["partner", "//evil.com/partners", "/partners"],
+    ["partner", "", "/partners"],
+    ["partner", undefined, "/partners"],
+  ])("sends %s with next %s to %s", (role, next, expected) => {
+    expect(signedInPath(role, next)).toBe(expected);
+  });
+
+  it.each([
+    ["manager", "/console/requests/1?site=s1&done=request-opened", "/console/requests/1?site=s1"],
+    ["manager", "/console?done=plan-saved", "/console"],
+    ["partner", "/partners?done=quote-sent", "/partners"],
+  ])("drops the done notice for %s from %s", (role, next, expected) => {
+    expect(signedInPath(role, next)).toBe(expected);
+  });
+
+  it.each(["", "worker", "admin", null, undefined])("signs out role %s", (role) => {
+    expect(signedInPath(role, "/console")).toBeNull();
   });
 });
 

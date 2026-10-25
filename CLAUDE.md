@@ -86,7 +86,7 @@ deullim/
 - web/src/core/에서는 React, Next.js, Supabase를 import하지 않는다. 브라우저와 Route Handler가 함께 쓴다.
 - 테스트 파일은 대상 파일 옆에 둔다 (예: src/core/angle.ts → src/core/angle.test.ts).
 - tests/fixtures/에는 합성 데이터만 둔다. AI Hub 데이터나 실제 작업 영상에서 나온 값은 넣지 않는다.
-- 라우트의 구체적인 URL 설계는 TBD.
+- 라우트: `/` 진입, `/login` 로그인(관리자 · 설비 업체 공통), `/console` 콘솔, `/partners` 파트너스, `/w` 작업자 QR, `/s` 시연 촬영. 그 밖은 TBD.
 
 ## 보안과 개인정보 원칙
 - 촬영 영상과 프레임 이미지는 서버로 전송하거나 저장하지 않는다. 브라우저에서 관절 좌표만 추출한다.

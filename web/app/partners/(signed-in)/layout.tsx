@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Button } from "../../../src/components/button";
+import { ServiceHomeLink } from "../../../src/components/console-sidebar";
 import { InlineAlert } from "../../../src/components/inline-alert";
 import { PageFooter } from "../../../src/components/page-footer";
-import { signOutPartner } from "../../../src/features/console-auth/actions";
+import { signOut } from "../../../src/features/console-auth/actions";
 import { getPartnerSession } from "../../../src/features/partners/session";
 
 export const metadata: Metadata = {
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 
 function SignOutButton() {
   return (
-    <form action={signOutPartner}>
+    <form action={signOut}>
       <Button type="submit" variant="secondary">
         로그아웃
       </Button>
@@ -40,7 +41,10 @@ export default async function SignedInPartnersLayout({ children }: { children: R
     <div className="flex min-h-screen flex-col bg-surface">
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-console items-center justify-between gap-2 px-3 py-1">
-          <p className="text-title-sm font-bold text-nav">들림 파트너스</p>
+          {/* -16px so the name lines up with the content while the link keeps its padding. */}
+          <span className="-ml-2">
+            <ServiceHomeLink href="/partners" name="들림 파트너스" />
+          </span>
           <div className="flex items-center gap-2">
             <p className="text-small text-text-secondary">{session.companyName}</p>
             <SignOutButton />

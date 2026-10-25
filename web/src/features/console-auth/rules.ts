@@ -8,13 +8,16 @@ export function formText(formData: FormData, name: string): string {
 export const CONSOLE_LOGIN = "/console/login";
 export const PARTNERS_HOME = "/partners";
 export const PARTNERS_LOGIN = "/partners/login";
+/** The one sign-in page for managers and partners; the role picks where to go next. */
+export const LOGIN = "/login";
 
 const BASE = "http://localhost";
 
 /**
  * Returns the path to open after sign-in. Only same-site paths under home are kept; anything
  * else (other origins, protocol-relative or backslash tricks, encoded or plain dot segments,
- * the login page itself) falls back to home.
+ * the login page itself) falls back to home. A ?done= result notice is dropped, so it does not
+ * show again after sign-in.
  */
 function safePathUnder(next: string | null | undefined, home: string, login: string): string {
   if (!next || !next.startsWith("/") || next.startsWith("//") || next.includes("\\")) {
@@ -37,6 +40,9 @@ function safePathUnder(next: string | null | undefined, home: string, login: str
   if (url.origin !== BASE || !underHome || isLogin) {
     return home;
   }
+  if (url.searchParams.has("done")) {
+    url.searchParams.delete("done");
+  }
   return `${path}${url.search}${url.hash}`;
 }
 
@@ -48,11 +54,22 @@ export function safePartnersPath(next: string | null | undefined): string {
   return safePathUnder(next, PARTNERS_HOME, PARTNERS_LOGIN);
 }
 
-/** The sign-in page for a protected path: partner pages have their own. */
-export function loginPathFor(pathname: string): string {
-  return pathname === PARTNERS_HOME || pathname.startsWith(`${PARTNERS_HOME}/`)
-    ? PARTNERS_LOGIN
-    : CONSOLE_LOGIN;
+/**
+ * Where a signed-in account goes: managers stay under /console, partners under /partners, and
+ * a next path outside the role's area falls back to its home. Null for any other role, which
+ * is signed out.
+ */
+export function signedInPath(
+  role: string | null | undefined,
+  next: string | null | undefined,
+): string | null {
+  if (role === "manager") {
+    return safeConsolePath(next);
+  }
+  if (role === "partner") {
+    return safePartnersPath(next);
+  }
+  return null;
 }
 
 export type ConsoleAccess = "manager" | "forbidden";
