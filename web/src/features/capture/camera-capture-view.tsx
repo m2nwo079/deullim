@@ -5,11 +5,11 @@ import type { PoseLandmarker } from "@mediapipe/tasks-vision";
 import { CaptureTimer } from "../../components/capture-timer";
 import type { CaptureInput, Landmark, PoseFrame } from "../../core/landmarks";
 import { VISIBILITY_MIN } from "../../core/reba-config";
+import { captureErrorOf, type CaptureError } from "./capture-error";
 import { detectLandmarks, loadPoseLandmarker } from "./pose-landmarker";
 import { CAPTURE_SECONDS, COUNTDOWN_SECONDS, secondsLeft, shouldSample } from "./sampling";
 
 export type CameraFacing = "environment" | "user";
-export type CaptureError = "denied" | "no-camera" | "model";
 
 type CameraCaptureViewProps = {
   facing: CameraFacing;
@@ -86,8 +86,7 @@ export function CameraCaptureView({ facing, onDone, onError }: CameraCaptureView
         });
       } catch (error) {
         if (!cancelled) {
-          const denied = error instanceof DOMException && error.name === "NotAllowedError";
-          callbacks.current.onError(denied ? "denied" : "no-camera");
+          callbacks.current.onError(captureErrorOf(error));
         }
         return;
       }
@@ -156,10 +155,11 @@ export function CameraCaptureView({ facing, onDone, onError }: CameraCaptureView
       frameRequest = requestAnimationFrame(loop);
     }
 
+    // Failures after the camera opened (video playback and the like) are not camera errors.
     start().catch(() => {
       if (!cancelled) {
         stop();
-        callbacks.current.onError("no-camera");
+        callbacks.current.onError("unknown");
       }
     });
     return () => {

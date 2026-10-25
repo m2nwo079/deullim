@@ -129,7 +129,7 @@ export function SimulationQrButton({
               size="console"
             />
             <p className="text-caption text-text-secondary">
-              이 단위작업의 직접 입력 값은 촬영 결과로 대체돼요.
+              이 단위작업의 직접 입력 값은 촬영 결과로 바뀌어요.
             </p>
             <p className="text-caption text-text-secondary">
               자세 변화만 반영돼요. 무게, 손잡이 같은 조건은 단위작업에 입력된 값 그대로 계산해요.
