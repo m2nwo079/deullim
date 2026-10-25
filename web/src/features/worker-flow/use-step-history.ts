@@ -85,13 +85,14 @@ export function useStepHistory<S>(initial: S, stay: (step: S) => boolean = () =>
 
   const back = useCallback(() => window.history.back(), []);
 
-  /** Goes back to the nearest earlier step that matches, through history. */
+  /** Goes back to the nearest earlier step that matches, through history; false if none. */
   const backTo = useCallback((match: (candidate: S) => boolean) => {
     const { steps, depth } = stack.current;
     const target = steps.findLastIndex((candidate, index) => index < depth && match(candidate));
     if (target >= 0) {
       window.history.go(target - depth);
     }
+    return target >= 0;
   }, []);
 
   /** The step on screen now, for async work that must not overwrite a newer step. */

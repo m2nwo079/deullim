@@ -25,6 +25,7 @@ type Step =
   | { name: "rejected" }
   | { name: "lost" }
   | { name: "unavailable" }
+  | { name: "start"; entry: EntryResponse }
   | { name: "select"; entry: EntryResponse }
   | { name: "guide"; entry: EntryResponse; task: EntryTask }
   | { name: "capture"; entry: EntryResponse; task: EntryTask }
@@ -54,7 +55,8 @@ function titleOf(step: Step): string {
 }
 
 /**
- * Worker flow: QR entry, task choice, capture guide, capture, server-scored result and pain report.
+ * Worker flow: QR entry with two ways (capture, or a pain report alone), task choice, capture
+ * guide, capture, server-scored result and pain report.
  * The token stays in memory only (no storage, no cookie) while the screen is open. The browser
  * sends landmarks only; the score shown is the one the server computed and saved. Each step is a
  * browser history entry, so back goes to the previous step (use-step-history.ts).
@@ -81,7 +83,7 @@ export function WorkerFlow() {
       } else if (!response.ok) {
         replace({ name: "unavailable" });
       } else {
-        replace({ name: "select", entry: (await response.json()) as EntryResponse });
+        replace({ name: "start", entry: (await response.json()) as EntryResponse });
       }
     } catch {
       replace({ name: "unavailable" });
@@ -193,10 +195,41 @@ export function WorkerFlow() {
         </Screen>
       );
 
+    case "start":
+      return (
+        <Screen title={title}>
+          <InlineAlert icon="lock">이름은 남지 않아요. 누가 찍었는지 알 수 없어요.</InlineAlert>
+          <h1 className="text-title font-bold">무엇을 할까요?</h1>
+          <Footer>
+            {step.entry.tasks.length === 0 ? (
+              <p className="text-body text-text-secondary">
+                아직 등록된 작업이 없어 촬영할 수 없어요.
+              </p>
+            ) : null}
+            <Button
+              size="worker-main"
+              disabled={step.entry.tasks.length === 0}
+              onClick={() => push({ name: "select", entry: step.entry })}
+            >
+              자세 촬영하기
+            </Button>
+            <Button
+              variant="secondary"
+              size="worker"
+              iconBefore="message"
+              onClick={() => push({ name: "pain", entry: step.entry })}
+            >
+              아픈 곳만 알리기
+            </Button>
+          </Footer>
+        </Screen>
+      );
+
     case "select":
       return (
         <TaskSelect
           entry={step.entry}
+          onBack={back}
           onSelect={(task) => push({ name: "guide", entry: step.entry, task })}
         />
       );
@@ -337,7 +370,18 @@ export function WorkerFlow() {
         <Screen title={title} onBack={back}>
           <PainReportDone
             bodyParts={step.bodyParts}
-            onHome={() => backTo((candidate) => candidate.name === "select")}
+            onCapture={
+              step.entry.tasks.length === 0
+                ? undefined
+                : () => {
+                    // After a capture, go back to its task choice; after a pain report alone,
+                    // the choice takes this entry.
+                    if (!backTo((candidate) => candidate.name === "select")) {
+                      replace({ name: "select", entry: step.entry });
+                    }
+                  }
+            }
+            onHome={() => backTo((candidate) => candidate.name === "start")}
           />
         </Screen>
       );
@@ -384,12 +428,14 @@ export function Centered({ title, label }: { title: string; label: string }) {
   );
 }
 
-/** QR entry screen (QrEntryScreen): anonymity first, then the task choice. */
+/** Task choice before a capture; the start screen only opens it when tasks exist. */
 function TaskSelect({
   entry,
+  onBack,
   onSelect,
 }: {
   entry: EntryResponse;
+  onBack: () => void;
   onSelect: (task: EntryTask) => void;
 }) {
   const [missing, setMissing] = useState(false);
@@ -407,28 +453,23 @@ function TaskSelect({
   }
 
   return (
-    <Screen title={entry.workstationName}>
-      <InlineAlert icon="lock">이름은 남지 않아요. 누가 찍었는지 알 수 없어요.</InlineAlert>
+    <Screen title={entry.workstationName} onBack={onBack}>
       <h1 className="text-title font-bold">자세를 확인해 볼게요</h1>
-      {entry.tasks.length === 0 ? (
-        <p className="text-body-lg">아직 등록된 작업이 없어요. 관리자에게 알려 주세요.</p>
-      ) : (
-        <form onSubmit={handleSubmit} noValidate className="flex flex-1 flex-col gap-4">
-          <SegmentedControl
-            name={TASK_FIELD}
-            legend="어떤 작업을 찍을까요?"
-            options={entry.tasks.map((task) => ({ value: task.id, label: task.name }))}
-            defaultValue={entry.tasks.length === 1 ? entry.tasks[0].id : undefined}
-            orientation="vertical"
-          />
-          {missing ? <InlineAlert tone="error">찍을 작업을 골라 주세요.</InlineAlert> : null}
-          <Footer>
-            <Button type="submit" size="worker-main">
-              다음
-            </Button>
-          </Footer>
-        </form>
-      )}
+      <form onSubmit={handleSubmit} noValidate className="flex flex-1 flex-col gap-4">
+        <SegmentedControl
+          name={TASK_FIELD}
+          legend="어떤 작업을 찍을까요?"
+          options={entry.tasks.map((task) => ({ value: task.id, label: task.name }))}
+          defaultValue={entry.tasks.length === 1 ? entry.tasks[0].id : undefined}
+          orientation="vertical"
+        />
+        {missing ? <InlineAlert tone="error">찍을 작업을 골라 주세요.</InlineAlert> : null}
+        <Footer>
+          <Button type="submit" size="worker-main">
+            다음
+          </Button>
+        </Footer>
+      </form>
     </Screen>
   );
 }

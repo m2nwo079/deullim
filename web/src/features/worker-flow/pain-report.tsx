@@ -117,9 +117,12 @@ export function PainReportForm({ token, onSent, onRejected }: PainReportFormProp
 /** Sent screen (preview: /preview/worker/done) with the "들려요" empathy card, inside Screen. */
 export function PainReportDone({
   bodyParts,
+  onCapture,
   onHome,
 }: {
   bodyParts: readonly string[];
+  /** Leave it out when the workstation has no task to capture. */
+  onCapture?: () => void;
   onHome: () => void;
 }) {
   return (
@@ -129,7 +132,13 @@ export function PainReportDone({
         {bodyPartLabels(bodyParts)} 통증을 관리자에게 전했어요. 같은 공정 신고와 묶여 보여서 누가
         보냈는지는 알 수 없어요.
       </EmpathyCard>
-      <div className="mt-auto">
+      {/* The empathy card is the point of this screen, so neither button is primary. */}
+      <div className="mt-auto flex flex-col gap-2">
+        {onCapture ? (
+          <Button variant="secondary" size="worker" onClick={onCapture}>
+            자세 촬영하기
+          </Button>
+        ) : null}
         <Button variant="secondary" size="worker" iconBefore="home" onClick={onHome}>
           처음으로
         </Button>
