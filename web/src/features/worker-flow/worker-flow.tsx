@@ -3,15 +3,13 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Button } from "../../components/button";
 import { InlineAlert } from "../../components/inline-alert";
+import { ProgressIndicator } from "../../components/progress-indicator";
 import { RiskBadge } from "../../components/risk-badge";
 import { SegmentedControl } from "../../components/segmented-control";
 import type { CaptureInput } from "../../core/landmarks";
 import type { SessionResult } from "../../core/reba-session";
-import {
-  CameraCaptureView,
-  type CameraFacing,
-  type CaptureError,
-} from "../capture/camera-capture-view";
+import { CameraCaptureView, type CameraFacing } from "../capture/camera-capture-view";
+import { CAPTURE_ERROR_TEXT, type CaptureError } from "../capture/capture-error";
 import { CAPTURE_SECONDS } from "../capture/sampling";
 import type { EntryResponse, EntryTask } from "../worker-entry/entry-check";
 import { encodeCapture } from "../worker-submit/capture-payload";
@@ -27,7 +25,14 @@ type Step =
   | { name: "capture"; entry: EntryResponse; task: EntryTask }
   | { name: "capture-error"; entry: EntryResponse; task: EntryTask; error: CaptureError }
   | { name: "saving"; entry: EntryResponse; task: EntryTask; input: CaptureInput }
-  | { name: "save-error"; entry: EntryResponse; task: EntryTask; input: CaptureInput }
+  | {
+      name: "save-error";
+      entry: EntryResponse;
+      task: EntryTask;
+      input: CaptureInput;
+      /** The server answered "unavailable", so nothing was saved and sending again is safe. */
+      retryable: boolean;
+    }
   | { name: "insufficient"; entry: EntryResponse; task: EntryTask }
   | { name: "result"; entry: EntryResponse; task: EntryTask; result: Assessment; saved: boolean }
   | { name: "pain"; entry: EntryResponse; task: EntryTask; result: Assessment; saved: boolean }
@@ -35,12 +40,6 @@ type Step =
 
 /** The server-computed result (docs/auth.md: the server rescores and saves). */
 type Assessment = Extract<SessionResult, { ok: true }>;
-
-const CAPTURE_ERRORS: Record<CaptureError, string> = {
-  denied: "카메라를 쓸 수 없어요. 브라우저 설정에서 카메라 권한을 허용한 뒤 다시 시도해 주세요.",
-  "no-camera": "카메라를 찾을 수 없어요. 카메라가 있는 기기로 다시 시도해 주세요.",
-  model: "자세 분석을 준비하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.",
-};
 
 const TASK_FIELD = "task";
 
@@ -115,10 +114,12 @@ export function WorkerFlow() {
           const { result } = (await response.json()) as { result: Assessment };
           setStep({ name: "result", entry, task, result, saved: response.ok });
         } else {
-          setStep({ name: "save-error", entry, task, input });
+          const retryable = await isUnavailable(response);
+          setStep({ name: "save-error", entry, task, input, retryable });
         }
       } catch {
-        setStep({ name: "save-error", entry, task, input });
+        // No answer: the capture may have been saved, so it is not sent again.
+        setStep({ name: "save-error", entry, task, input, retryable: false });
       }
     },
     [],
@@ -132,7 +133,7 @@ export function WorkerFlow() {
 
   switch (step.name) {
     case "checking":
-      return <Centered>QR을 확인하고 있어요.</Centered>;
+      return <Centered label="QR을 확인하고 있어요." />;
 
     case "rejected":
       return (
@@ -222,8 +223,8 @@ export function WorkerFlow() {
     case "capture-error":
       return (
         <Screen>
-          <h1 className="text-title font-bold">촬영을 시작하지 못했어요</h1>
-          <InlineAlert tone="error">{CAPTURE_ERRORS[step.error]}</InlineAlert>
+          <h1 className="text-title font-bold">{CAPTURE_ERROR_TEXT[step.error].title}</h1>
+          <p className="text-body-lg">{CAPTURE_ERROR_TEXT[step.error].body}</p>
           <Footer>
             <Button size="worker-main" onClick={() => setStep({ ...step, name: "guide" })}>
               다시 시도
@@ -233,23 +234,30 @@ export function WorkerFlow() {
       );
 
     case "saving":
-      return <Centered>결과를 계산하고 있어요.</Centered>;
+      return <Centered label="결과를 계산하고 있어요." />;
 
     case "save-error":
       return (
         <Screen>
           <h1 className="text-title font-bold">결과를 보내지 못했어요</h1>
-          <p className="text-body-lg">인터넷 연결을 확인한 뒤 다시 보내 주세요.</p>
+          <p className="text-body-lg">
+            {step.retryable
+              ? "잠시 후 다시 보내 주세요. 새로 고치면 이번 촬영 결과가 사라져요."
+              : "연결이 끊겨 결과가 저장됐는지 알 수 없어요. 인터넷 연결을 확인한 뒤 다시 찍어 주세요."}
+          </p>
           <Footer>
+            {step.retryable ? (
+              <Button
+                size="worker-main"
+                onClick={() => void submitCapture(step.entry, step.task, step.input)}
+              >
+                다시 보내기
+              </Button>
+            ) : null}
             <Button
-              size="worker-main"
-              onClick={() => void submitCapture(step.entry, step.task, step.input)}
-            >
-              다시 보내기
-            </Button>
-            <Button
-              variant="secondary"
-              size="worker"
+              variant={step.retryable ? "secondary" : "primary"}
+              size={step.retryable ? "worker" : "worker-main"}
+              iconBefore="refresh"
               onClick={() => setStep({ name: "guide", entry: step.entry, task: step.task })}
             >
               다시 찍기
@@ -318,14 +326,26 @@ export function Footer({ children }: { children: React.ReactNode }) {
   return <div className="mt-auto flex flex-col gap-2">{children}</div>;
 }
 
-export function Centered({ children }: { children: React.ReactNode }) {
+/** Whole-screen wait; keyed by label so each wait starts its own 15 s slow-connection timer. */
+export function Centered({ label }: { label: string }) {
   return (
     <main className="flex flex-1 items-center justify-center px-3">
-      <p aria-live="polite" className="text-body-lg text-text-secondary">
-        {children}
-      </p>
+      <ProgressIndicator key={label} label={label} />
     </main>
   );
+}
+
+/** True when the server said "unavailable" (503): the save did not happen and may be retried. */
+async function isUnavailable(response: Response): Promise<boolean> {
+  if (response.status !== 503) {
+    return false;
+  }
+  try {
+    const body = (await response.json()) as { error?: unknown };
+    return body.error === "unavailable";
+  } catch {
+    return false;
+  }
 }
 
 /** QR entry screen (QrEntryScreen): anonymity first, then the task choice. */

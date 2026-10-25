@@ -5,11 +5,8 @@ import { Button } from "../../components/button";
 import { InlineAlert } from "../../components/inline-alert";
 import { RiskBadge } from "../../components/risk-badge";
 import type { CaptureInput } from "../../core/landmarks";
-import {
-  CameraCaptureView,
-  type CameraFacing,
-  type CaptureError,
-} from "../capture/camera-capture-view";
+import { CameraCaptureView, type CameraFacing } from "../capture/camera-capture-view";
+import { CAPTURE_ERROR_TEXT, type CaptureError } from "../capture/capture-error";
 import { CAPTURE_SECONDS } from "../capture/sampling";
 import { percentText } from "../improvement-options/option-form";
 import { encodeCapture } from "../worker-submit/capture-payload";
@@ -24,15 +21,16 @@ type Step =
   | { name: "capture"; entry: SimulationEntry }
   | { name: "capture-error"; entry: SimulationEntry; error: CaptureError }
   | { name: "saving"; entry: SimulationEntry; input: CaptureInput }
-  | { name: "save-error"; entry: SimulationEntry; input: CaptureInput }
+  | {
+      name: "save-error";
+      entry: SimulationEntry;
+      input: CaptureInput;
+      /** The last try got no answer, so it may have been saved and used the token. */
+      noAnswer: boolean;
+    }
+  | { name: "maybe-saved" }
   | { name: "insufficient"; entry: SimulationEntry }
   | { name: "result"; entry: SimulationEntry; response: SimulationResponse };
-
-const CAPTURE_ERRORS: Record<CaptureError, string> = {
-  denied: "카메라를 쓸 수 없어요. 브라우저 설정에서 카메라 권한을 허용한 뒤 다시 시도해 주세요.",
-  "no-camera": "카메라를 찾을 수 없어요. 카메라가 있는 기기로 다시 시도해 주세요.",
-  model: "자세 분석을 준비하지 못했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.",
-};
 
 const LIMITATION =
   "자세 변화만 반영돼요. 무게, 손잡이 같은 조건 변화는 반영되지 않고 단위작업에 입력된 값으로 계산해요.";
@@ -87,28 +85,37 @@ export function SimulationFlow() {
     void checkEntry();
   }, [checkEntry]);
 
-  const submitCapture = useCallback(async (entry: SimulationEntry, input: CaptureInput) => {
-    setStep({ name: "saving", entry, input });
-    try {
-      const response = await fetch("/api/simulation/captures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(encodeCapture(token.current ?? "", entry.task.id, input)),
-        cache: "no-store",
-      });
-      if (response.status === 401) {
-        setStep({ name: "rejected" });
-      } else if (response.status === 422) {
-        setStep({ name: "insufficient", entry });
-      } else if (response.ok) {
-        setStep({ name: "result", entry, response: (await response.json()) as SimulationResponse });
-      } else {
-        setStep({ name: "save-error", entry, input });
+  // The one-time token keeps a capture from being saved twice, so sending again is always safe.
+  const submitCapture = useCallback(
+    async (entry: SimulationEntry, input: CaptureInput, afterNoAnswer = false) => {
+      setStep({ name: "saving", entry, input });
+      try {
+        const response = await fetch("/api/simulation/captures", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(encodeCapture(token.current ?? "", entry.task.id, input)),
+          cache: "no-store",
+        });
+        if (response.status === 401) {
+          // After a try with no answer, a used token most likely means that try was saved.
+          setStep(afterNoAnswer ? { name: "maybe-saved" } : { name: "rejected" });
+        } else if (response.status === 422) {
+          setStep({ name: "insufficient", entry });
+        } else if (response.ok) {
+          setStep({
+            name: "result",
+            entry,
+            response: (await response.json()) as SimulationResponse,
+          });
+        } else {
+          setStep({ name: "save-error", entry, input, noAnswer: false });
+        }
+      } catch {
+        setStep({ name: "save-error", entry, input, noAnswer: true });
       }
-    } catch {
-      setStep({ name: "save-error", entry, input });
-    }
-  }, []);
+    },
+    [],
+  );
 
   const handleError = useCallback((error: CaptureError) => {
     setStep((current) =>
@@ -118,7 +125,7 @@ export function SimulationFlow() {
 
   switch (step.name) {
     case "checking":
-      return <Centered>QR을 확인하고 있어요.</Centered>;
+      return <Centered label="QR을 확인하고 있어요." />;
 
     case "rejected":
       return (
@@ -206,8 +213,8 @@ export function SimulationFlow() {
     case "capture-error":
       return (
         <Screen>
-          <h1 className="text-title font-bold">촬영을 시작하지 못했어요</h1>
-          <InlineAlert tone="error">{CAPTURE_ERRORS[step.error]}</InlineAlert>
+          <h1 className="text-title font-bold">{CAPTURE_ERROR_TEXT[step.error].title}</h1>
+          <p className="text-body-lg">{CAPTURE_ERROR_TEXT[step.error].body}</p>
           <Footer>
             <Button
               size="worker-main"
@@ -220,15 +227,20 @@ export function SimulationFlow() {
       );
 
     case "saving":
-      return <Centered>결과를 계산하고 있어요.</Centered>;
+      return <Centered label="결과를 계산하고 있어요." />;
 
     case "save-error":
       return (
         <Screen>
           <h1 className="text-title font-bold">결과를 보내지 못했어요</h1>
-          <p className="text-body-lg">인터넷 연결을 확인한 뒤 다시 보내 주세요.</p>
+          <p className="text-body-lg">
+            인터넷 연결을 확인한 뒤 다시 보내 주세요. 새로 고치면 이번 촬영 결과가 사라져요.
+          </p>
           <Footer>
-            <Button size="worker-main" onClick={() => void submitCapture(step.entry, step.input)}>
+            <Button
+              size="worker-main"
+              onClick={() => void submitCapture(step.entry, step.input, step.noAnswer)}
+            >
               다시 보내기
             </Button>
             <Button
@@ -239,6 +251,16 @@ export function SimulationFlow() {
               다시 찍기
             </Button>
           </Footer>
+        </Screen>
+      );
+
+    case "maybe-saved":
+      return (
+        <Screen>
+          <h1 className="text-title font-bold">이미 저장되었을 수 있어요</h1>
+          <p className="text-body-lg">
+            콘솔에서 확인해 주세요. 앞서 보낸 결과가 저장되면서 시연 QR을 이미 썼을 수 있어요.
+          </p>
         </Screen>
       );
 
