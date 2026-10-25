@@ -61,12 +61,19 @@ export async function createRequest(optionId: string): Promise<ActionResult> {
   // RLS returns only options of the manager's own sites.
   const { data: option } = await session.supabase
     .from("improvement_options")
-    .select("id, workstation_id, title")
+    .select("id, workstation_id, title, workstations(site_id)")
     .eq("id", optionId)
-    .maybeSingle<{ id: string; workstation_id: string; title: string }>();
+    .maybeSingle<{
+      id: string;
+      workstation_id: string;
+      title: string;
+      workstations: { site_id: string };
+    }>();
   if (!option) {
     return { ok: false, message: NOT_FOUND };
   }
+  // The request's site goes into the address, so its page does not redirect once more.
+  const siteId = option.workstations.site_id;
   const { data, error } = await session.supabase
     .from("improvement_requests")
     .insert({ workstation_id: option.workstation_id, option_id: option.id, title: option.title })
@@ -80,14 +87,14 @@ export async function createRequest(optionId: string): Promise<ActionResult> {
       .in("status", ["draft", "open"])
       .maybeSingle<{ id: string }>();
     if (active) {
-      redirect(withDone(`${REQUESTS_PAGE}/${active.id}`, "request-exists"));
+      redirect(withDone(withSite(`${REQUESTS_PAGE}/${active.id}`, siteId), "request-exists"));
     }
   }
   if (error || !data) {
     return { ok: false, message: messageFor(error?.code) };
   }
   refresh(data.id);
-  redirect(withDone(`${REQUESTS_PAGE}/${data.id}`, "request-created"));
+  redirect(withDone(withSite(`${REQUESTS_PAGE}/${data.id}`, siteId), "request-created"));
 }
 
 export type SaveRequestState = {
@@ -130,7 +137,8 @@ export async function saveRequest(
       desired_by: parsed.values.desiredBy,
     })
     .eq("id", requestId)
-    .select("id");
+    .select("id, workstations(site_id)")
+    .returns<{ id: string; workstations: { site_id: string } }[]>();
   if (error) {
     return { message: messageFor(error.code), text };
   }
@@ -152,7 +160,8 @@ export async function saveRequest(
     };
   }
   refresh(requestId);
-  redirect(withDone(`${REQUESTS_PAGE}/${requestId}`, "request-opened"));
+  const page = withSite(`${REQUESTS_PAGE}/${requestId}`, data[0].workstations.site_id);
+  redirect(withDone(page, "request-opened"));
 }
 
 /** Deletes a draft; RLS refuses other states, which then match no row. */
