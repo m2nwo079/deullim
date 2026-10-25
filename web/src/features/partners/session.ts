@@ -2,7 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "../../lib/supabase/server";
-import { PARTNERS_LOGIN, partnersAccess } from "../console-auth/rules";
+import { CONSOLE_HOME, LOGIN, partnersAccess } from "../console-auth/rules";
 
 /**
  * Reads the signed-in user, their 들림 파트너스 access and company once per request. Call it from
@@ -14,7 +14,7 @@ export const getPartnerSession = cache(async () => {
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims.sub;
   if (!userId) {
-    redirect(PARTNERS_LOGIN);
+    redirect(LOGIN);
   }
 
   const [{ data: profile }, { data: member }] = await Promise.all([
@@ -31,6 +31,10 @@ export const getPartnerSession = cache(async () => {
       .maybeSingle<{ partner_id: string; partners: { company_name: string } }>(),
   ]);
 
+  // A manager who opens a partner address goes to the console instead of a dead end.
+  if (profile?.role === "manager") {
+    redirect(CONSOLE_HOME);
+  }
   const access = partnersAccess(profile?.role);
   return {
     supabase,

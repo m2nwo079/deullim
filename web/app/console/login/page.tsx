@@ -1,35 +1,10 @@
-import type { Metadata } from "next";
-import { PageFooter } from "../../../src/components/page-footer";
-import { LoginForm } from "../../../src/features/console-auth/login-form";
-import { safeConsolePath } from "../../../src/features/console-auth/rules";
-
-export const metadata: Metadata = {
-  title: "로그인 · 들림 콘솔",
-  robots: { index: false, follow: false },
-};
+import { redirect } from "next/navigation";
+import { LOGIN } from "../../../src/features/console-auth/rules";
 
 type LoginPageProps = { searchParams: Promise<{ next?: string | string[] }> };
 
-/** Console sign-in. There is no sign-up: operators create manager accounts (docs/auth.md). */
+/** Old console sign-in address: forwards to the one sign-in with next kept; /login checks it. */
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { next } = await searchParams;
-  const nextPath = safeConsolePath(typeof next === "string" ? next : undefined);
-
-  return (
-    <div className="flex min-h-screen flex-col bg-surface">
-      <main className="flex flex-1 items-center justify-center px-2 py-4">
-        <div className="flex w-full max-w-50 flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <p className="text-small font-bold text-nav">들림 콘솔</p>
-            <h1 className="text-title font-bold">로그인</h1>
-          </div>
-          <LoginForm next={nextPath} />
-          <p className="text-caption text-text-secondary">
-            계정은 운영 담당자가 만들어 드려요. 로그인이 안 되면 운영 담당자에게 문의해 주세요.
-          </p>
-        </div>
-      </main>
-      <PageFooter />
-    </div>
-  );
+  redirect(typeof next === "string" ? `${LOGIN}?next=${encodeURIComponent(next)}` : LOGIN);
 }

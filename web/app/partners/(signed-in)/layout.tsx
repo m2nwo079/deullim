@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Button } from "../../../src/components/button";
 import { InlineAlert } from "../../../src/components/inline-alert";
 import { PageFooter } from "../../../src/components/page-footer";
-import { signOutPartner } from "../../../src/features/console-auth/actions";
+import { signOut } from "../../../src/features/console-auth/actions";
 import { getPartnerSession } from "../../../src/features/partners/session";
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 function SignOutButton() {
   return (
-    <form action={signOutPartner}>
+    <form action={signOut}>
       <Button type="submit" variant="secondary">
         로그아웃
       </Button>
