@@ -10,12 +10,16 @@ import { CAPTURE_ERROR_TEXT, type CaptureError } from "../capture/capture-error"
 import { CAPTURE_SECONDS } from "../capture/sampling";
 import { percentText } from "../improvement-options/option-form";
 import { encodeCapture } from "../worker-submit/capture-payload";
+import { readError, sendOutcome } from "../worker-flow/send-outcome";
+import type { EntryOnLoad } from "../worker-flow/step-history";
+import { takeEntry, useStepHistory } from "../worker-flow/use-step-history";
 import { Centered, Footer, Screen } from "../worker-flow/worker-flow";
 import type { SimulationEntry, SimulationResponse } from "./simulation-entry";
 
 type Step =
   | { name: "checking" }
   | { name: "rejected" }
+  | { name: "lost" }
   | { name: "unavailable" }
   | { name: "guide"; entry: SimulationEntry }
   | { name: "capture"; entry: SimulationEntry }
@@ -28,36 +32,38 @@ type Step =
       /** The last try got no answer, so it may have been saved and used the token. */
       noAnswer: boolean;
     }
-  | { name: "maybe-saved" }
+  | { name: "maybe-saved"; entry: SimulationEntry }
   | { name: "insufficient"; entry: SimulationEntry }
   | { name: "result"; entry: SimulationEntry; response: SimulationResponse };
 
 const LIMITATION =
   "자세 변화만 반영돼요. 무게, 손잡이 같은 조건 변화는 반영되지 않고 단위작업에 입력된 값으로 계산해요.";
 
-/** Reads the token from the URL fragment once and removes it from the address bar. */
-function takeTokenFromHash(): string {
-  const token = window.location.hash.slice(1);
-  window.history.replaceState(null, "", window.location.pathname + window.location.search);
-  return token;
+/** The token is spent once a capture is saved, so back does not leave these screens. */
+const stayOnBack = (step: Step) => step.name === "result" || step.name === "maybe-saved";
+
+/** The top bar shows the workstation once the QR is checked; before that, the service name. */
+function titleOf(step: Step): string {
+  return "entry" in step ? step.entry.workstationName : "들림";
 }
 
 /**
  * Simulation capture from a one-time console QR: the improved posture of one task is captured,
  * and the server scores it and saves it as the option's effect. Like the worker flow, the browser
- * sends landmarks only, the token stays in memory only, and the result shown is the server's.
+ * sends landmarks only, the token stays in memory only, the result shown is the server's, and
+ * each step is a browser history entry.
  */
 export function SimulationFlow() {
-  const [step, setStep] = useState<Step>({ name: "checking" });
+  const { step, push, replace, back, current } = useStepHistory<Step>(
+    { name: "checking" },
+    stayOnBack,
+  );
   const [facing, setFacing] = useState<CameraFacing>("environment");
-  const token = useRef<string | null>(null);
+  const loaded = useRef<EntryOnLoad | null>(null);
+  const token = useRef("");
 
   const checkEntry = useCallback(async () => {
-    setStep({ name: "checking" });
-    if (!token.current) {
-      setStep({ name: "rejected" });
-      return;
-    }
+    replace({ name: "checking" });
     try {
       const response = await fetch("/api/simulation/entry", {
         method: "POST",
@@ -66,70 +72,89 @@ export function SimulationFlow() {
         cache: "no-store",
       });
       if (response.status === 401) {
-        setStep({ name: "rejected" });
+        replace({ name: "rejected" });
       } else if (!response.ok) {
-        setStep({ name: "unavailable" });
+        replace({ name: "unavailable" });
       } else {
-        setStep({ name: "guide", entry: (await response.json()) as SimulationEntry });
+        replace({ name: "guide", entry: (await response.json()) as SimulationEntry });
       }
     } catch {
-      setStep({ name: "unavailable" });
+      replace({ name: "unavailable" });
     }
-  }, []);
+  }, [replace]);
 
   useEffect(() => {
     // Effects run twice in development; the fragment is read only on the first run.
-    if (token.current === null) {
-      token.current = takeTokenFromHash();
+    if (loaded.current === null) {
+      loaded.current = takeEntry();
     }
-    void checkEntry();
-  }, [checkEntry]);
+    const entry = loaded.current;
+    if (entry.kind === "token") {
+      token.current = entry.token;
+      void checkEntry();
+    } else {
+      replace({ name: entry.kind === "lost" ? "lost" : "rejected" });
+    }
+  }, [checkEntry, replace]);
 
   // The one-time token keeps a capture from being saved twice, so sending again is always safe.
   const submitCapture = useCallback(
     async (entry: SimulationEntry, input: CaptureInput, afterNoAnswer = false) => {
-      setStep({ name: "saving", entry, input });
+      const saving: Step = { name: "saving", entry, input };
+      replace(saving);
+      let response: Response | null = null;
       try {
-        const response = await fetch("/api/simulation/captures", {
+        response = await fetch("/api/simulation/captures", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(encodeCapture(token.current ?? "", entry.task.id, input)),
+          body: JSON.stringify(encodeCapture(token.current, entry.task.id, input)),
           cache: "no-store",
         });
-        if (response.status === 401) {
-          // After a try with no answer, a used token most likely means that try was saved.
-          setStep(afterNoAnswer ? { name: "maybe-saved" } : { name: "rejected" });
-        } else if (response.status === 422) {
-          setStep({ name: "insufficient", entry });
-        } else if (response.ok) {
-          setStep({
-            name: "result",
-            entry,
-            response: (await response.json()) as SimulationResponse,
-          });
-        } else {
-          setStep({ name: "save-error", entry, input, noAnswer: false });
-        }
       } catch {
-        setStep({ name: "save-error", entry, input, noAnswer: true });
+        // No answer; sendOutcome decides from null.
+      }
+      const answer =
+        response === null
+          ? null
+          : { status: response.status, error: response.ok ? null : await readError(response) };
+      // Went back while waiting: the answer no longer has a screen.
+      if (current() !== saving) {
+        return;
+      }
+      const outcome = sendOutcome("simulation", answer, afterNoAnswer);
+      if (response && outcome === "saved") {
+        replace({ name: "result", entry, response: (await response.json()) as SimulationResponse });
+      } else if (outcome === "maybe-saved") {
+        replace({ name: "maybe-saved", entry });
+      } else if (outcome === "rejected") {
+        replace({ name: "rejected" });
+      } else if (outcome === "insufficient") {
+        replace({ name: "insufficient", entry });
+      } else {
+        replace({ name: "save-error", entry, input, noAnswer: outcome === "retry-no-answer" });
       }
     },
-    [],
+    [current, replace],
   );
 
-  const handleError = useCallback((error: CaptureError) => {
-    setStep((current) =>
-      current.name === "capture" ? { ...current, name: "capture-error", error } : current,
-    );
-  }, []);
+  const handleError = useCallback(
+    (error: CaptureError) => {
+      const now = current();
+      if (now.name === "capture") {
+        replace({ ...now, name: "capture-error", error });
+      }
+    },
+    [current, replace],
+  );
 
+  const title = titleOf(step);
   switch (step.name) {
     case "checking":
-      return <Centered label="QR을 확인하고 있어요." />;
+      return <Centered title={title} label="QR을 확인하고 있어요." />;
 
     case "rejected":
       return (
-        <Screen>
+        <Screen title={title}>
           <h1 className="text-title font-bold">쓸 수 없는 시연 QR이에요</h1>
           <p className="text-body-lg">
             시연 QR은 15분 동안 한 번만 쓸 수 있어요. 콘솔에서 새 QR을 만들어 주세요.
@@ -137,9 +162,20 @@ export function SimulationFlow() {
         </Screen>
       );
 
+    case "lost":
+      return (
+        <Screen title={title}>
+          <h1 className="text-title font-bold">진행 내용이 사라졌어요</h1>
+          <p className="text-body-lg">
+            새로 고치면 QR 정보가 지워져요. 콘솔의 시연 QR을 다시 찍어 주세요. 저장 전이면 같은 QR을
+            15분 안에 다시 쓸 수 있어요.
+          </p>
+        </Screen>
+      );
+
     case "unavailable":
       return (
-        <Screen>
+        <Screen title={title}>
           <h1 className="text-title font-bold">지금은 연결할 수 없어요</h1>
           <p className="text-body-lg">잠시 후 다시 시도해 주세요.</p>
           <Footer>
@@ -152,11 +188,9 @@ export function SimulationFlow() {
 
     case "guide":
       return (
-        <Screen>
+        <Screen title={title}>
           <div className="flex flex-col gap-1">
-            <p className="text-small text-text-secondary">
-              {step.entry.workstationName} · {step.entry.task.name}
-            </p>
+            <p className="text-small text-text-secondary">{step.entry.task.name}</p>
             <h1 className="text-title font-bold">{step.entry.optionTitle} 시연 촬영</h1>
           </div>
           <ul className="flex list-disc flex-col gap-1 pl-3 text-body-lg">
@@ -183,7 +217,7 @@ export function SimulationFlow() {
             </Button>
           </div>
           <Footer>
-            <Button size="worker-main" onClick={() => setStep({ ...step, name: "capture" })}>
+            <Button size="worker-main" onClick={() => push({ ...step, name: "capture" })}>
               촬영 시작
             </Button>
           </Footer>
@@ -192,18 +226,14 @@ export function SimulationFlow() {
 
     case "capture":
       return (
-        <Screen>
+        <Screen title={title} onBack={back}>
           <CameraCaptureView
             facing={facing}
             onDone={(input) => void submitCapture(step.entry, input)}
             onError={handleError}
           />
           <Footer>
-            <Button
-              variant="secondary"
-              size="worker"
-              onClick={() => setStep({ ...step, name: "guide" })}
-            >
+            <Button variant="secondary" size="worker" onClick={back}>
               그만 찍기
             </Button>
           </Footer>
@@ -212,14 +242,11 @@ export function SimulationFlow() {
 
     case "capture-error":
       return (
-        <Screen>
+        <Screen title={title} onBack={back}>
           <h1 className="text-title font-bold">{CAPTURE_ERROR_TEXT[step.error].title}</h1>
           <p className="text-body-lg">{CAPTURE_ERROR_TEXT[step.error].body}</p>
           <Footer>
-            <Button
-              size="worker-main"
-              onClick={() => setStep({ name: "guide", entry: step.entry })}
-            >
+            <Button size="worker-main" onClick={back}>
               다시 시도
             </Button>
           </Footer>
@@ -227,11 +254,11 @@ export function SimulationFlow() {
       );
 
     case "saving":
-      return <Centered label="결과를 계산하고 있어요." />;
+      return <Centered title={title} label="결과를 계산하고 있어요." />;
 
     case "save-error":
       return (
-        <Screen>
+        <Screen title={title} onBack={back}>
           <h1 className="text-title font-bold">결과를 보내지 못했어요</h1>
           <p className="text-body-lg">
             인터넷 연결을 확인한 뒤 다시 보내 주세요. 새로 고치면 이번 촬영 결과가 사라져요.
@@ -243,11 +270,7 @@ export function SimulationFlow() {
             >
               다시 보내기
             </Button>
-            <Button
-              variant="secondary"
-              size="worker"
-              onClick={() => setStep({ name: "guide", entry: step.entry })}
-            >
+            <Button variant="secondary" size="worker" iconBefore="refresh" onClick={back}>
               다시 찍기
             </Button>
           </Footer>
@@ -256,7 +279,7 @@ export function SimulationFlow() {
 
     case "maybe-saved":
       return (
-        <Screen>
+        <Screen title={title}>
           <h1 className="text-title font-bold">이미 저장되었을 수 있어요</h1>
           <p className="text-body-lg">
             콘솔에서 확인해 주세요. 앞서 보낸 결과가 저장되면서 시연 QR을 이미 썼을 수 있어요.
@@ -266,17 +289,13 @@ export function SimulationFlow() {
 
     case "insufficient":
       return (
-        <Screen>
+        <Screen title={title} onBack={back}>
           <h1 className="text-title font-bold">자세가 잘 보이지 않았어요</h1>
           <p className="text-body-lg">
             머리부터 발끝까지 옆모습이 보이게 다시 찍어 주세요. 이번 촬영은 저장하지 않았어요.
           </p>
           <Footer>
-            <Button
-              size="worker-main"
-              iconBefore="refresh"
-              onClick={() => setStep({ name: "guide", entry: step.entry })}
-            >
+            <Button size="worker-main" iconBefore="refresh" onClick={back}>
               다시 찍기
             </Button>
           </Footer>
@@ -293,11 +312,12 @@ function Result({ entry, response }: { entry: SimulationEntry; response: Simulat
   const after = percentText(effect.expectedHighRiskRatio);
   const before =
     effect.currentHighRiskRatio === null ? null : percentText(effect.currentHighRiskRatio);
+  // No back: the one-time token is spent, so the capture cannot be taken again.
   return (
-    <Screen>
+    <Screen title={entry.workstationName}>
       <div className="flex flex-col gap-1">
         <p className="text-small text-text-secondary">
-          {entry.workstationName} · {entry.task.name} · {entry.optionTitle}
+          {entry.task.name} · {entry.optionTitle}
         </p>
         <h1 className="text-body-lg font-medium">개선 후 고위험 자세 비율</h1>
         <p className="flex items-baseline gap-1">

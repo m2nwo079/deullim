@@ -26,11 +26,13 @@ type PainReportFormProps = {
   token: string;
   onSent: (bodyParts: string[]) => void;
   onRejected: () => void;
-  onBack: () => void;
 };
 
-/** Anonymous pain report (preview: /preview/worker/pain). Values are codes; labels are Korean. */
-export function PainReportForm({ token, onSent, onRejected, onBack }: PainReportFormProps) {
+/**
+ * Anonymous pain report (preview: /preview/worker/pain). Values are codes; labels are Korean.
+ * It sits inside the flow's Screen, whose top bar goes back.
+ */
+export function PainReportForm({ token, onSent, onRejected }: PainReportFormProps) {
   const [fieldErrors, setFieldErrors] = useState<PainFieldErrors>({});
   const [sendError, setSendError] = useState<keyof typeof SEND_ERRORS | null>(null);
   const [sending, setSending] = useState(false);
@@ -78,7 +80,7 @@ export function PainReportForm({ token, onSent, onRejected, onBack }: PainReport
     <form
       onSubmit={(event) => void handleSubmit(event)}
       noValidate
-      className="flex flex-1 flex-col gap-4 px-3 pt-4 pb-[max(24px,env(safe-area-inset-bottom))]"
+      className="flex flex-1 flex-col gap-4"
     >
       <h1 className="sr-only">통증 신고</h1>
       <ChoiceChipGrid
@@ -107,15 +109,12 @@ export function PainReportForm({ token, onSent, onRejected, onBack }: PainReport
         <Button type="submit" size="worker-main" loading={sending}>
           신고 보내기
         </Button>
-        <Button variant="secondary" size="worker" disabled={sending} onClick={onBack}>
-          결과로 돌아가기
-        </Button>
       </div>
     </form>
   );
 }
 
-/** Sent screen (preview: /preview/worker/done) with the "들려요" empathy card. */
+/** Sent screen (preview: /preview/worker/done) with the "들려요" empathy card, inside Screen. */
 export function PainReportDone({
   bodyParts,
   onHome,
@@ -124,7 +123,7 @@ export function PainReportDone({
   onHome: () => void;
 }) {
   return (
-    <main className="flex flex-1 flex-col gap-2 px-3 pt-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+    <>
       <h1 className="sr-only">신고 완료</h1>
       <EmpathyCard title="들려요">
         {bodyPartLabels(bodyParts)} 통증을 관리자에게 전했어요. 같은 공정 신고와 묶여 보여서 누가
@@ -135,6 +134,6 @@ export function PainReportDone({
           처음으로
         </Button>
       </div>
-    </main>
+    </>
   );
 }
