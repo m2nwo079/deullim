@@ -1398,7 +1398,7 @@ select
          from public.quotes q join demo_requests r on r.id = q.request_id where r.status = 'open')),
   pg_temp.keep('accepted_quote_applied', (
     select count(*) = 1 and bool_and(r.option_cost = q.price and r.option_quote_id = q.id
-      and p.company_name = '합성 설비 업체' and q.updated_at = r.closed_at)
+      and p.company_name = '합성 설비 업체' and q.updated_at = q.created_at)
     from public.quotes q
     join demo_requests r on r.id = q.request_id
     join public.partners p on p.id = q.partner_id
@@ -1445,4 +1445,142 @@ select
   pg_temp.ok('accepted_quote_applied') as accepted_quote_applied,
   pg_temp.ok('demo_partners') as demo_partners,
   pg_temp.ok('partner_view') as partner_view;
+rollback;
+
+-- 19. Quote update times (migration 20261031000001). Run this block on its own, from the check
+--     below to rollback, after loading the demo data and linking the partner account
+--     (link-accounts.sql). updated_at moves only when price, lead_time_days or note really
+--     change; status changes, accept_quote and close_request keep it, and the request's
+--     closed_at holds the acceptance time.
+--     Expected: every column is true.
+begin;
+-- BEGIN GENERATED: site name for block 19
+select set_config('demo.site_name', '시연 공장', true);
+-- END GENERATED: site name for block 19
+do $$
+begin
+  if not exists (select 1 from public.sites where name = current_setting('demo.site_name')) then
+    raise exception 'load demo-data.sql before running block 19';
+  end if;
+  if not exists (select 1 from public.partner_members m join public.partners p on p.id = m.partner_id
+                 where p.company_name = '합성 설비 업체') then
+    raise exception 'link the partner account (link-accounts.sql) before running block 19';
+  end if;
+end;
+$$;
+
+create function pg_temp.v(name text) returns uuid
+language sql
+as $$ select current_setting('verify.' || name)::uuid $$;
+
+create function pg_temp.keep(name text, ok boolean) returns void
+language sql
+as $$ select set_config('verify.ok_' || name, coalesce(ok, false)::text, true) $$;
+
+create function pg_temp.ok(name text) returns boolean
+language sql
+as $$ select current_setting('verify.ok_' || name)::boolean $$;
+
+create function pg_temp.option_id(p_site text, p_title text) returns uuid
+language sql
+as $$
+  select o.id from public.improvement_options o
+  join public.workstations w on w.id = o.workstation_id
+  join public.sites s on s.id = w.site_id
+  where s.name = p_site and o.title = p_title
+$$;
+
+-- Two open requests on options with no demo request, quoted two days ago.
+insert into public.partners (company_name) values ('verify company 19');
+select
+  set_config('verify.manager', (select m.profile_id::text from public.site_members m
+    join public.sites s on s.id = m.site_id
+    join public.profiles p on p.id = m.profile_id
+    where s.name = current_setting('demo.site_name') and p.role = 'manager' limit 1), true),
+  set_config('verify.partner', (select id::text from public.partners
+    where company_name = '합성 설비 업체'), true),
+  set_config('verify.other_partner', (select id::text from public.partners
+    where company_name = 'verify company 19'), true);
+insert into public.improvement_requests
+  (workstation_id, option_id, title, status, opened_at, created_by)
+select o.workstation_id, o.id, v.title, 'open', now(), pg_temp.v('manager')
+from (values ('리프트 테이블', 'verify accept'), ('공구 밸런서', 'verify close')) as v (option, title)
+join public.improvement_options o
+  on o.id = pg_temp.option_id(current_setting('demo.site_name'), v.option);
+select
+  set_config('verify.accept', (select id::text from public.improvement_requests
+    where title = 'verify accept'), true),
+  set_config('verify.close', (select id::text from public.improvement_requests
+    where title = 'verify close'), true);
+insert into public.quotes
+  (request_id, partner_id, price, lead_time_days, note, created_at, updated_at)
+values
+  (pg_temp.v('accept'), pg_temp.v('partner'), 1000000, 10, null,
+    now() - interval '2 days', now() - interval '2 days'),
+  (pg_temp.v('accept'), pg_temp.v('other_partner'), 1200000, 12, 'same note',
+    now() - interval '2 days', now() - interval '2 days'),
+  (pg_temp.v('close'), pg_temp.v('partner'), 900000, 9, null,
+    now() - interval '2 days', now() - interval '2 days');
+select
+  set_config('verify.q_accepted', (select id::text from public.quotes
+    where request_id = pg_temp.v('accept') and partner_id = pg_temp.v('partner')), true),
+  set_config('verify.q_other', (select id::text from public.quotes
+    where request_id = pg_temp.v('accept') and partner_id = pg_temp.v('other_partner')), true),
+  set_config('verify.q_closed', (select id::text from public.quotes
+    where request_id = pg_temp.v('close')), true);
+
+-- Without a real change of the three columns, updated_at stays.
+update public.quotes set status = 'rejected' where id = pg_temp.v('q_closed');
+update public.quotes set status = 'submitted' where id = pg_temp.v('q_closed');
+update public.quotes set note = 'same note', price = 1200000 where id = pg_temp.v('q_other');
+select
+  pg_temp.keep('status_change_keeps', (select updated_at = now() - interval '2 days'
+    from public.quotes where id = pg_temp.v('q_closed'))),
+  pg_temp.keep('same_values_keep', (select updated_at = now() - interval '2 days'
+    from public.quotes where id = pg_temp.v('q_other')));
+
+-- A note set from null, or a new price, moves it.
+update public.quotes set note = 'verify note' where id = pg_temp.v('q_accepted');
+update public.quotes set price = 950000 where id = pg_temp.v('q_closed');
+select pg_temp.keep('partner_change_moves', (
+  select bool_and(updated_at > now() - interval '2 days') from public.quotes
+  where id in (pg_temp.v('q_accepted'), pg_temp.v('q_closed'))));
+
+-- Accepting and closing, as the manager, keep every quote's time.
+create temp table seen on commit drop as
+select id, updated_at from public.quotes
+where request_id in (pg_temp.v('accept'), pg_temp.v('close'));
+-- authenticated cannot read the temp table, so the time the manager saw is passed on, as in
+-- block 17.
+select set_config('verify.q_accepted_seen_at',
+  (select updated_at::text from pg_temp.seen where id = pg_temp.v('q_accepted')), true);
+select set_config('request.jwt.claims',
+  json_build_object('sub', pg_temp.v('manager'), 'role', 'authenticated')::text, true);
+set local role authenticated;
+select public.accept_quote(pg_temp.v('q_accepted'), 1000000,
+  current_setting('verify.q_accepted_seen_at')::timestamptz);
+select public.close_request(pg_temp.v('close'));
+reset role;
+select
+  pg_temp.keep('accept_keeps', (
+    select bool_and(q.updated_at = s.updated_at)
+      and array_agg(q.status order by q.price) = array['accepted', 'rejected']
+    from public.quotes q join pg_temp.seen s on s.id = q.id
+    where q.request_id = pg_temp.v('accept'))),
+  pg_temp.keep('close_keeps', (
+    select q.updated_at = s.updated_at and q.status = 'rejected'
+    from public.quotes q join pg_temp.seen s on s.id = q.id
+    where q.id = pg_temp.v('q_closed'))),
+  pg_temp.keep('closed_at_set', (
+    select count(*) = 2 and bool_and(status = 'closed' and closed_at is not null)
+    from public.improvement_requests
+    where id in (pg_temp.v('accept'), pg_temp.v('close'))));
+
+select
+  pg_temp.ok('status_change_keeps') as status_change_keeps,
+  pg_temp.ok('same_values_keep') as same_values_keep,
+  pg_temp.ok('partner_change_moves') as partner_change_moves,
+  pg_temp.ok('accept_keeps') as accept_keeps,
+  pg_temp.ok('close_keeps') as close_keeps,
+  pg_temp.ok('closed_at_set') as closed_at_set;
 rollback;

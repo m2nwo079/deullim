@@ -268,15 +268,15 @@ cross join lateral (
   limit 1
 ) as m;
 
--- Quotes. On a closed request each quote was last changed when the request closed, as
--- close_request and accept_quote do; on an open one, when it was submitted.
+-- Quotes. No company changed its quote after submitting it, so updated_at is the submission
+-- time; accepting or closing does not move it (migration 20261031000001).
 insert into public.quotes (
   request_id, partner_id, price, lead_time_days, note, status, created_at, updated_at
 )
 select r.id, p.id, v.price, v.lead_time_days, v.note,
   case when r.status = 'open' then 'submitted' when v.accepted then 'accepted' else 'rejected' end,
   now() - make_interval(days => v.submitted_days_ago),
-  coalesce(r.closed_at, now() - make_interval(days => v.submitted_days_ago))
+  now() - make_interval(days => v.submitted_days_ago)
 from (values
   ('WLD-01', '자동 용접 지그', '가람설비(가상)', 4500000, 30, '설치와 시운전 포함, 무상 보증 1년', false, 4),
   ('WLD-01', '자동 용접 지그', '누리자동화(가상)', 5200000, 21, '설치 포함', false, 3),
