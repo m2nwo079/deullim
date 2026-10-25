@@ -27,6 +27,34 @@ export function formatHours(hours: number): string {
   return (Math.round(hours * 10) / 10 || 0).toLocaleString("ko-KR");
 }
 
+/** Differences this small are float noise, as in plan-compare.ts. */
+const DIFF_EPSILON = 1e-9;
+
+/**
+ * The change from before to after as shown: the difference of the two values rounded to one
+ * decimal (as formatHours shows them), so "27.4 → 37.1" always reads "+9.7". When both round
+ * to the same value but really differ, it reads "0.1 미만 증가" or "0.1 미만 감소" so a change
+ * never looks like none; below says so, for screens that drop the unit after such words.
+ */
+export function formatHoursDiff(before: number, after: number): { text: string; below: boolean } {
+  // Whole tenths, so the subtraction itself adds no float error.
+  const tenths = Math.round(after * 10) - Math.round(before * 10);
+  if (tenths !== 0) {
+    return { text: `${tenths > 0 ? "+" : "−"}${formatHours(Math.abs(tenths) / 10)}`, below: false };
+  }
+  const diff = after - before;
+  if (Math.abs(diff) <= DIFF_EPSILON) {
+    return { text: "0", below: false };
+  }
+  return { text: diff > 0 ? "0.1 미만 증가" : "0.1 미만 감소", below: true };
+}
+
+/** Note after a row's new reduction when the change is too small to show: "(0.1 미만 감소)". */
+export function smallChangeNote(before: number, after: number): string | null {
+  const diff = formatHoursDiff(before, after);
+  return diff.below ? `(${diff.text})` : null;
+}
+
 /**
  * At most maxPoints points, keeping the first and the last. The curve never decreases, so the
  * last point of each bucket is also its highest.

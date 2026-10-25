@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   downsampleCurve,
   formatHours,
+  formatHoursDiff,
   formatWon,
   niceTicks,
   pointAtBudget,
+  smallChangeNote,
   stepPath,
   type CurvePoint,
 } from "./curve";
@@ -35,6 +37,51 @@ describe("formatHours", () => {
     [-0.04, "0"],
   ])("%d -> %s", (hours, text) => {
     expect(formatHours(hours)).toBe(text);
+  });
+});
+
+describe("formatHoursDiff", () => {
+  it.each([
+    [10, 10, "0", false],
+    [10, 10 + 1e-12, "0", false],
+    [10, 10 - 1e-12, "0", false],
+    [10, 10.01, "0.1 미만 증가", true],
+    [10.04, 10, "0.1 미만 감소", true],
+    // Both round to 10.0 although they are 0.09 apart.
+    [9.96, 10.04, "0.1 미만 증가", true],
+    // 10.04 and 10.06 are 0.02 apart but show as 10 and 10.1.
+    [10.04, 10.06, "+0.1", false],
+    [34.52, 37.11, "+2.6", false],
+    [37.11, 34.52, "−2.6", false],
+    [1234.5, 0, "−1,234.5", false],
+  ])("%d -> %d is %s", (before, after, text, below) => {
+    expect(formatHoursDiff(before, after)).toEqual({ text, below });
+  });
+
+  // 37.11 − 27.36 is 9.75 exactly at a rounding edge; the shown values decide.
+  it.each([
+    [27.355, 37.105, "+9.7"],
+    [27.364, 37.114, "+9.7"],
+    [27.36, 37.11, "+9.7"],
+    [27.34, 37.16, "+9.9"],
+  ])("follows the shown values for %d -> %d: %s", (before, after, text) => {
+    expect(formatHoursDiff(before, after).text).toBe(text);
+    expect(Number(text.slice(1))).toBeCloseTo(
+      Number(formatHours(after)) - Number(formatHours(before)),
+      9,
+    );
+  });
+});
+
+describe("smallChangeNote", () => {
+  it.each([
+    [10, 10.01, "(0.1 미만 증가)"],
+    [10.01, 10, "(0.1 미만 감소)"],
+    [10, 10, null],
+    [10, 10.2, null],
+    [10.2, 10, null],
+  ])("%d -> %d: %s", (before, after, note) => {
+    expect(smallChangeNote(before, after)).toBe(note);
   });
 });
 

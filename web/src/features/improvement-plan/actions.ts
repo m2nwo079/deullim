@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createAdminClient } from "../../lib/supabase/admin";
 import { getConsoleSession } from "../console-auth/session";
 import { withDone } from "../console-shell/done";
+import { withSite } from "../console-shell/nav";
 import { isUuid, parseCost } from "../improvement-options/option-form";
 import { loadPlanSource } from "./load-plan-source";
 import { computePlanView, type PlanView } from "./plan-input";
@@ -98,5 +99,7 @@ export async function savePlan(
   const changed =
     view.totalCost !== shown.totalCost ||
     Math.abs(view.totalReduction - shown.totalReduction) > 1e-9;
-  redirect(withDone(`${PLANS_PAGE}/${data}`, changed ? "plan-saved-recalculated" : "plan-saved"));
+  // siteId was checked against the manager's sites above; the saved plan opens on it directly.
+  const page = withSite(`${PLANS_PAGE}/${data}`, siteId);
+  redirect(withDone(page, changed ? "plan-saved-recalculated" : "plan-saved"));
 }

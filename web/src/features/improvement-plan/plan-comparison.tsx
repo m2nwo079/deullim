@@ -3,7 +3,7 @@
 import { DataTable, type Column } from "../../components/data-table";
 import { Select } from "../../components/select";
 import { StatStrip } from "../../components/stat-strip";
-import { formatHours, formatWon } from "./curve";
+import { formatHours, formatHoursDiff, formatWon, smallChangeNote } from "./curve";
 import {
   comparePlans,
   type ComparedPlan,
@@ -25,15 +25,22 @@ const STATUS_LABEL: Record<ComparisonStatus, string> = {
 const signed = (value: number, format: (n: number) => string) =>
   value === 0 ? format(0) : `${value > 0 ? "+" : "−"}${format(Math.abs(value))}`;
 
-const cell = (side: ComparisonRow["saved"]) =>
-  side === null ? (
-    <span className="text-text-secondary">—</span>
-  ) : (
+/** With other, a change too small for one decimal is spelled out after the reduction. */
+const cell = (side: ComparisonRow["saved"], other: ComparisonRow["saved"] = null) => {
+  if (side === null) {
+    return <span className="text-text-secondary">—</span>;
+  }
+  const note = other === null ? null : smallChangeNote(other.reduction, side.reduction);
+  return (
     <span className="flex flex-col">
       <span>{formatWon(side.cost)}</span>
-      <span className="text-caption text-text-secondary">{formatHours(side.reduction)}</span>
+      <span className="text-caption text-text-secondary">
+        {formatHours(side.reduction)}
+        {note ? ` ${note}` : null}
+      </span>
     </span>
   );
+};
 
 const COLUMNS: Column<ComparisonRow>[] = [
   {
@@ -48,7 +55,12 @@ const COLUMNS: Column<ComparisonRow>[] = [
   { key: "workstation", header: "공정", render: (row) => row.workstationName },
   { key: "option", header: "개선안", render: (row) => row.optionTitle },
   { key: "saved", header: "저장된 계획", numeric: true, render: (row) => cell(row.saved) },
-  { key: "current", header: "새 계산", numeric: true, render: (row) => cell(row.current) },
+  {
+    key: "current",
+    header: "새 계산",
+    numeric: true,
+    render: (row) => cell(row.current, row.saved),
+  },
 ];
 
 /**
@@ -98,6 +110,7 @@ function ComparisonBody({
   onCompareChange: (id: string) => void;
 }) {
   const result = comparePlans(saved, current);
+  const reductionDiff = formatHoursDiff(saved.totalReduction, current.totalReduction);
   return (
     <>
       <div className="max-w-40">
@@ -121,8 +134,9 @@ function ComparisonBody({
           {
             icon: "check-circle",
             label: "총 감소량 차이",
-            value: signed(result.reductionDiff, formatHours),
-            unit: "사람 · 시간",
+            value: reductionDiff.text,
+            // "0.1 미만 증가 사람 · 시간" reads wrong; the helper line keeps the unit's numbers.
+            unit: reductionDiff.below ? undefined : "사람 · 시간",
             helper: `${formatHours(saved.totalReduction)} → ${formatHours(current.totalReduction)}`,
           },
           {

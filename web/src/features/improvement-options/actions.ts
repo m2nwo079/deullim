@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getConsoleSession } from "../console-auth/session";
 import { withDone } from "../console-shell/done";
+import { withSite } from "../console-shell/nav";
 import {
   IMPROVEMENTS_PAGE,
   isUuid,
@@ -47,16 +48,20 @@ export async function saveOption(_prev: SaveOptionState, form: FormData): Promis
     return { message: NOT_FOUND };
   }
 
-  // Effect fields are read only for tasks of this workstation that the manager can see.
-  const { data: tasks, error: taskError } = await session.supabase
-    .from("tasks")
-    .select("id")
-    .eq("workstation_id", workstationId)
-    .returns<{ id: string }[]>();
-  if (taskError) {
+  // Effect fields are read only for tasks of this workstation that the manager can see; its site
+  // goes into the address after saving, so the page does not send the browser round once more.
+  const { data: workstation, error: workstationError } = await session.supabase
+    .from("workstations")
+    .select("site_id, tasks(id)")
+    .eq("id", workstationId)
+    .maybeSingle<{ site_id: string; tasks: { id: string }[] }>();
+  if (workstationError) {
     return { message: FAILED };
   }
-  const taskIds = tasks.map((t) => t.id);
+  if (!workstation) {
+    return { message: NOT_FOUND };
+  }
+  const taskIds = workstation.tasks.map((t) => t.id);
   const text = optionText(form, taskIds);
   const parsed = parseOptionForm(text, taskIds);
   if (!parsed.ok) {
@@ -87,8 +92,7 @@ export async function saveOption(_prev: SaveOptionState, form: FormData): Promis
   const page = `${IMPROVEMENTS_PAGE}/${workstationId}`;
   revalidatePath(IMPROVEMENTS_PAGE);
   revalidatePath(page);
-  // The workstation page adds its own ?site= and keeps this code.
-  redirect(withDone(page, isNew ? "option-added" : "option-saved"));
+  redirect(withDone(withSite(page, workstation.site_id), isNew ? "option-added" : "option-saved"));
 }
 
 export type DeleteOptionResult = { ok: true } | { ok: false; message: string };
