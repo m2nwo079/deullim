@@ -4,8 +4,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   ConsoleDrawer,
-  ConsoleHomeLink,
   ConsoleSidebar,
+  ServiceHomeLink,
   type NavGroup,
 } from "../../components/console-sidebar";
 import { PageFooter } from "../../components/page-footer";
@@ -73,7 +73,7 @@ export function ConsoleShell({ sites, displayName, signOut, children }: ConsoleS
                 top={<div className="px-2 sm:hidden">{siteSelect("site-drawer", "top")}</div>}
               />
               <span className="lg:hidden">
-                <ConsoleHomeLink {...home} />
+                <ServiceHomeLink {...home} />
               </span>
             </div>
             <div className="flex items-center gap-2">

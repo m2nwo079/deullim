@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useId, useRef, useState, type ReactNode } from "react";
 import { IconButton } from "./icon-button";
 import { Icon, type IconName } from "./icons";
@@ -19,15 +20,28 @@ type ConsoleSidebarProps = {
 
 export type ConsoleHome = { href: string; current: boolean };
 
-/** "들림 콘솔" as a link to the overview, in the sidebar and the narrow header. */
-export function ConsoleHomeLink({ href, current }: ConsoleHome) {
+/**
+ * The service name in a header as a link to its first screen: "들림 콘솔" to the overview,
+ * "들림 파트너스" to /partners. current marks it; without it, it is the screen at href.
+ * No hover underline (docs/components.md "이동"); the focus ring stays.
+ */
+export function ServiceHomeLink({
+  href,
+  current,
+  name = "들림 콘솔",
+}: {
+  href: string;
+  current?: boolean;
+  name?: string;
+}) {
+  const pathname = usePathname();
   return (
     <Link
       href={href}
-      aria-current={current ? "page" : undefined}
-      className="rounded-control px-2 text-title-sm font-bold text-nav underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
+      aria-current={(current ?? pathname === href) ? "page" : undefined}
+      className="rounded-control px-2 text-title-sm font-bold text-nav focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"
     >
-      들림 콘솔
+      {name}
     </Link>
   );
 }
@@ -83,7 +97,7 @@ export function ConsoleSidebar({ groups, status, user, home }: ConsoleSidebarPro
     >
       {home ? (
         <p className="pt-1">
-          <ConsoleHomeLink {...home} />
+          <ServiceHomeLink {...home} />
         </p>
       ) : (
         <p className="px-2 pt-1 text-title-sm font-bold text-nav">들림 콘솔</p>
