@@ -410,15 +410,15 @@ cross join lateral (
   limit 1
 ) as m;
 
--- Quotes. On a closed request each quote was last changed when the request closed, as
--- close_request and accept_quote do; on an open one, when it was submitted.
+-- Quotes. No company changed its quote after submitting it, so updated_at is the submission
+-- time; accepting or closing does not move it (migration 20261031000001).
 insert into public.quotes (
   request_id, partner_id, price, lead_time_days, note, status, created_at, updated_at
 )
 select r.id, p.id, v.price, v.lead_time_days, v.note,
   case when r.status = 'open' then 'submitted' when v.accepted then 'accepted' else 'rejected' end,
   now() - make_interval(days => v.submitted_days_ago),
-  coalesce(r.closed_at, now() - make_interval(days => v.submitted_days_ago))
+  now() - make_interval(days => v.submitted_days_ago)
 from (values
 ${rows(
   extra.requests.flatMap((r) =>
@@ -586,6 +586,7 @@ describe("demo data (tests/fixtures/demo_data_v1.json)", () => {
       ["verify.sql", "site name for block 16"],
       ["verify.sql", "site name for block 17"],
       ["verify.sql", "site name for block 18"],
+      ["verify.sql", "site name for block 19"],
     ]) {
       expect(generatedSection(file, name, siteNameSql), `${file}: ${name}`).toBe(
         `${siteNameSql}\n`,

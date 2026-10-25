@@ -54,7 +54,12 @@ type OptionRow = {
   title: string;
   description: string | null;
   cost: number;
-  quotes: { updated_at: string; partners: { company_name: string } | null } | null;
+  // accept_quote closes the request in the same transaction, so an accepted quote's request
+  // always has closed_at.
+  quotes: {
+    partners: { company_name: string } | null;
+    improvement_requests: { closed_at: string };
+  } | null;
   improvement_requests: { id: string; status: string }[];
   option_effects: {
     task_id: string;
@@ -101,7 +106,7 @@ export async function loadWorkstationOptions(
     supabase
       .from("improvement_options")
       .select(
-        "id, workstation_id, title, description, cost, quotes!quote_id(updated_at, partners(company_name)), improvement_requests!option_id(id, status), option_effects(task_id, expected_high_risk_ratio, source, simulation_captures!capture_id(created_at))",
+        "id, workstation_id, title, description, cost, quotes!quote_id(partners(company_name), improvement_requests!request_id(closed_at)), improvement_requests!option_id(id, status), option_effects(task_id, expected_high_risk_ratio, source, simulation_captures!capture_id(created_at))",
       )
       .in("workstation_id", ids)
       .order("title")
@@ -157,11 +162,12 @@ export async function loadWorkstationOptions(
           cost: Number(o.cost),
           effects,
           reduction,
-          // Accepting sets the quote's status, so its last update is the acceptance time.
+          // The acceptance time is when its request closed; the quote's updated_at is the
+          // company's last change (migration 20261031000001).
           quote: o.quotes
             ? {
                 companyName: o.quotes.partners?.company_name ?? "",
-                acceptedAt: o.quotes.updated_at,
+                acceptedAt: o.quotes.improvement_requests.closed_at,
               }
             : null,
           activeRequestId:
