@@ -160,6 +160,7 @@ base는 막대·점·채움 전용이다. 글자는 strong을 쓰고, 배경은 
 - 위험도 값의 변화는 흔들림이나 깜빡임 없이 부드럽게만 표현한다.
 - prefers-reduced-motion이 켜져 있으면 opacity 변화만 남긴다.
 - 대표 모션: "들려요" 공감 카드가 scale 0.96 → 1, opacity 0 → 1로 motion-emphasis 동안 한 번 나타난다.
+- 진입 화면 `/`: 처음 열 때 한 번만 머리 문구 → 제품 미리보기 → 사용 흐름 순서로, 각각 아래에서 8px 올라오며 opacity 0 → 1로 motion-base 동안 나타난다. 순서 사이 간격은 motion-fast. 반복하지 않는다.
 - 진동 피드백은 iOS Safari 지원 여부를 확인한 뒤 정한다.
 
 ## 4.4 레이아웃 폭
