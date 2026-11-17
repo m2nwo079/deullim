@@ -190,6 +190,43 @@ body {
   animation: empathy-enter var(--motion-emphasis) cubic-bezier(0, 0, 0, 1) both;
 }
 
+/* Modal and popover entrance (docs/design-tokens.md 4.3): fade in as they open, the modal over
+   motion-slow and lists and menus over motion-base. Closing stays instant. Browsers without
+   @starting-style show them at once, as before. */
+dialog[open],
+dialog[open]::backdrop {
+  transition:
+    opacity var(--motion-slow) cubic-bezier(0, 0, 0, 1),
+    translate var(--motion-slow) cubic-bezier(0, 0, 0, 1);
+}
+
+[popover]:popover-open {
+  transition:
+    opacity var(--motion-base) cubic-bezier(0, 0, 0, 1),
+    translate var(--motion-base) cubic-bezier(0, 0, 0, 1);
+}
+
+@starting-style {
+  dialog[open],
+  dialog[open]::backdrop,
+  [popover]:popover-open {
+    opacity: 0;
+  }
+}
+
+/* The short rise is left out under reduced motion, which keeps only the fade. */
+@media (prefers-reduced-motion: no-preference) {
+  @starting-style {
+    dialog[open] {
+      translate: 0 8px;
+    }
+
+    [popover]:popover-open {
+      translate: 0 -8px;
+    }
+  }
+}
+
 /* Printing (QR sheets): no page margin, so Chrome has no room for its header and footer
    (date, title, URL, page number). The printed content sets its own inner padding. */
 @page {

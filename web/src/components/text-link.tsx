@@ -20,7 +20,7 @@ export function TextLink({ href, children, iconBefore, iconAfter, stretched }: T
     <Link
       href={href}
       data-row-link={stretched || undefined}
-      className={`inline-flex items-center gap-1 rounded-control font-medium text-primary underline-offset-4 hover:underline focus-visible:underline ${
+      className={`inline-flex items-center gap-1 rounded-control font-medium text-primary underline decoration-transparent underline-offset-4 transition-colors duration-(--motion-fast) ease-standard hover:decoration-current focus-visible:decoration-current ${
         stretched
           ? "after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
           : "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring"

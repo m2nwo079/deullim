@@ -46,7 +46,7 @@ type DataTableProps<Row> = {
 };
 
 const ROW_LINK =
-  "relative hover:bg-surface-muted has-[a[data-row-link]:focus-visible]:outline-2 has-[a[data-row-link]:focus-visible]:-outline-offset-2 has-[a[data-row-link]:focus-visible]:outline-focus-ring";
+  "relative transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-muted has-[a[data-row-link]:focus-visible]:outline-2 has-[a[data-row-link]:focus-visible]:-outline-offset-2 has-[a[data-row-link]:focus-visible]:outline-focus-ring";
 
 export function DataTable<Row>({
   caption,
@@ -144,8 +144,8 @@ function rowClass<Row>(selection: RowSelection<Row>, row: Row): string | undefin
     return undefined;
   }
   return selection.value(row) === selection.selected
-    ? "cursor-pointer bg-surface-muted"
-    : "cursor-pointer hover:bg-surface-muted";
+    ? "cursor-pointer bg-surface-muted transition-colors duration-(--motion-fast) ease-standard"
+    : "cursor-pointer transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-muted";
 }
 
 function RadioCell<Row>({ selection, row }: { selection: RowSelection<Row>; row: Row }) {

@@ -87,7 +87,7 @@ export function Popover({ label, children }: PopoverProps) {
 }
 
 const ITEM =
-  "flex h-5 w-full items-center gap-1 rounded-control px-2 text-left text-small whitespace-nowrap text-text hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring active:bg-surface-sunken disabled:cursor-not-allowed disabled:text-text-disabled";
+  "flex h-5 w-full items-center gap-1 rounded-control px-2 text-left text-small whitespace-nowrap text-text transition-colors duration-(--motion-fast) ease-standard hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring active:bg-surface-sunken disabled:cursor-not-allowed disabled:text-text-disabled";
 
 /** One menu entry: a button for an action here, or a link (href) for another screen. */
 export function PopoverItem({

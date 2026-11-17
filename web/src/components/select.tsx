@@ -177,7 +177,7 @@ export function Select({
         disabled={disabled}
         onKeyDown={handleKey}
         onClick={() => (open ? hide() : show(Math.max(selected, 0)))}
-        className="flex h-5 w-full items-center justify-between gap-1 rounded-control border border-border-strong bg-surface px-2 text-left text-body focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-text-disabled"
+        className="flex h-5 w-full items-center justify-between gap-1 rounded-control border border-border-strong bg-surface px-2 text-left text-body transition-colors duration-(--motion-fast) ease-standard focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring enabled:hover:border-text-secondary disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-text-disabled"
       >
         <span className="truncate">{options[selected]?.label ?? ""}</span>
         <Icon name="chevron-down" size={16} className="text-text-secondary" />
@@ -203,7 +203,7 @@ export function Select({
             onPointerDown={(event) => event.preventDefault()}
             onPointerEnter={() => setActive(index)}
             onClick={() => choose(index)}
-            className={`flex h-5 cursor-pointer items-center gap-1 rounded-control px-1 ${index === active ? "bg-surface-sunken" : ""} ${index === selected ? "font-bold" : ""}`}
+            className={`flex h-5 cursor-pointer items-center gap-1 rounded-control px-1 transition-colors duration-(--motion-fast) ease-standard ${index === active ? "bg-surface-sunken" : ""} ${index === selected ? "font-bold" : ""}`}
           >
             <span className="flex size-2 shrink-0 items-center text-primary">
               {index === selected ? <Icon name="check" size={16} /> : null}
