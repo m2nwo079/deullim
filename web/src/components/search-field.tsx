@@ -19,7 +19,7 @@ export function SearchField({ id, label, placeholder }: SearchFieldProps) {
           id={id}
           type="search"
           placeholder={placeholder}
-          className="h-5 w-full rounded-control border border-border-strong bg-surface pr-2 pl-5 text-small placeholder:text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:bg-surface-sunken disabled:text-text-disabled sm:w-30"
+          className="h-5 w-full rounded-control border border-border-strong bg-surface pr-2 pl-5 text-small transition-colors duration-(--motion-fast) ease-standard placeholder:text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring enabled:hover:border-text-secondary disabled:bg-surface-sunken disabled:text-text-disabled sm:w-30"
         />
       </div>
     </div>

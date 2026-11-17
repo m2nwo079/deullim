@@ -34,8 +34,8 @@ export function TextArea({
         rows={rows}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedByIds || undefined}
-        className={`w-full resize-y rounded-control border bg-surface px-2 py-1 text-body placeholder:text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:bg-surface-sunken disabled:text-text-disabled ${
-          error ? "border-text" : "border-border-strong"
+        className={`w-full resize-y rounded-control border bg-surface px-2 py-1 text-body transition-colors duration-(--motion-fast) ease-standard placeholder:text-text-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:bg-surface-sunken disabled:text-text-disabled ${
+          error ? "border-text" : "border-border-strong enabled:hover:border-text-secondary"
         }`}
         {...rest}
       />

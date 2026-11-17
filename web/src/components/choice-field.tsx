@@ -47,7 +47,7 @@ const SIZE = {
 // A row is the mark and the label with no box around it; the whole row is the press target.
 // Checked shows as a filled mark and bold text, focus as a ring outside the row.
 const ROW =
-  "-mx-1 flex h-full items-center gap-1 rounded-control px-1 peer-checked:font-bold peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus-ring";
+  "-mx-1 flex h-full items-center gap-1 rounded-control px-1 transition-colors duration-(--motion-fast) ease-standard peer-checked:font-bold peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus-ring";
 
 export function ChoiceField({
   type,
@@ -93,7 +93,7 @@ export function ChoiceField({
               className="peer sr-only"
             />
             <span
-              className={`${ROW} ${SIZE[size].row} ${disabled && !loading ? "cursor-not-allowed text-text-disabled" : "cursor-pointer text-text"}`}
+              className={`${ROW} ${SIZE[size].row} ${disabled && !loading ? "cursor-not-allowed text-text-disabled" : "cursor-pointer text-text hover:bg-surface-muted"}`}
             >
               <ChoiceMark type={type} size={SIZE[size].mark} />
               {label}
@@ -118,7 +118,7 @@ function ChoiceMark({ type, size }: { type: "radio" | "checkbox"; size: 16 | 20 
       width={size}
       height={size}
       viewBox="0 0 20 20"
-      className="shrink-0 text-text-secondary group-has-checked:text-primary group-has-disabled:text-text-disabled"
+      className="shrink-0 text-text-secondary transition-colors duration-(--motion-fast) ease-standard group-has-checked:text-primary group-has-disabled:text-text-disabled"
     >
       {type === "radio" ? (
         <>
@@ -128,7 +128,7 @@ function ChoiceMark({ type, size }: { type: "radio" | "checkbox"; size: 16 | 20 
             cy="10"
             r="4"
             fill="currentColor"
-            className="opacity-0 group-has-checked:opacity-100"
+            className="opacity-0 transition-opacity duration-(--motion-fast) ease-standard group-has-checked:opacity-100"
           />
         </>
       ) : (
@@ -141,7 +141,7 @@ function ChoiceMark({ type, size }: { type: "radio" | "checkbox"; size: 16 | 20 
             rx="3"
             stroke="currentColor"
             strokeWidth="2"
-            className="fill-transparent group-has-checked:fill-current"
+            className="fill-transparent transition-colors duration-(--motion-fast) ease-standard group-has-checked:fill-current"
           />
           <path
             d="M6 10.5l2.5 2.5L14 7.5"
@@ -149,7 +149,7 @@ function ChoiceMark({ type, size }: { type: "radio" | "checkbox"; size: 16 | 20 
             strokeWidth="2"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="stroke-on-primary opacity-0 group-has-checked:opacity-100"
+            className="stroke-on-primary opacity-0 transition-opacity duration-(--motion-fast) ease-standard group-has-checked:opacity-100"
           />
         </>
       )}
